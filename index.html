@@ -1,0 +1,995 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Anıttepe Rotaract Taslağı</title>
+<meta name="description" content="Ankara Anıttepe Rotaract Kulübü 1996'dan beri Ankara'da. 18–30 yaş arası gençlerle gönüllülük, liderlik ve dostluk. Toplantılar, projeler ve üyelik.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"NGO","name":"Ankara Anıttepe Rotaract Kulübü","alternateName":"Anıttepe Rotaract","url":"https://www.anitteperotaract.org/","logo":"https://www.anitteperotaract.org/assets/logo-cranberry.webp","email":"anitteperotaract1996@gmail.com","foundingDate":"1996-11","areaServed":"Ankara","sameAs":["https://www.instagram.com/anitteperotaract/","https://www.facebook.com/AnittepeRotaractKulubu/","https://www.linkedin.com/company/anittepe-rotaract/"],"parentOrganization":{"@type":"Organization","name":"Rotary International","url":"https://www.rotary.org"}}
+</script>
+<style>
+/* Layout: kızılcık hero → kayan şerit → sabitlenen yatay 30 yıl çizelgesi → sayaçlar → sürüklenebilir projeler → Rotary yılı çarkı → üyelik → kurul → haberler → iletişim. Tek cesur öğe: kaydırdıkça dönen Rotaract çarkı. */
+:root{
+  --cran:#D41367; --cran-deep:#A30C4D; --cran-soft:#FCE6EF; --on-cran:#FFFFFF;
+  --royal:#17458F; --gold:#F7A81B; --gold-soft:#FEF3DC;
+  --bg:#FFFFFF; --bg-2:#FBF6F8; --surface:#FFFFFF; --ink:#1E1420; --muted:#6E5F69; --line:#EFE3E9;
+  --ring-a:#F9DCE8; --ring-b:#F3C6D9;
+  --f:"Open Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --gl:max(16px, env(safe-area-inset-left, 0px)); --gr:max(16px, env(safe-area-inset-right, 0px));
+  --maxw:1200px; --hdr:68px;
+}
+/* Tek, aydınlık tema: gece modunda da açık kalır. */
+:root{--blush:#FFF4F8; --blush-2:#FDE4EE; --sky-soft:#EAF1FB; color-scheme:light}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:var(--hdr)}
+body{background:var(--bg);color:var(--ink);font-family:var(--f);font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:60;background:var(--blush)}
+a{color:inherit}
+h1,h2,h3{line-height:1.08;text-wrap:balance;margin:0;font-weight:800;letter-spacing:-.025em}
+h2{font-size:clamp(2rem,4.6vw,3.4rem)}
+h3{font-size:1.2rem;font-weight:700;letter-spacing:-.01em}
+p{margin:0}
+:focus-visible{outline:3px solid var(--gold);outline-offset:3px;border-radius:6px}
+.wrap{max-width:var(--maxw);margin:0 auto;padding-left:var(--gl);padding-right:var(--gr)}
+.band{padding-block:clamp(72px,10vw,128px)}
+.alt{background:var(--bg-2)}
+.lead{color:var(--muted);max-width:56ch;font-size:1.1rem}
+.sec-head{display:grid;gap:14px;margin-bottom:44px;max-width:780px}
+.kicker{color:var(--cran);font-weight:700;font-size:.95rem}
+.btn{display:inline-flex;align-items:center;gap:8px;font:700 1rem var(--f);padding:14px 24px;border-radius:999px;border:2px solid transparent;cursor:pointer;text-decoration:none;transition:transform .2s cubic-bezier(.2,.8,.2,1),background .2s,color .2s}
+.btn:hover{transform:translateY(-2px)}
+.btn:active{transform:scale(.97)}
+.btn-cran{background:var(--cran);color:var(--on-cran)}
+.btn-white{background:#fff;color:#A30C4D}
+.btn-line{border-color:currentColor;background:transparent}
+.tn{font-variant-numeric:tabular-nums}
+
+/* ---------- Logo crops ---------- */
+.lg{position:relative;aspect-ratio:1330/470;overflow:hidden;display:block}
+.lg img{position:absolute;max-width:none;width:150.38%;left:-38.72%;top:-6.38%;height:auto}
+.wh{position:relative;aspect-ratio:1;overflow:hidden;display:block}
+.wh img{position:absolute;max-width:none;width:470.6%;left:-336.5%;top:-15.3%;height:auto}
+.l-white{display:none}
+
+/* ---------- Progress + header ---------- */
+.progress{position:fixed;left:0;top:env(safe-area-inset-top,0px);height:3px;width:100%;transform-origin:0 50%;transform:scaleX(0);background:var(--gold);z-index:70}
+header.site{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;transition:background .35s,box-shadow .35s;background:var(--blush);color:var(--ink)}
+header.site.scrolled{background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(12px);color:var(--ink);box-shadow:0 1px 0 var(--line)}
+.hdr{display:flex;align-items:center;gap:20px;height:var(--hdr)}
+.brand{width:150px;flex:none}
+.brand .on-top{display:block}
+.brand .on-scroll{display:none}
+header.scrolled .brand .on-top{display:none}
+header.scrolled .brand .on-scroll{display:block}
+nav.main{display:flex;gap:2px;margin-left:auto}
+nav.main a{text-decoration:none;font-weight:600;font-size:.93rem;padding:8px 12px;border-radius:999px;opacity:.88}
+nav.main a:hover{opacity:1;background:color-mix(in srgb,currentColor 12%,transparent)}
+.hdr .btn{padding:10px 18px;font-size:.92rem}
+.menu-btn{display:none;background:none;border:2px solid currentColor;border-radius:10px;width:44px;height:40px;color:inherit;cursor:pointer;font-size:1.1rem}
+@media (max-width:1020px){
+  nav.main{display:none;position:absolute;left:0;right:0;top:var(--hdr);flex-direction:column;background:var(--bg);color:var(--ink);border-bottom:1px solid var(--line);padding:8px var(--gr) 16px var(--gl)}
+  nav.main.open{display:flex}
+  .menu-btn{display:block;margin-left:auto}
+  .hdr .btn{display:none}
+}
+
+/* ---------- Hero ---------- */
+.hero{background:linear-gradient(170deg,var(--blush) 0%,var(--blush-2) 100%);color:var(--ink);position:relative;overflow:hidden}
+.hero h1{color:var(--cran-deep)}
+.hero-inner{isolation:isolate;display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(24px,5vw,72px);align-items:center;padding-block:clamp(40px,6vw,80px) clamp(56px,8vw,104px)}
+.hero-copy{display:grid;gap:26px;min-width:0;position:relative;z-index:2}
+.since{display:inline-flex;align-items:center;gap:10px;font-weight:700;font-size:.95rem;background:#fff;color:var(--cran-deep);padding:6px 14px 6px 6px;border-radius:999px;justify-self:start;box-shadow:0 4px 14px -6px rgba(212,19,103,.35)}
+.since b{background:var(--gold);color:#3A2200;border-radius:999px;padding:2px 10px}
+.hero h1{font-size:clamp(2.8rem,7vw,5.6rem)}
+.hero .lead{color:var(--muted)}
+.hero-actions{display:flex;flex-wrap:wrap;gap:12px}
+.hero-actions .btn-line{color:var(--cran)}
+.ticket{background:#fff;color:#1E1420;border-radius:22px;display:grid;grid-template-columns:auto 1fr;max-width:540px;overflow:hidden;box-shadow:0 20px 44px -26px rgba(212,19,103,.45)}
+.ticket-date{background:var(--cran);color:#fff;padding:18px 20px;display:grid;place-items:center;text-align:center;line-height:1;min-width:96px}
+.ticket-date b{font-size:2.6rem;font-weight:800;display:block}
+.ticket-date span{font-size:.85rem;font-weight:600;opacity:.8;margin-top:4px;display:block}
+.ticket-body{padding:16px 20px;display:grid;gap:6px;min-width:0}
+.ticket-no{font-weight:800;color:#A30C4D;font-size:.92rem}
+.ticket-body h3{font-size:1.08rem}
+.ticket-body p{color:#6E5F69;font-size:.9rem}
+.cd{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.cd div{background:#FCE6EF;border-radius:10px;padding:6px 10px;min-width:56px;text-align:center}
+.cd b{font-size:1.25rem;font-weight:800;display:block;line-height:1.1;color:#A30C4D}
+.cd span{font-size:.7rem;color:#6E5F69}
+.hero-wheel{position:relative;justify-self:center;width:min(100%,400px);aspect-ratio:1;border-radius:50%;background:var(--cran);display:grid;place-items:center;box-shadow:0 30px 60px -30px rgba(212,19,103,.6)}
+.hero-wheel .rw{width:74%;height:auto;display:block}
+.hero-wheel::before,.hero-wheel::after{content:"";position:absolute;border-radius:50%;z-index:-1}
+.hero-wheel::before{width:30%;aspect-ratio:1;background:var(--gold);left:-6%;top:4%}
+.hero-wheel::after{width:20%;aspect-ratio:1;background:#8FB4EA;right:-4%;bottom:6%}@media (max-width:880px){.hero-inner{grid-template-columns:1fr}.hero-wheel{width:min(56%,260px);order:-1}}
+
+/* ---------- Marquee ---------- */
+.marquee{background:var(--gold);color:#3A2200;overflow:hidden;padding-block:16px;white-space:nowrap}
+.marquee-track{display:inline-flex;gap:48px;animation:mq 38s linear infinite;padding-left:48px}
+.marquee span{font-weight:700;font-size:1.05rem;display:inline-flex;align-items:center;gap:48px}
+.marquee span::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--cran);display:inline-block}
+@keyframes mq{to{transform:translateX(-50%)}}
+
+/* ---------- Guest application ---------- */
+.apply{background:var(--cran-soft)}
+.apply-grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:clamp(28px,5vw,72px);align-items:start}
+.apply-copy{display:grid;gap:20px;position:sticky;top:calc(var(--hdr) + 24px)}
+.apply-steps{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:16px;counter-reset:a}
+.apply-steps li{display:grid;grid-template-columns:40px 1fr;gap:4px 14px}
+.apply-steps li::before{counter-increment:a;content:counter(a);grid-row:span 2;width:40px;height:40px;border-radius:50%;background:var(--cran);color:#fff;display:grid;place-items:center;font-weight:800}
+.apply-steps span{color:var(--muted);font-size:.95rem}
+.apply-form{background:var(--surface);border-radius:30px;padding:clamp(22px,4vw,38px);box-shadow:0 30px 60px -36px rgba(120,0,50,.45)}
+.gf-fields{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.gf-fields .full{grid-column:1/-1}
+.apply-form label{display:grid;gap:6px;font-weight:600;font-size:.92rem}
+.apply-form small{color:var(--muted);font-weight:500}
+.apply-form input:not([type=checkbox]),.apply-form select{font:400 1rem var(--f);padding:12px 14px;border-radius:14px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
+.apply-form input:focus,.apply-form select:focus{border-color:var(--cran);outline:none}
+.apply-form fieldset{border:0;padding:0;margin:0;display:grid;gap:10px;min-width:0}
+.apply-form legend{font-weight:600;font-size:.92rem;padding:0;margin-bottom:10px}
+.date-pick{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.date-pick label{cursor:pointer;display:block}
+.date-pick input{position:absolute;opacity:0;pointer-events:none}
+.date-pick .dp{display:grid;gap:2px;padding:12px;border-radius:16px;border:1.5px solid var(--line);text-align:center;transition:all .2s}
+.date-pick .dp b{font-size:1.6rem;font-weight:800;line-height:1}
+.date-pick .dp span{font-size:.8rem;color:var(--muted);font-weight:600}
+.date-pick input:checked + .dp{background:var(--cran);border-color:var(--cran);color:#fff}
+.date-pick input:checked + .dp span{color:rgba(255,255,255,.85)}
+.date-pick input:focus-visible + .dp{outline:3px solid var(--gold);outline-offset:2px}
+.interest{display:flex;flex-wrap:wrap;gap:8px}
+.interest button{font:600 .88rem var(--f);border:1.5px solid var(--line);background:var(--bg);color:var(--ink);padding:8px 14px;border-radius:999px;cursor:pointer;transition:all .2s}
+.interest button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.apply-form .check{display:flex;gap:10px;align-items:flex-start;font-weight:500;font-size:.88rem;color:var(--muted)}
+.apply-form .check input{margin-top:3px;accent-color:var(--cran);width:18px;height:18px;flex:none}
+.apply-form .btn{justify-content:center;font-size:1.05rem;padding:16px}
+.gf-err{grid-column:1/-1;color:var(--cran);font-weight:700;font-size:.92rem}
+.gf-done{display:grid;gap:14px;text-align:left;animation:swap .5s cubic-bezier(.2,.8,.2,1)}
+.gf-done .ok{width:56px;height:56px;border-radius:50%;background:var(--cran);color:#fff;display:grid;place-items:center;font-size:1.6rem;font-weight:800}
+.gf-done h3{font-size:1.6rem;font-weight:800}
+.gf-done p{color:var(--muted)}
+@media (max-width:900px){.apply-grid{grid-template-columns:1fr}.apply-copy{position:static}}
+@media (max-width:520px){.gf-fields{grid-template-columns:1fr}.date-pick{grid-template-columns:1fr 1fr 1fr;gap:6px}.date-pick .dp{padding:10px 4px}}
+
+/* Floating apply button */
+.fab{position:fixed;left:calc(16px + env(safe-area-inset-left,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:69;background:var(--cran);color:#fff;font:700 .95rem var(--f);padding:14px 20px;border-radius:999px;text-decoration:none;box-shadow:0 12px 30px -10px rgba(120,0,50,.6);transform:translateY(140%);transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+.fab.show{transform:none}
+
+/* ---------- Pinned timeline ---------- */
+.tl{position:relative;background:var(--bg)}
+.tl-sticky{position:sticky;top:calc(var(--hdr) + env(safe-area-inset-top,0px));height:calc(100svh - var(--hdr));overflow:hidden;display:flex;flex-direction:column;justify-content:center;gap:28px;padding-block:24px}
+.tl-head{display:flex;justify-content:space-between;align-items:end;gap:20px;flex-wrap:wrap}
+.tl-bar{height:4px;background:var(--line);border-radius:4px;overflow:hidden;width:min(320px,60%)}
+.tl-bar i{display:block;height:100%;width:100%;background:var(--cran);transform-origin:0 50%;transform:scaleX(0)}
+.tl-track{display:flex;gap:20px;padding-left:var(--gl);padding-right:var(--gr);will-change:transform}
+.tl-card{flex:0 0 min(78vw,380px);background:var(--surface);border:1px solid var(--line);border-radius:26px;padding:28px;display:grid;gap:12px;align-content:start;min-height:280px}
+.tl-card .yr{font-size:clamp(3rem,6vw,4.4rem);font-weight:800;letter-spacing:-.05em;line-height:1;color:var(--cran)}
+.tl-card p{color:var(--muted)}
+.tl-card.hl{background:var(--cran);color:var(--on-cran);border-color:transparent}
+.tl-card.hl .yr{color:#fff}
+.tl-card.hl p{color:rgba(255,255,255,.88)}
+.tl-card.dark{background:var(--gold);color:#3A2200;border-color:transparent}
+.tl-card.dark .yr{color:#fff}
+.tl-card.dark p{color:#5A3A00}
+.tl.static{height:auto!important}
+.tl.static .tl-sticky{position:static;height:auto;padding-block:clamp(72px,10vw,120px)}
+.tl.static .tl-track{overflow-x:auto;scroll-snap-type:x mandatory;transform:none!important;padding-bottom:12px}
+.tl.static .tl-card{scroll-snap-align:start}
+
+/* ---------- Counters ---------- */
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+.stats div{padding:26px 22px;border-radius:24px;background:var(--surface);border:1px solid var(--line)}
+.stats div:nth-child(1){background:var(--cran);color:#fff;border-color:transparent}
+.stats div:nth-child(3){background:var(--gold-soft);border-color:transparent}
+.stats div:nth-child(5){background:var(--sky-soft);border-color:transparent}
+.stats b{font-size:clamp(2rem,4vw,3rem);font-weight:800;display:block;line-height:1.05;letter-spacing:-.03em;color:var(--cran)}
+.stats div:nth-child(1) b{color:#fff}
+.stats div:nth-child(5) b{color:var(--royal)}
+.stats span{font-size:.9rem;color:var(--muted)}
+.stats div:nth-child(1) span{color:rgba(255,255,255,.9)}
+@media (max-width:900px){.stats{grid-template-columns:1fr 1fr}.stats div:last-child{grid-column:1/-1}}
+
+/* ---------- Projects rail ---------- */
+.rail-head{display:flex;justify-content:space-between;align-items:end;gap:20px;flex-wrap:wrap;margin-bottom:28px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:600 .9rem var(--f);border:1.5px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 16px;border-radius:999px;cursor:pointer;transition:background .2s,color .2s,border-color .2s}
+.chip[aria-pressed="true"]{background:var(--cran);color:var(--on-cran);border-color:var(--cran)}
+.arrows{display:flex;gap:8px}
+.arrows button{width:46px;height:46px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;font-size:1.2rem;transition:background .2s}
+.arrows button:hover{background:var(--cran);color:var(--on-cran);border-color:var(--cran)}
+.rail{display:flex;gap:20px;overflow-x:auto;scroll-snap-type:x mandatory;padding-left:max(var(--gl),calc((100vw - var(--maxw))/2 + 16px));padding-right:var(--gr);padding-bottom:16px;scrollbar-width:none;cursor:grab}
+.rail::-webkit-scrollbar{display:none}
+.rail.drag{cursor:grabbing;scroll-snap-type:none}
+.proj{flex:0 0 min(84vw,360px);scroll-snap-align:start;border-radius:26px;overflow:hidden;background:var(--surface);border:1px solid var(--line);display:flex;flex-direction:column;transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.proj:hover{transform:translateY(-6px)}
+.proj[hidden]{display:none!important}
+.proj-art{aspect-ratio:4/3;max-width:100%;position:relative;padding:18px;display:flex;flex-direction:column;justify-content:space-between;color:#fff}
+.proj-art .when{align-self:flex-start;background:rgba(255,255,255,.95);color:#1E1420;font-weight:700;font-size:.82rem;padding:5px 12px;border-radius:999px}
+.proj-art .big{font-size:2.6rem;font-weight:800;letter-spacing:-.04em;line-height:1}
+.proj-body{padding:20px;display:grid;gap:8px;flex:1;align-content:start}
+.proj-body p{color:var(--muted);font-size:.95rem}
+.proj-body small{color:var(--cran);font-weight:700;font-size:.82rem}
+.rail-progress{height:4px;background:var(--line);border-radius:4px;margin-top:18px;overflow:hidden}
+.rail-progress i{display:block;height:100%;background:var(--cran);width:20%;transition:transform .15s,width .15s}
+
+/* ---------- Year dial ---------- */
+.dial{display:grid;grid-template-columns:1fr 1fr;gap:clamp(24px,5vw,64px);align-items:center}
+#wheel{width:100%;max-width:520px;height:auto;display:block;margin:0 auto;overflow:visible}
+#wheel text{font-family:var(--f);fill:var(--muted)}
+#wheel .mlabel{font-size:11px;font-weight:700}
+#wheel .ev{cursor:pointer}
+#wheel .ev circle.dot{fill:var(--surface);stroke:var(--cran);stroke-width:3;transition:r .25s}
+#wheel .ev:hover circle.dot,#wheel .ev.active circle.dot{fill:var(--cran)}
+#wheel .ev.active circle.dot{r:11}
+#wheel .ev:focus-visible{outline:none}
+#wheel .ev:focus-visible circle.dot{stroke:var(--gold);stroke-width:5}
+#wheel .needle{stroke:var(--gold);stroke-width:3;stroke-linecap:round}
+#wheel .today-t{fill:var(--gold);font-weight:800;font-size:11px}
+.dial-box{position:relative}
+.dial-center{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
+.rw-disc{width:44%;aspect-ratio:1;border-radius:50%;background:var(--cran);display:grid;place-items:center}
+.rw-disc img{width:76%;height:auto;display:block}
+.ev-list{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.ev-list button{width:100%;display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:start;text-align:left;background:none;border:0;padding:12px 14px;border-radius:14px;cursor:pointer;font:inherit;color:var(--ink);transition:background .2s}
+.ev-list button:hover{background:var(--bg-2)}
+.ev-list button.active{background:var(--cran-soft)}
+.ev-list .d{font-weight:800;color:var(--cran);font-size:.92rem}
+.ev-list .t{font-weight:700}
+.ev-list .x{display:block;color:var(--muted);font-size:.9rem;font-weight:400;max-height:0;overflow:hidden;transition:max-height .35s}
+.ev-list button.active .x{max-height:120px;margin-top:4px}
+@media (max-width:880px){.dial{grid-template-columns:1fr}}
+
+/* ---------- Membership ---------- */
+.journey{display:grid;grid-template-columns:300px 1fr;gap:clamp(24px,5vw,64px);align-items:start}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:4px;counter-reset:s;position:relative}
+.steps button{width:100%;text-align:left;display:flex;gap:14px;align-items:center;font:600 1rem var(--f);color:var(--muted);background:none;border:0;padding:12px 14px;border-radius:14px;cursor:pointer}
+.steps button::before{counter-increment:s;content:counter(s);width:34px;height:34px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-weight:800;font-size:.9rem;flex:none;transition:all .25s}
+.steps button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 0 var(--line)}
+.steps button[aria-selected="true"]::before{background:var(--cran);border-color:var(--cran);color:#fff}
+.steps button.done::before{border-color:var(--cran);color:var(--cran)}
+.step-panel{background:var(--surface);border:1px solid var(--line);border-radius:28px;padding:clamp(24px,4vw,44px);display:grid;gap:18px;min-height:310px;align-content:start}
+.step-panel.swap{animation:swap .45s cubic-bezier(.2,.8,.2,1)}
+@keyframes swap{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+.step-panel h3{font-size:clamp(1.5rem,3vw,2.1rem);font-weight:800}
+.step-panel p{color:var(--muted);max-width:56ch}
+.tag{justify-self:start;font-size:.8rem;font-weight:700;padding:4px 12px;border-radius:999px;background:var(--cran-soft);color:var(--cran)}
+.meet-dots{display:flex;gap:10px;flex-wrap:wrap}
+.meet-dots span{width:46px;height:46px;border-radius:50%;border:2px dashed var(--line);display:grid;place-items:center;font-size:.85rem;color:var(--muted);font-weight:700;transition:all .3s}
+.meet-dots span.on{border:2px solid var(--cran);background:var(--cran);color:#fff;transform:scale(1.06)}
+.step-nav{display:flex;gap:10px;flex-wrap:wrap}
+.btn-ghost{border:1.5px solid var(--line);background:transparent;color:var(--ink);padding:11px 20px}
+@media (max-width:880px){.journey{grid-template-columns:1fr}.steps{grid-template-columns:repeat(5,1fr)}.steps button{flex-direction:column;gap:6px;font-size:.7rem;text-align:center;padding:10px 2px}}
+
+/* ---------- Board ---------- */
+.term-row{display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:16px;margin-bottom:32px}
+.seg{display:inline-flex;background:var(--bg-2);border:1px solid var(--line);border-radius:999px;padding:4px}
+.seg button{font:700 .9rem var(--f);border:0;background:none;color:var(--muted);padding:9px 16px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--cran);color:var(--on-cran)}
+.board{display:grid;grid-template-columns:repeat(5,1fr);gap:20px}
+.person{display:grid;gap:12px}
+.avatar{aspect-ratio:4/5;max-width:100%;border-radius:22px;display:grid;place-items:center;font-weight:800;font-size:2.6rem;color:var(--cran);background:var(--cran-soft);position:relative;overflow:hidden}
+.person.lead-p .avatar{background:var(--cran);color:#fff}
+.person b{display:block;font-weight:700}
+.person span{color:var(--muted);font-size:.9rem}
+.board.fade{animation:swap .45s cubic-bezier(.2,.8,.2,1)}
+.committees{margin-top:48px;display:grid;gap:16px}
+.committees ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,1fr);column-gap:40px}
+.committees li{display:flex;justify-content:space-between;gap:16px;padding:14px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.committees li span{color:var(--muted)}
+@media (max-width:900px){.board{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:540px){.board{grid-template-columns:1fr 1fr}.committees ul{grid-template-columns:1fr}}
+
+/* ---------- News ---------- */
+.news{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.post{background:var(--surface);border:1px solid var(--line);border-radius:24px;overflow:hidden;display:flex;flex-direction:column;text-decoration:none;transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.post:hover{transform:translateY(-4px)}
+.post:hover h3{color:var(--cran)}
+.post .art{aspect-ratio:16/9;max-width:100%;display:flex;align-items:flex-end;padding:16px;color:#fff;font-weight:800;font-size:1.6rem;letter-spacing:-.03em;line-height:1}
+.post .inner{padding:20px;display:grid;gap:8px}
+.post time{font-size:.85rem;color:var(--muted);font-weight:600}
+.post p{color:var(--muted);font-size:.95rem}
+.post.wide{grid-column:span 2}
+.post.wide .art{aspect-ratio:auto;min-height:220px;font-size:2.4rem}
+@media (max-width:900px){.news{grid-template-columns:1fr 1fr}.post.wide{grid-column:1/-1}}
+@media (max-width:600px){.news{grid-template-columns:1fr}}
+
+/* ---------- Family ---------- */
+.family{display:grid;grid-template-columns:repeat(5,1fr);gap:0}
+.fam{padding:22px 20px 22px 0;display:grid;gap:8px;position:relative}
+.fam::before{content:"";display:block;width:16px;height:16px;border-radius:50%;background:var(--bg);border:3px solid var(--royal);position:relative;z-index:1}
+.fam::after{content:"";position:absolute;left:16px;right:0;top:30px;height:2px;background:var(--line)}
+.fam:last-child::after{display:none}
+.fam:last-child::before{background:var(--cran);border-color:var(--cran)}
+.fam small{color:var(--muted);font-size:.85rem}
+.fam a{font-weight:700;text-decoration:none}
+.fam a:hover{color:var(--cran)}
+@media (max-width:820px){.family{grid-template-columns:1fr}.fam{padding:0 0 24px 34px}.fam::before{position:absolute;left:0;top:4px}.fam::after{left:7px;top:22px;bottom:0;right:auto;width:2px;height:auto}}
+
+/* ---------- Culture box ---------- */
+.cbox{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:12px;scrollbar-width:thin}
+.cbox article{scroll-snap-align:start;flex:0 0 210px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px;display:grid;gap:8px;align-content:start}
+.cbox .glyph{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-weight:800;font-size:1.25rem}
+.cbox p{font-size:.87rem;color:var(--muted);line-height:1.45}
+
+/* ---------- Support ---------- */
+.support{display:grid;grid-template-columns:1.2fr 1fr;gap:20px}
+.support > div{border-radius:28px;padding:clamp(26px,4vw,44px);display:grid;gap:16px;align-content:start}
+.support > div:first-child{padding-inline:0}
+.sup-b{background:var(--surface);border:1px solid var(--line)}
+.docs{list-style:none;padding:0;margin:0;display:grid}
+.docs li a{display:flex;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--line);text-decoration:none;font-weight:600}
+.docs li a:hover{color:var(--cran)}
+.docs li a span{color:var(--muted);font-size:.85rem;font-weight:500}
+@media (max-width:800px){.support{grid-template-columns:1fr}}
+
+/* ---------- FAQ ---------- */
+.faq{max-width:840px}
+.faq details{border-bottom:1px solid var(--line)}
+.faq summary{cursor:pointer;list-style:none;padding:22px 44px 22px 0;font-weight:700;font-size:1.1rem;position:relative}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";position:absolute;right:4px;top:14px;font-size:1.8rem;color:var(--cran);transition:transform .25s}
+.faq details[open] summary::after{transform:rotate(45deg)}
+.faq details p{padding:0 0 22px;color:var(--muted);max-width:64ch}
+
+/* ---------- Contact ---------- */
+.contact{display:grid;grid-template-columns:1fr 1.1fr;gap:clamp(24px,5vw,64px)}
+.contact-info{display:grid;gap:22px;align-content:start}
+.info-row{display:grid;gap:4px}
+.info-row small{color:var(--muted);font-size:.85rem;font-weight:600}
+.copy-line{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.copy-line code{font:700 1.05rem var(--f);user-select:all;word-break:break-all}
+.copy-btn{font:600 .82rem var(--f);border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px;cursor:pointer}
+.socials{display:flex;gap:10px;flex-wrap:wrap}
+.socials a{text-decoration:none;font-weight:600;padding:9px 16px;border:1.5px solid var(--line);border-radius:999px;font-size:.92rem}
+.socials a:hover{border-color:var(--cran);color:var(--cran)}
+form.cf{background:var(--surface);border:1px solid var(--line);border-radius:28px;padding:clamp(20px,4vw,34px);display:grid;gap:16px;grid-template-columns:1fr 1fr}
+form.cf .full{grid-column:1/-1}
+form.cf label{display:grid;gap:6px;font-weight:600;font-size:.92rem}
+form.cf input,form.cf select,form.cf textarea{font:400 1rem var(--f);padding:12px 14px;border-radius:14px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
+form.cf input:focus,form.cf select:focus,form.cf textarea:focus{border-color:var(--cran);outline:none}
+form.cf textarea{min-height:120px;resize:vertical}
+form.cf .btn{justify-self:start}
+.form-ok{grid-column:1/-1;background:var(--cran-soft);color:var(--cran);padding:12px 16px;border-radius:14px;font-weight:700}
+@media (max-width:860px){.contact{grid-template-columns:1fr}}
+@media (max-width:520px){form.cf{grid-template-columns:1fr}}
+
+/* ---------- Footer ---------- */
+footer.site{background:var(--blush-2);color:var(--ink);padding-block:56px 32px;position:relative;overflow:hidden}
+.foot{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:32px;position:relative;z-index:1}
+.foot .lg{width:220px}
+.foot h4{margin:0 0 12px;font-size:.9rem;color:var(--cran-deep);font-weight:700}
+.foot ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.foot a{text-decoration:none;color:var(--ink)}
+.foot a:hover{color:var(--cran)}
+.foot p{color:var(--muted);font-size:.92rem;max-width:40ch;margin-top:14px}
+.foot-bottom{margin-top:44px;padding-top:20px;border-top:1px solid #F3C6D9;font-size:.85rem;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;position:relative;z-index:1}
+@media (max-width:760px){.foot{grid-template-columns:1fr 1fr}.foot > div:first-child{grid-column:1/-1}}
+
+/* ---------- Reveal (visible at rest, animates in on scroll) ---------- */
+.rv.in{animation:rise .8s cubic-bezier(.2,.8,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:none}}
+
+/* ---------- Draft notes ---------- */
+.note{display:none;background:var(--gold-soft);color:var(--ink);border:1.5px dashed var(--gold);border-radius:14px;padding:12px 14px;font-size:.88rem;line-height:1.5;margin-bottom:24px;max-width:780px}
+.note b{color:#9A6400}
+body.show-notes .note{display:block}
+.notes-toggle{position:fixed;right:calc(16px + env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:70;font:700 .88rem var(--f);background:var(--gold);color:#2A1A00;border:0;border-radius:999px;padding:12px 18px;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#1E1420;color:#fff;padding:10px 18px;border-radius:12px;font-weight:600;z-index:80}
+
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+
+<div class="progress" id="progress" aria-hidden="true"></div>
+
+<header class="site" id="hdr">
+  <div class="wrap hdr">
+    <a class="brand" href="#top" aria-label="Ankara Anıttepe Rotaract Kulübü ana sayfa">
+      <span class="lg on-top"><img src="assets/logo-cranberry.webp" alt="Ankara Anıttepe Rotaract Kulübü logosu"></span>
+      <span class="on-scroll">
+        <span class="lg l-cran"><img src="assets/logo-cranberry.webp" alt="Ankara Anıttepe Rotaract Kulübü logosu"></span>
+        <span class="lg l-white"><img src="assets/logo-beyaz.webp" alt="" aria-hidden="true"></span>
+      </span>
+    </a>
+    <nav class="main" id="nav" aria-label="Ana menü">
+      <a href="#hikaye">30 yıl</a>
+      <a href="#projeler">Projeler</a>
+      <a href="#takvim">Takvim</a>
+      <a href="#uyelik">Üyelik</a>
+      <a href="#yonetim">Yönetim</a>
+      <a href="#haberler">Haberler</a>
+      <a href="#iletisim">İletişim</a>
+    </nav>
+    <a class="btn btn-cran" href="#basvuru">Misafir üye ol</a>
+    <button class="menu-btn" id="menuBtn" type="button" aria-expanded="false" aria-controls="nav" aria-label="Menüyü aç">☰</button>
+  </div>
+</header>
+
+<main id="top">
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap hero-inner">
+      <div class="hero-copy">
+        <div class="note"><b>Taslak notu:</b> Kulüp Kasım 1996'da kuruldu, yani bu ay 30. yaşını kutluyor. Hero bu yıldönümünü öne çıkarıyor. Rotary çarkı marka kurallarına uygun olarak döndürülmeden ve üzerine yazı konmadan kullanılıyor.</div>
+        <span class="since"><b>Kasım 1996</b> Ankara'da 30. yılımız</span>
+        <h1>30 yıldır kendinden önce hizmet.</h1>
+        <p class="lead">Ankara Anıttepe Rotaract, 18–30 yaş arası gençlerin gönüllülük, liderlik ve dostlukla topluma hizmet ettiği bir Rotary kulübü. 2026–27 dönemindeki hedefimiz: Kalıcı Etki Yarat.</p>
+        <div class="hero-actions">
+          <a class="btn btn-cran" href="#basvuru">Misafir üye başvurusu yap</a>
+          <a class="btn btn-line" href="#projeler">Projelerimizi gör</a>
+        </div>
+        <div class="ticket" aria-live="polite">
+          <div class="ticket-date"><div><b id="mDay">19</b><span id="mMon">Kasım</span></div></div>
+          <div class="ticket-body">
+            <span class="ticket-no" id="mNo">610. toplantı · dönemin 11. toplantısı</span>
+            <h3 id="mTitle">Sıradaki toplantı: 19 Kasım Perşembe, 19.30</h3>
+            <p>Hybrid Hub, Ankara · <a href="#basvuru" style="color:#A30C4D;font-weight:700">Bu toplantıya misafir olarak gel</a></p>
+            <div class="cd tn">
+              <div><b id="cD">–</b><span>gün</span></div>
+              <div><b id="cH">–</b><span>saat</span></div>
+              <div><b id="cM">–</b><span>dakika</span></div>
+              <div><b id="cS">–</b><span>saniye</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="hero-wheel" aria-hidden="true">
+        <img class="rw" src="assets/rotary-carki.webp" alt="">
+      </div>
+    </div>
+  </section>
+
+  <div class="marquee" aria-hidden="true">
+    <div class="marquee-track">
+      <span>Kendinden önce hizmet</span><span>Kalıcı Etki Yarat</span><span>1996'dan beri Ankara</span><span>Rotaract 2430. Bölge</span><span>Dostluk · Liderlik · Hizmet</span><span>610 toplantı</span>
+      <span>Kendinden önce hizmet</span><span>Kalıcı Etki Yarat</span><span>1996'dan beri Ankara</span><span>Rotaract 2430. Bölge</span><span>Dostluk · Liderlik · Hizmet</span><span>610 toplantı</span>
+    </div>
+  </div>
+
+  <!-- GUEST APPLICATION -->
+  <section class="band apply" id="basvuru">
+    <div class="wrap apply-grid">
+      <div class="apply-copy">
+        <div class="note"><b>Taslak notu:</b> Misafir üye başvurusu sayfanın ana hedefi. Hero'nun hemen altında duruyor, menüdeki ana buton ve sayfa boyunca görünen alt buton buraya getiriyor. Toplantı tarihleri otomatik listeleniyor. Canlıda başvurular kulübün e-postasına ve bir Google Sheet'e düşecek.</div>
+        <span class="kicker">Misafir üye başvurusu</span>
+        <h2>Bir sonraki toplantıya misafir olarak gel</h2>
+        <p class="lead">Üyelik bir toplantıya gelmekle başlıyor. Formu doldur, hangi toplantıya geleceğini seç; gerisini biz ayarlayalım.</p>
+        <ol class="apply-steps">
+          <li><b>Başvurunu alıyoruz</b><span>Üyelik komitemiz 2 gün içinde sana dönüyor.</span></li>
+          <li><b>Toplantı bilgilerini gönderiyoruz</b><span>Hybrid Hub'a nasıl geleceğini ve gündemi e-postayla yolluyoruz.</span></li>
+          <li><b>Girişte seni karşılıyoruz</b><span>Bir üyemiz seni kulüple tanıştırıyor. Hiçbir taahhüt yok.</span></li>
+        </ol>
+      </div>
+      <form class="apply-form" id="gf" novalidate>
+        <div class="gf-fields" id="gfFields">
+          <label>Ad soyad<input id="g-name" name="name" required autocomplete="name"></label>
+          <label>E-posta<input id="g-mail" name="email" type="email" required autocomplete="email"></label>
+          <label>Telefon <small>(isteğe bağlı)</small><input id="g-tel" name="tel" type="tel" autocomplete="tel"></label>
+          <label>Şu an
+            <select id="g-status" name="status"><option>Üniversite öğrencisiyim</option><option>Çalışıyorum</option><option>Mezun oldum, iş arıyorum</option><option>Diğer</option></select>
+          </label>
+          <label class="full">Okul ya da meslek<input id="g-school" name="school" placeholder="Örneğin ODTÜ Mimarlık, yazılım geliştirici"></label>
+          <fieldset class="full">
+            <legend>Hangi toplantıya geleceksin?</legend>
+            <div class="date-pick" id="gDates"></div>
+          </fieldset>
+          <fieldset class="full">
+            <legend>En çok ilgini çeken alanlar <small>(birden fazla seçebilirsin)</small></legend>
+            <div class="interest" id="gInterest"></div>
+          </fieldset>
+          <label class="full">Bizi nereden duydun?
+            <select id="g-source" name="source"><option>Instagram</option><option>Bir arkadaşım</option><option>Üniversite</option><option>Rotary kulübü</option><option>Diğer</option></select>
+          </label>
+          <label class="full check"><input type="checkbox" id="g-kvkk" required> Bilgilerimin üyelik süreci için Anıttepe Rotaract tarafından kullanılmasını kabul ediyorum.</label>
+          <button class="btn btn-cran full" type="submit">Başvurumu gönder</button>
+          <p class="gf-err" id="gErr" hidden></p>
+        </div>
+        <div class="gf-done" id="gDone" hidden></div>
+      </form>
+    </div>
+  </section>
+
+  <!-- PINNED TIMELINE -->
+  <section class="tl" id="hikaye">
+    <div class="tl-sticky">
+      <div class="wrap tl-head">
+        <div class="sec-head" style="margin:0">
+          <span class="kicker">Hikâyemiz</span>
+          <h2>1996'dan bugüne</h2>
+        </div>
+        <div class="tl-bar" aria-hidden="true"><i id="tlBar"></i></div>
+      </div>
+      <div class="tl-track" id="tlTrack">
+        <article class="tl-card"><span class="yr">1968</span><h3>Rotaract doğuyor</h3><p>Rotary International, gençler için Rotaract programını 13 Mart 1968'de başlatıyor. Bugün 180 ülkede 10.000'den fazla kulüp var.</p></article>
+        <article class="tl-card hl"><span class="yr">1996</span><h3>Anıttepe Rotaract kuruluyor</h3><p>Kasım 1996'da, Ankara Anıttepe Rotary Kulübü'nün sponsorluğunda Ankara'nın Rotaract kulüplerinden biri olarak yola çıkıyoruz.</p></article>
+        <article class="tl-card"><span class="yr">2007</span><h3>İlk Döneme Merhaba Partisi</h3><p>Her yeni dönemi açan, farklı kulüpleri buluşturan partimiz başlıyor. 2026'da 20. kez yapıldı.</p></article>
+        <article class="tl-card"><span class="yr">Her yıl</span><h3>Gelenekler büyüyor</h3><p>Yer Gök Kırmızı Beyaz, Balon Perileri, Bugün Hiç Bitmesin ve Şarap Peynir Gecesi kulübün kuşaktan kuşağa devrettiği projeler oluyor.</p></article>
+        <article class="tl-card"><span class="yr">2026</span><h3>Kalıcı Etki Yarat</h3><p>1 Temmuz'da Simay Oğuzkurt başkanlığındaki kurul görevi devralıyor. Ekimde Cumhuriyet'in 103. yılında 103 bayrakla sokaklardayız.</p></article>
+        <article class="tl-card dark"><span class="yr">610</span><h3>30. yaş, 610. toplantı</h3><p>Kasım 2026'da kulüp 30 yaşına giriyor. 19 Kasım'daki toplantı kuruluştan bu yana 610. toplantımız.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section class="band alt" style="padding-block:clamp(56px,8vw,96px)">
+    <div class="wrap">
+      <div class="stats tn rv">
+        <div><b data-to="30">30</b><span>yıl, Kasım 1996'dan beri</span></div>
+        <div><b data-to="610">610</b><span>kulüp toplantısı</span></div>
+        <div><b data-to="20">20</b><span>yıldır Döneme Merhaba</span></div>
+        <div><b data-to="103">103</b><span>bayrak, 29 Ekim 2026'da</span></div>
+        <div><b data-to="2051" data-fmt="1">2.051</b><span>Instagram takipçisi</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROJECTS -->
+  <section class="band" id="projeler" style="padding-bottom:clamp(56px,8vw,96px)">
+    <div class="wrap">
+      <div class="note"><b>Taslak notu:</b> Projeler sürüklenebilir bir şeritte duruyor (fareyle tutup kaydırılabiliyor, oklar da çalışıyor). Canlıda her kartın kendi sayfası ve gerçek fotoğrafı olacak.</div>
+      <div class="rail-head">
+        <div class="sec-head" style="margin:0">
+          <span class="kicker">Projelerimiz</span>
+          <h2>Her yıl yeniden yaptığımız işler</h2>
+        </div>
+        <div class="arrows"><button type="button" id="rPrev" aria-label="Önceki projeler">←</button><button type="button" id="rNext" aria-label="Sonraki projeler">→</button></div>
+      </div>
+      <div class="chips" role="group" aria-label="Projeleri filtrele" style="margin-bottom:24px">
+        <button class="chip" aria-pressed="true" data-f="all">Tümü</button>
+        <button class="chip" aria-pressed="false" data-f="hizmet">Toplum hizmeti</button>
+        <button class="chip" aria-pressed="false" data-f="farkindalik">Farkındalık</button>
+        <button class="chip" aria-pressed="false" data-f="kaynak">Kaynak geliştirme</button>
+        <button class="chip" aria-pressed="false" data-f="kulup">Kulüp hayatı</button>
+      </div>
+    </div>
+    <div class="rail" id="rail" tabindex="0" aria-label="Proje kartları"></div>
+    <div class="wrap"><div class="rail-progress" aria-hidden="true"><i id="railBar"></i></div></div>
+  </section>
+
+  <!-- YEAR DIAL -->
+  <section class="band alt" id="takvim">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <span class="kicker">Takvim</span>
+        <h2>Bir Rotary yılı</h2>
+        <p class="lead">Rotary yılı 1 Temmuz'da başlar, 30 Haziran'da biter. Sarı çizgi bugünü gösteriyor; bir etkinliğe dokununca ayrıntısı açılıyor.</p>
+      </div>
+      <div class="dial">
+        <div class="dial-box">
+          <svg id="wheel" viewBox="-24 -24 448 448" role="group" aria-label="Rotary yılı takvimi"></svg>
+          <div class="dial-center" aria-hidden="true"><span class="rw-disc"><img src="assets/rotary-carki.webp" alt=""></span></div>
+        </div>
+        <ul class="ev-list" id="evList"></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- MEMBERSHIP -->
+  <section class="band" id="uyelik">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <span class="kicker">Üyelik</span>
+        <h2>Gelerek başlıyor</h2>
+        <p class="lead">Form doldurman gerekmiyor. İlk toplantıya misafir olarak gelmen yeterli; gerisi beş adımda ilerliyor.</p>
+      </div>
+      <div class="journey">
+        <ol class="steps" role="tablist" aria-label="Üyelik adımları">
+          <li><button role="tab" aria-selected="true" data-i="0">Misafir ol</button></li>
+          <li><button role="tab" aria-selected="false" data-i="1">Rotary'yi tanı</button></li>
+          <li><button role="tab" aria-selected="false" data-i="2">5 toplantı</button></li>
+          <li><button role="tab" aria-selected="false" data-i="3">Başvuru</button></li>
+          <li><button role="tab" aria-selected="false" data-i="4">Rozet töreni</button></li>
+        </ol>
+        <div class="step-panel" role="tabpanel" id="stepPanel"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BOARD -->
+  <section class="band alt" id="yonetim">
+    <div class="wrap">
+      <div class="term-row">
+        <div class="sec-head" style="margin:0">
+          <span class="kicker">Yönetim</span>
+          <h2>Yönetim kurulu</h2>
+        </div>
+        <div class="seg" role="group" aria-label="Dönem seç">
+          <button type="button" aria-pressed="true" data-term="2026">2026–27</button>
+          <button type="button" aria-pressed="false" data-term="2025">2025–26</button>
+        </div>
+      </div>
+      <div class="board" id="board"></div>
+      <div class="committees" id="committees"></div>
+    </div>
+  </section>
+
+  <!-- NEWS -->
+  <section class="band" id="haberler">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <span class="kicker">Haberler</span>
+        <h2>Kulüpten son haberler</h2>
+      </div>
+      <div class="news">
+        <a class="post wide rv" href="https://www.instagram.com/anitteperotaract/reel/DfENMEUAv6P/" target="_blank" rel="noopener">
+          <div class="art" style="background:linear-gradient(160deg,#E30A17 0 58%,#B00812 58% 100%)">103 bayrak</div>
+          <div class="inner"><time>29 Ekim 2026</time><h3>Yer Gök Kırmızı Beyaz: 103 yıllık Cumhuriyet, 103 bayrak</h3><p>Cumhuriyet'in 103. yılında çocuklarla birlikte Ankara sokaklarına 103 Türk bayrağı ve 103 Atatürk bayrağı taşıdık.</p></div>
+        </a>
+        <a class="post rv" href="https://www.instagram.com/anitteperotaract/reel/De470l_od5u/" target="_blank" rel="noopener">
+          <div class="art" style="background:linear-gradient(135deg,#A30C4D,#D41367)">End Polio Now</div>
+          <div class="inner"><time>24 Ekim 2026</time><h3>Dünya Polio Günü</h3><p>Çocuk felcinin olmadığı bir dünya için Rotary'nin küresel kampanyasına destek verdik.</p></div>
+        </a>
+        <a class="post rv" href="https://www.instagram.com/anitteperotaract/p/Dff4LryCP0F/" target="_blank" rel="noopener">
+          <div class="art" style="background:linear-gradient(135deg,#E8508A,#F7A1C4)">Vogue</div>
+          <div class="inner"><time>19 Eylül 2026</time><h3>Döneme Merhaba Partisi 20 yaşında</h3><p>Partimizin 20. yılını "Vogue" temasıyla, farklı kulüplerden dostlarımızla kutladık.</p></div>
+        </a>
+        <a class="post rv" href="https://www.instagram.com/anitteperotaract/p/Dffz7bpCFf-/" target="_blank" rel="noopener">
+          <div class="art" style="background:linear-gradient(135deg,#17458F,#3E6CC0)">606.</div>
+          <div class="inner"><time>17 Eylül 2026</time><h3>Toplantımızda bölgeden misafir</h3><p>1. Grup kulüplerinden sorumlu BRT Yardımcısı Mert Toktaş'ı ağırladık.</p></div>
+        </a>
+        <a class="post rv" href="https://www.instagram.com/anitteperotaract/p/DdJxMXUiIRR/" target="_blank" rel="noopener">
+          <div class="art" style="background:linear-gradient(135deg,#F7A81B,#E58A00)">Sayı 1</div>
+          <div class="inner"><time>11 Eylül 2026</time><h3>Başkan Mektubu'nun ilk sayısı çıktı</h3><p>Dönemin projeleri ve kulüpten gelişmeler Başkan Simay Oğuzkurt'un mektubunda.</p></div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAMILY -->
+  <section class="band alt">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <span class="kicker">Rotary ailesi</span>
+        <h2>Büyük bir ailenin parçasıyız</h2>
+      </div>
+      <div class="family rv">
+        <div class="fam"><small>1905'ten beri · 1 milyon+ üye</small><a href="https://www.rotary.org/tr" target="_blank" rel="noopener">Rotary International</a></div>
+        <div class="fam"><small>Türkiye, Azerbaycan ve Orta Asya</small><a href="https://rotary2430.org.tr" target="_blank" rel="noopener">Rotary 2430. Bölge</a></div>
+        <div class="fam"><small>60 kulüp · BRT Alper Abacıgil</small><a href="https://rotaract2430.org.tr" target="_blank" rel="noopener">Rotaract 2430</a></div>
+        <div class="fam"><small>Sponsor kulübümüz</small><a href="#top">Ankara Anıttepe Rotary</a></div>
+        <div class="fam"><small>Kasım 1996'dan beri</small><a href="#top">Anıttepe Rotaract</a></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CULTURE BOX -->
+  <section class="band" id="culture-box">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <span class="kicker">Culture Box</span>
+        <h2>Dünyaya gönderdiğimiz kutu</h2>
+        <p class="lead">Yurt dışındaki kardeş kulüplere gönderdiğimiz kutunun her parçası Türkiye'den bir hikâye taşıyor.</p>
+      </div>
+      <div class="cbox" id="cbox" tabindex="0" aria-label="Culture Box içeriği"></div>
+    </div>
+  </section>
+
+  <!-- DOCS -->
+  <section class="band alt" id="belgeler">
+    <div class="wrap support">
+      <div>
+        <span class="kicker">Belgeler</span>
+        <h2>Tüzük ve rehberler</h2>
+        <p class="lead">Kulübümüz bir dernek olarak çalışır. Tüzüğümüze, Rotaract el kitabına ve ilgili mevzuata buradan ulaşabilirsin.</p>
+      </div>
+      <div class="sup-b">
+        <ul class="docs">
+          <li><a href="#belgeler">Kulüp tüzüğü <span>PDF</span></a></li>
+          <li><a href="#belgeler">Rotaract el kitabı <span>PDF</span></a></li>
+          <li><a href="#belgeler">Dernekler Kanunu <span>PDF</span></a></li>
+          <li><a href="#belgeler">Dernekler Yönetmeliği <span>PDF</span></a></li>
+          <li><a href="#haberler">Başkan Mektubu arşivi <span>Sayı 1</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="band">
+    <div class="wrap">
+      <div class="sec-head"><span class="kicker">Sık sorulanlar</span><h2>Merak ettiklerin</h2></div>
+      <div class="faq">
+        <details><summary>Rotaract ile Rotary arasındaki fark ne?</summary><p>Rotaract, Rotary International'ın 18 yaş ve üzeri gençler için kurduğu kulüp programı. Rotary kulüpleri genellikle iş ve meslek hayatında deneyimli kişilerden, Rotaract kulüpleri ise üniversite öğrencileri ve genç profesyonellerden oluşur. Hedefimiz ortak: hizmet, liderlik ve uluslararası dostluk.</p></details>
+        <details><summary>Üye olmak için öğrenci olmam gerekiyor mu?</summary><p>Hayır. Öğrenciler de çalışanlar da üye olabilir. Önemli olan toplantılara ve projelere düzenli katılmak.</p></details>
+        <details><summary>Toplantılara nasıl katılırım?</summary><p>Toplantılarımız iki haftada bir Perşembe 19.30'da Hybrid Hub'da. Misafir üye başvuru formunu doldurup geleceğin toplantıyı seçmen yeterli; seni girişte karşılarız.</p></details>
+        <details><summary>Kulüpte ne tür işler yapabilirim?</summary><p>Hizmet projeleri, uluslararası hizmetler, meslek hizmetleri, afet, halkla ilişkiler, üyelik ve hobi komitelerinden birine katılabilirsin. Her komiteyi bir üyemiz yönetiyor.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTACT -->
+  <section class="band alt" id="iletisim">
+    <div class="wrap contact">
+      <div class="contact-info">
+        <div class="sec-head" style="margin:0">
+          <span class="kicker">İletişim</span>
+          <h2>Bize ulaş</h2>
+          <p class="lead">Bir projeye ortak olmak ya da soru sormak için yaz. Misafir olarak gelmek istiyorsan <a href="#basvuru" style="color:var(--cran);font-weight:700">misafir üye başvurusu</a> daha hızlı.</p>
+        </div>
+        <div class="info-row"><small>E-posta</small>
+          <div class="copy-line"><code id="mail">anitteperotaract1996@gmail.com</code><button class="copy-btn" type="button" data-copy="mail">Kopyala</button></div>
+        </div>
+        <div class="info-row"><small>Toplantı yeri</small><b>Hybrid Hub, Ankara</b>
+          <a href="https://www.google.com/maps/search/?api=1&query=Hybrid+Hub+Ankara" target="_blank" rel="noopener" style="font-weight:700;color:var(--cran)">Haritada aç</a></div>
+        <div class="info-row"><small>Toplantı günleri</small><b>İki haftada bir Perşembe, 19.30</b></div>
+        <div class="socials">
+          <a href="https://www.instagram.com/anitteperotaract/" target="_blank" rel="noopener">Instagram</a>
+          <a href="https://www.linkedin.com/company/anittepe-rotaract/" target="_blank" rel="noopener">LinkedIn</a>
+          <a href="https://www.facebook.com/AnittepeRotaractKulubu/" target="_blank" rel="noopener">Facebook</a>
+        </div>
+      </div>
+      <form class="cf" id="cf" novalidate>
+        <label>Ad soyad<input id="f-name" name="name" required autocomplete="name"></label>
+        <label>E-posta<input id="f-mail" name="email" type="email" required autocomplete="email"></label>
+        <label class="full">Konu
+          <select id="f-subject" name="subject">
+            <option>Genel soru</option>
+            <option>Proje ortaklığı</option>
+            <option>Basın</option>
+            <option>Diğer</option>
+          </select>
+        </label>
+        <label class="full">Mesajın<textarea id="f-msg" name="message" placeholder="Kendinden ya da fikrinden kısaca bahset"></textarea></label>
+        <button class="btn btn-cran" type="submit">Mesajı gönder</button>
+        <div class="form-ok" id="formOk" hidden></div>
+      </form>
+    </div>
+  </section>
+</main>
+
+<footer class="site">
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <span class="lg"><img src="assets/logo-cranberry.webp" alt="Ankara Anıttepe Rotaract Kulübü logosu"></span>
+        <p>Kasım 1996'dan beri Ankara'da. Sponsor kulübümüz Ankara Anıttepe Rotary Kulübü, 2430. Bölge.</p>
+      </div>
+      <div><h4>Kulüp</h4><ul><li><a href="#hikaye">30 yıl</a></li><li><a href="#yonetim">Yönetim</a></li><li><a href="#belgeler">Belgeler</a></li></ul></div>
+      <div><h4>Katıl</h4><ul><li><a href="#basvuru">Misafir üye başvurusu</a></li><li><a href="#uyelik">Üyelik süreci</a></li><li><a href="#projeler">Projeler</a></li></ul></div>
+      <div><h4>Takip et</h4><ul><li><a href="https://www.instagram.com/anitteperotaract/" target="_blank" rel="noopener">Instagram</a></li><li><a href="https://www.linkedin.com/company/anittepe-rotaract/" target="_blank" rel="noopener">LinkedIn</a></li><li><a href="https://www.facebook.com/AnittepeRotaractKulubu/" target="_blank" rel="noopener">Facebook</a></li></ul></div>
+    </div>
+    <div class="foot-bottom"><span>© <span id="yr">2026</span> Ankara Anıttepe Rotaract Kulübü · 1996'dan beri</span><span>Kendinden önce hizmet</span></div>
+  </div>
+</footer>
+
+<a class="fab" id="fab" href="#basvuru">Misafir üye başvurusu</a>
+<button class="notes-toggle" id="notesToggle" type="button" aria-pressed="false">Taslak notlarını göster</button>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+  const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+  const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const MONTHS=["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+  const MON_S=["Oca","Şub","Mar","Nis","May","Haz","Tem","Ağu","Eyl","Eki","Kas","Ara"];
+  const now=new Date();
+  $("#yr").textContent=now.getFullYear();
+  let tt;function toast(m){const t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2600)}
+
+  // ---------- Nav ----------
+  $("#menuBtn").addEventListener("click",e=>{const o=$("#nav").classList.toggle("open");e.currentTarget.setAttribute("aria-expanded",o)});
+  $$("#nav a").forEach(a=>a.addEventListener("click",()=>{$("#nav").classList.remove("open");$("#menuBtn").setAttribute("aria-expanded","false")}));
+
+  // ---------- Next meeting: 19 Nov 2026 = 610th, term #11; every 14 days ----------
+  const ANCHOR=new Date(2026,10,19,19,30), ANCHOR_NO=610, ANCHOR_TERM=11, STEP=14*864e5;
+  function nextMeeting(from){
+    let k=Math.max(0,Math.ceil((from-ANCHOR)/STEP));
+    let d=new Date(ANCHOR.getTime()+k*STEP);d.setHours(19,30,0,0);
+    if(d<=from){k++;d=new Date(ANCHOR.getTime()+k*STEP);d.setHours(19,30,0,0)}
+    const termEnd=new Date(2027,6,1);
+    return {d,no:ANCHOR_NO+k,term:d<termEnd?ANCHOR_TERM+k:null};
+  }
+  const pad=n=>String(n).padStart(2,"0");
+  function renderMeeting(){
+    const t=new Date();const {d,no,term}=nextMeeting(t);
+    $("#mDay").textContent=d.getDate();$("#mMon").textContent=MONTHS[d.getMonth()];
+    $("#mNo").textContent=`${no}. toplantı`+(term?` · dönemin ${term}. toplantısı`:"");
+    $("#mTitle").textContent=`Sıradaki toplantı: ${d.getDate()} ${MONTHS[d.getMonth()]} Perşembe, 19.30`;
+    let diff=Math.max(0,d-t);const D=Math.floor(diff/864e5);diff-=D*864e5;const H=Math.floor(diff/36e5);diff-=H*36e5;const M=Math.floor(diff/6e4);diff-=M*6e4;const S=Math.floor(diff/1e3);
+    $("#cD").textContent=D;$("#cH").textContent=pad(H);$("#cM").textContent=pad(M);$("#cS").textContent=pad(S);
+  }
+  renderMeeting();setInterval(renderMeeting,1000);
+
+  // ---------- Scroll: progress, header, timeline, floating apply button ----------
+  const hdr=$("#hdr"),bar=$("#progress"),fab=$("#fab"),apply=$("#basvuru");
+  const tl=$("#hikaye"),track=$("#tlTrack"),tlBar=$("#tlBar");
+  function sizeTimeline(){
+    if(reduce||innerWidth<0){tl.classList.add("static");return}
+    tl.classList.remove("static");
+    const extra=Math.max(0,track.scrollWidth-innerWidth);
+    tl.style.height=(innerHeight+extra)+"px";
+  }
+  function onScroll(){
+    const y=scrollY,max=document.documentElement.scrollHeight-innerHeight;
+    bar.style.transform=`scaleX(${max>0?y/max:0})`;
+    hdr.classList.toggle("scrolled",y>40);
+    const ar=apply.getBoundingClientRect();
+    fab.classList.toggle("show",y>innerHeight*.6&&!(ar.top<innerHeight&&ar.bottom>0));
+    if(!tl.classList.contains("static")){
+      const r=tl.getBoundingClientRect();const total=tl.offsetHeight-innerHeight;
+      const p=Math.min(1,Math.max(0,-r.top/(total||1)));
+      const extra=Math.max(0,track.scrollWidth-innerWidth);
+      track.style.transform=`translateX(${-extra*p}px)`;tlBar.style.transform=`scaleX(${p})`;
+    }
+  }
+  addEventListener("scroll",onScroll,{passive:true});
+  addEventListener("resize",()=>{sizeTimeline();onScroll()});
+  sizeTimeline();onScroll();
+
+  // ---------- Guest application ----------
+  const DAYS=["Pazar","Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi"];
+  (function(){
+    const out=[];let from=new Date();
+    for(let i=0;i<3;i++){const m=nextMeeting(from);out.push(m);from=new Date(m.d.getTime()+60000)}
+    $("#gDates").innerHTML=out.map((m,i)=>`<label><input type="radio" name="gdate" value="${i}"${i===0?" checked":""}><span class="dp"><b>${m.d.getDate()}</b><span>${MONTHS[m.d.getMonth()]}</span><span>${m.no}. toplantı</span></span></label>`).join("");
+    window._gMeetings=out;
+  })();
+  const INTERESTS=["Hizmet projeleri","Uluslararası","Meslek gelişimi","Afet","Tanıtım ve sosyal medya","Etkinlik ve hobi"];
+  $("#gInterest").innerHTML=INTERESTS.map(x=>`<button type="button" aria-pressed="false">${x}</button>`).join("");
+  $$("#gInterest button").forEach(b=>b.addEventListener("click",()=>b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")!=="true")));
+  $("#gf").addEventListener("submit",e=>{
+    e.preventDefault();const err=$("#gErr");
+    const name=$("#g-name").value.trim(),mail=$("#g-mail").value.trim();
+    if(!name){err.hidden=false;err.textContent="Adını yazman gerekiyor.";$("#g-name").focus();return}
+    if(!/^\S+@\S+\.\S+$/.test(mail)){err.hidden=false;err.textContent="Geçerli bir e-posta adresi yazman gerekiyor.";$("#g-mail").focus();return}
+    if(!$("#g-kvkk").checked){err.hidden=false;err.textContent="Devam etmek için bilgilerinin kullanımını onaylaman gerekiyor.";return}
+    err.hidden=true;
+    const m=window._gMeetings[+(document.querySelector('input[name="gdate"]:checked')||{value:0}).value];
+    $("#gfFields").hidden=true;const done=$("#gDone");done.hidden=false;
+    done.innerHTML=`<div class="ok" aria-hidden="true">✓</div><h3>Başvurun alındı, ${name.split(" ")[0]}.</h3>
+      <p>Seni <b>${m.d.getDate()} ${MONTHS[m.d.getMonth()]} ${DAYS[m.d.getDay()]} 19.30</b>'da Hybrid Hub'daki ${m.no}. toplantımızda bekliyoruz. Ayrıntıları ${mail} adresine göndereceğiz.</p>
+      <p style="font-size:.85rem">Bu bir taslak: canlı sitede başvurun üyelik komitesine iletilecek.</p>
+      <button class="btn btn-ghost" type="button" id="gAgain" style="justify-self:start">Yeni başvuru</button>`;
+    $("#gAgain").addEventListener("click",()=>{done.hidden=true;$("#gfFields").hidden=false;$("#gf").reset();$$("#gInterest button").forEach(b=>b.setAttribute("aria-pressed","false"))});
+  });
+
+  // ---------- Reveal + counters ----------
+  if("IntersectionObserver" in window && !reduce){
+    const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target)}}),{threshold:.15});
+    $$(".rv").forEach(el=>{const r=el.getBoundingClientRect();if(r.top>innerHeight)io.observe(el)});
+    const fmt=(n,f)=>f?n.toLocaleString("tr-TR"):String(n);
+    const co=new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting)return;co.unobserve(e.target);
+      const el=e.target,to=+el.dataset.to,f=el.dataset.fmt,t0=performance.now(),dur=1400;
+      (function step(t){const k=Math.min(1,(t-t0)/dur),v=Math.round(to*(1-Math.pow(1-k,3)));el.textContent=fmt(v,f);if(k<1)requestAnimationFrame(step)})(t0);
+    }),{threshold:.6});
+    $$("[data-to]").forEach(el=>co.observe(el));
+  }
+
+  // ---------- Projects ----------
+  const PROJECTS=[
+    {id:"merhaba",t:"Döneme Merhaba Partisi",cat:"kulup",m:8,d:19,when:"Eylül",big:"20. yıl",since:"2026 teması: Vogue",x:"Yeni dönemin ilk büyük buluşması. Farklı kulüplerden Rotaractörlerle her yıl başka bir temayla kutluyoruz.",bg:"linear-gradient(135deg,#D41367,#F7A81B)"},
+    {id:"yesil",t:"Yeşili Fark Et!",cat:"farkindalik",m:9,d:6,when:"6 Ekim",big:"Yeşil",since:"Dünya Serebral Palsi Günü",x:"Yeşil giyip paylaşıyor, serebral palsi farkındalığını sosyal medyaya taşıyoruz.",bg:"linear-gradient(135deg,#1F8A4C,#7CC88F)"},
+    {id:"polio",t:"Dünya Polio Günü",cat:"farkindalik",m:9,d:24,when:"24 Ekim",big:"End Polio",since:"Rotary'nin küresel kampanyası",x:"Çocuk felcinin olmadığı bir dünya için aşıya erişimi ve farkındalığı destekliyoruz.",bg:"linear-gradient(135deg,#A30C4D,#D41367)"},
+    {id:"kirmizi",t:"Yer Gök Kırmızı Beyaz",cat:"hizmet",m:9,d:29,when:"29 Ekim",big:"103",since:"2026: 103 Türk + 103 Atatürk bayrağı",x:"Cumhuriyet Bayramı'nda çocuklarla sokakları kırmızı beyaza büründürüyoruz.",bg:"linear-gradient(160deg,#E30A17 0 60%,#B00812 60% 100%)"},
+    {id:"kurulus",t:"Kuruluş yıldönümü",cat:"kulup",m:10,d:15,when:"Kasım",big:"30",since:"Kasım 1996'dan beri",x:"Kulübümüzün doğum ayı. 2026'da 30. yaşımızı kutluyoruz.",bg:"linear-gradient(135deg,#D41367,#F78FB8)"},
+    {id:"yilbasi",t:"Bugün Hiç Bitmesin",cat:"hizmet",m:11,d:28,when:"Aralık sonu",big:"Yeni yıl",since:"Yaklaşık 10 yıldır",x:"Zihinsel ve fiziksel engelli dostlarımızla birlikte yeni yılı kutladığımız gün.",bg:"linear-gradient(135deg,#17458F,#4E7BD0)"},
+    {id:"balon",t:"Balon Perileri",cat:"hizmet",m:3,d:23,when:"23 Nisan",big:"Dilekler",since:"Okul ziyaretleri ve bağış kampanyası",x:"İhtiyacı olan çocukların dilek listelerini topluyor, hediyelerini 23 Nisan'da teslim ediyoruz.",bg:"linear-gradient(135deg,#F7A81B,#F2C14E)"},
+    {id:"sarap",t:"Şarap Peynir Gecesi",cat:"kaynak",m:null,d:null,when:"Tarih her yıl duyurulur",big:"15 yıl",since:"En köklü etkinliğimiz",x:"Rotaractörler ve Rotaryenler bir araya geliyor; gelir projelerimize aktarılıyor.",bg:"linear-gradient(135deg,#A30C4D,#E8508A)"}
+  ];
+  const rail=$("#rail");
+  rail.innerHTML=PROJECTS.map(p=>`<article class="proj" data-cat="${p.cat}">
+    <div class="proj-art" style="background:${p.bg}"><span class="when">${p.when}</span><span class="big">${p.big}</span></div>
+    <div class="proj-body"><h3>${p.t}</h3><p>${p.x}</p><small>${p.since}</small></div></article>`).join("");
+  $$(".chip").forEach(c=>c.addEventListener("click",()=>{
+    $$(".chip").forEach(x=>x.setAttribute("aria-pressed",x===c));
+    const f=c.dataset.f;$$(".proj").forEach(p=>p.hidden=!(f==="all"||p.dataset.cat===f));
+    rail.scrollTo({left:0,behavior:reduce?"auto":"smooth"});updRail();
+  }));
+  const step=()=>Math.min(rail.clientWidth*.8,400);
+  $("#rPrev").addEventListener("click",()=>rail.scrollBy({left:-step(),behavior:reduce?"auto":"smooth"}));
+  $("#rNext").addEventListener("click",()=>rail.scrollBy({left:step(),behavior:reduce?"auto":"smooth"}));
+  function updRail(){const max=rail.scrollWidth-rail.clientWidth;const w=Math.max(.12,rail.clientWidth/rail.scrollWidth);const b=$("#railBar");b.style.width=(w*100)+"%";b.style.transform=`translateX(${max>0?(rail.scrollLeft/max)*((1-w)/w)*100:0}%)`}
+  rail.addEventListener("scroll",updRail,{passive:true});addEventListener("resize",updRail);updRail();
+  let down=false,sx=0,sl=0,moved=false;
+  rail.addEventListener("pointerdown",e=>{if(e.pointerType!=="mouse")return;down=true;moved=false;sx=e.clientX;sl=rail.scrollLeft;rail.classList.add("drag")});
+  addEventListener("pointermove",e=>{if(!down)return;const dx=e.clientX-sx;if(Math.abs(dx)>4)moved=true;rail.scrollLeft=sl-dx});
+  addEventListener("pointerup",()=>{if(!down)return;down=false;rail.classList.remove("drag")});
+  rail.addEventListener("click",e=>{if(moved){e.preventDefault();e.stopPropagation()}},true);
+
+  // ---------- Year dial ----------
+  const EXTRA=[
+    {id:"devir",t:"Devir teslim",m:6,d:1,when:"1 Temmuz",x:"Yeni Rotary yılı başlar, yönetim kurulu görevi devralır."},
+    {id:"rotaract",t:"Rotaract'ın doğum günü",m:2,d:13,when:"13 Mart",x:"Rotaract 1968'de bu gün kuruldu; Dünya Rotaract Haftası bu tarihe denk gelir."}
+  ];
+  const EVENTS=[...EXTRA,...PROJECTS.filter(p=>p.m!==null)];
+  const svg=$("#wheel"),NS="http://www.w3.org/2000/svg",C=200;
+  function el(n,a,p){const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);(p||svg).appendChild(e);return e}
+  const rs=(d=>{const y=d.getMonth()>=6?d.getFullYear():d.getFullYear()-1;return new Date(y,6,1)})(now);
+  const YEAR=new Date(rs.getFullYear()+1,6,1)-rs;
+  const angFor=(m,d)=>{let dt=new Date(rs.getFullYear(),m,d);if(dt<rs)dt=new Date(rs.getFullYear()+1,m,d);return((dt-rs)/YEAR)*360-90};
+  const pt=(a,r)=>{const t=a*Math.PI/180;return[C+r*Math.cos(t),C+r*Math.sin(t)]};
+  for(let i=0;i<12;i++){
+    const m=(6+i)%12,y=rs.getFullYear()+(6+i>=12?1:0);
+    const a0=((new Date(y,m,1)-rs)/YEAR)*360-90,a1=((new Date(y,m+1,1)-rs)/YEAR)*360-90;
+    const[x0,y0]=pt(a0+.7,192),[x1,y1]=pt(a1-.7,192),[x2,y2]=pt(a1-.7,152),[x3,y3]=pt(a0+.7,152);
+    el("path",{d:`M${x0} ${y0} A192 192 0 0 1 ${x1} ${y1} L${x2} ${y2} A152 152 0 0 0 ${x3} ${y3}Z`,fill:i%2?"var(--ring-a)":"var(--ring-b)"});
+    const[lx,ly]=pt((a0+a1)/2,172);const tx=el("text",{x:lx,y:ly+4,"text-anchor":"middle",class:"mlabel"});tx.textContent=MON_S[m];
+  }
+  el("circle",{cx:C,cy:C,r:132,fill:"none",stroke:"var(--line)","stroke-width":1.5,"stroke-dasharray":"2 6"});
+  const ta=((now-rs)/YEAR)*360-90;const[nx0,ny0]=pt(ta,112),[nx1,ny1]=pt(ta,200);
+  el("line",{x1:nx0,y1:ny0,x2:nx1,y2:ny1,class:"needle"});
+  const[tlx,tly]=pt(ta,214);el("text",{x:tlx,y:tly+4,"text-anchor":"middle",class:"today-t"}).textContent="Bugün";
+  const sorted=EVENTS.map(e=>({...e,a:angFor(e.m,e.d)})).sort((p,q)=>p.a-q.a);
+  const dots={},items={};
+  sorted.forEach(e=>{
+    const[x,y]=pt(e.a,132);
+    const g=el("g",{class:"ev",tabindex:0,role:"button","aria-label":`${e.when}: ${e.t}`});
+    el("circle",{cx:x,cy:y,r:16,fill:"transparent"},g);el("circle",{cx:x,cy:y,r:8,class:"dot"},g);
+    dots[e.id]=g;g.addEventListener("click",()=>pick(e.id));
+    g.addEventListener("keydown",k=>{if(k.key==="Enter"||k.key===" "){k.preventDefault();pick(e.id)}});
+  });
+  $("#evList").innerHTML=sorted.map(e=>`<li><button type="button" data-id="${e.id}"><span class="d">${e.when}</span><span><span class="t">${e.t}</span><span class="x">${e.x}</span></span></button></li>`).join("");
+  $$("#evList button").forEach(b=>{items[b.dataset.id]=b;b.addEventListener("click",()=>pick(b.dataset.id))});
+  function pick(id){Object.values(dots).forEach(g=>g.classList.remove("active"));Object.values(items).forEach(b=>b.classList.remove("active"));dots[id].classList.add("active");items[id].classList.add("active")}
+  pick((sorted.find(e=>e.a>=ta)||sorted[0]).id);
+
+  // ---------- Membership ----------
+  const STEPS=[
+    {h:"Bir toplantıya misafir olarak gel",p:"Misafir üye başvuru formunu doldur ve geleceğin toplantıyı seç. İki haftada bir Perşembe 19.30'da Hybrid Hub'daki toplantıda seni karşılar, kulübü ve üyeleri tanıtırız. Hiçbir taahhüt yok.",cta:1},
+    {h:"Rotary'nin ilkelerini tanı",p:"Misafir üyeyken Rotary ve Rotaract'ın nasıl çalıştığını, 'kendinden önce hizmet' ilkesini ve kulübün projelerini yakından görürsün."},
+    {h:"Art arda 5 toplantı ve etkinliğe katıl",p:"Üst üste beş kulüp toplantısı ve etkinliğinde bulunman, kulübü tanıman ve kulübün de seni tanıması için yeterli süre.",dots:1},
+    {h:"Başvurun üyelere duyurulur",p:"Yönetim kurulu üyeliğini açar, başvuru formun kulüp üyeleriyle paylaşılır. Bir günlük itiraz süresi tanınır."},
+    {h:"Rozetini tak",p:"İtiraz gelmezse bir toplantıda rozet töreniyle resmen Anıttepe Rotaract üyesi olursun. Artık bir komitede görev alabilir, bölge etkinliklerine katılabilirsin."}
+  ];
+  let cur=0,dt;
+  function renderStep(){
+    const s=STEPS[cur],panel=$("#stepPanel");
+    $$(".steps button").forEach((b,i)=>{b.setAttribute("aria-selected",i===cur);b.classList.toggle("done",i<cur)});
+    panel.innerHTML=`<span class="tag">Adım ${cur+1} / 5</span><h3>${s.h}</h3><p>${s.p}</p>`+
+      (s.dots?`<div class="meet-dots">${[1,2,3,4,5].map(i=>`<span>${i}</span>`).join("")}</div>`:"")+
+      (s.cta?`<div><a class="btn btn-cran" href="#basvuru">Misafir üye başvurusu yap</a></div>`:"")+
+      `<div class="step-nav">${cur>0?'<button class="btn btn-ghost" type="button" data-go="-1">Önceki adım</button>':''}${cur<4?'<button class="btn btn-cran" type="button" data-go="1">Sonraki adım</button>':''}</div>`;
+    panel.classList.remove("swap");void panel.offsetWidth;panel.classList.add("swap");
+    clearInterval(dt);
+    if(s.dots){const sp=$$(".meet-dots span");if(reduce)sp.forEach(x=>x.classList.add("on"));else{let n=0;dt=setInterval(()=>{if(n<5)sp[n++].classList.add("on");else clearInterval(dt)},350)}}
+  }
+  $$(".steps button").forEach(b=>b.addEventListener("click",()=>{cur=+b.dataset.i;renderStep()}));
+  $("#stepPanel").addEventListener("click",e=>{const g=e.target.closest("[data-go]");if(g){cur+=+g.dataset.go;renderStep()}});
+  renderStep();
+  document.addEventListener("click",e=>{const a=e.target.closest("[data-subject]");if(a)$("#f-subject").value=a.dataset.subject});
+
+  // ---------- Board ----------
+  const BOARD={
+    "2026":[["Simay Oğuzkurt","Başkan"],["Selva Tuluy","Asbaşkan"],["Oğulcan Görgülü","Sekreter"],["Umut Ekin Akkuş","Sayman"],["Can Kılıçaslan","Yönetim Kurulu Üyesi"]],
+    "2025":[["Can Kılıçaslan","Başkan"],["Metehan Can Çırak","Asbaşkan"],["Selva Tuluy","Sekreter"],["Simay Oğuzkurt","Sayman"],["Begüm Gözüpek","Geçmiş Dönem Başkanı"]]
+  };
+  const COMMITTEES={"2026":[["Hizmet Projeleri","Melishan Özkan Ağca"],["Üyelik ve Üyeliği Geliştirme","Begüm Gözüpek"],["Uluslararası Hizmetler","Muhammed Alperen Çelik"],["Halkla İlişkiler ve Tanıtım","Muhammed Alperen Çelik"],["Kulüp Hizmetleri","Ezgi Erdoğan"],["Meslek Hizmetleri","Gizem Hanoğlu"],["Afet","Zehra Cansu Taşanlar"],["Hobi","Ezgi Erdoğan"]]};
+  const ini=n=>n.split(" ").filter(Boolean).slice(0,2).map(w=>w[0]).join("").toLocaleUpperCase("tr");
+  function renderBoard(t){
+    const b=$("#board");
+    b.innerHTML=BOARD[t].map(([n,r],i)=>`<div class="person${i===0?" lead-p":""}"><div class="avatar" aria-hidden="true">${ini(n)}</div><div><b>${n}</b><span>${r}</span></div></div>`).join("");
+    b.classList.remove("fade");void b.offsetWidth;b.classList.add("fade");
+    const c=COMMITTEES[t];
+    $("#committees").innerHTML=c?`<h3>Komite başkanları</h3><ul>${c.map(([k,n])=>`<li><span>${k} Komitesi</span><b>${n}</b></li>`).join("")}</ul>`:"";
+  }
+  $$(".seg button").forEach(btn=>btn.addEventListener("click",()=>{$$(".seg button").forEach(x=>x.setAttribute("aria-pressed",x===btn));renderBoard(btn.dataset.term)}));
+  renderBoard("2026");
+
+  // ---------- Culture box ----------
+  const CB=[["Mustafa Kemal Atatürk","Cumhuriyet'in kurucusu; kutuya onun hikâyesini anlatan bir kart koyuyoruz.","#D41367"],["Anıtkabir","Ankara'nın sembolü, kulübümüze adını veren semtin hemen yanında.","#17458F"],["Türk kahvesi","UNESCO somut olmayan kültürel miras listesinde.","#6B3E1E"],["Türk çayı","İnce belli bardakta, demli. Misafirliğin ilk ikramı.","#B4261C"],["Şalgam","Adana'nın mor içeceği; kutuyu açanların en çok şaşırdığı tat.","#6A1B4D"],["Lokum","Yüzyıllardır sofraların tatlısı.","#E58A00"],["Fındık","Dünyadaki fındığın büyük kısmı Karadeniz'den çıkıyor.","#8A5A2B"],["Kolonya","Misafire ikram edilen limon kokusu.","#1F8A4C"],["Türk bayrağı","Ay yıldızlı bayrağımız, 29 Ekim projemizin de simgesi.","#E30A17"],["Mevlana","Hoşgörünün sesi; Konya'dan bütün dünyaya.","#17458F"],["Nazar boncuğu","Kem gözlere karşı mavi bir koruyucu.","#1F5FBF"],["Tespih","Elden ele geçen, sakinleştiren bir alışkanlık.","#6E5F69"],["Geyik motifli halı","Anadolu dokumasında sık görülen bereket simgesi.","#8A5A2B"],["Çini bardak","İznik çinisinden ilham alan desenler.","#1F7A8C"],["Çini bardak altlığı","Aynı desenin sofradaki tamamlayıcısı.","#1F7A8C"],["Kilim","Her motifi ayrı bir dilek taşıyan el dokuması.","#B4261C"]];
+  $("#cbox").innerHTML=CB.map(([t,x,c])=>`<article><div class="glyph" style="background:color-mix(in srgb,${c} 16%,var(--surface));color:${c}">${t[0]}</div><h3 style="font-size:1rem">${t}</h3><p>${x}</p></article>`).join("");
+
+  // ---------- Copy + form ----------
+  $$("[data-copy]").forEach(b=>b.addEventListener("click",()=>{
+    const txt=$("#"+b.dataset.copy).textContent;const ok=()=>{b.textContent="Kopyalandı";setTimeout(()=>b.textContent="Kopyala",1800)};
+    const sel=()=>{const r=document.createRange();r.selectNodeContents($("#"+b.dataset.copy));const s=getSelection();s.removeAllRanges();s.addRange(r);toast("Adres seçildi, kopyalayabilirsin")};
+    try{navigator.clipboard.writeText(txt).then(ok,sel)}catch(e){sel()}
+  }));
+  $("#cf").addEventListener("submit",e=>{
+    e.preventDefault();const ok=$("#formOk"),name=$("#f-name").value.trim(),mail=$("#f-mail").value.trim();ok.hidden=false;
+    if(!name||!/^\S+@\S+\.\S+$/.test(mail)){ok.textContent="Adını ve geçerli bir e-posta adresini yazman gerekiyor.";return}
+    ok.textContent=`Teşekkürler ${name.split(" ")[0]}. Bu bir taslak: canlı sitede mesajın kulübe iletilecek.`;
+  });
+
+  // ---------- Notes ----------
+  const nt=$("#notesToggle");let notes=false;try{notes=localStorage.getItem("ar-notes")==="1"}catch(e){}
+  const applyNotes=()=>{document.body.classList.toggle("show-notes",notes);nt.textContent=notes?"Taslak notlarını gizle":"Taslak notlarını göster";nt.setAttribute("aria-pressed",notes)};
+  nt.addEventListener("click",()=>{notes=!notes;try{localStorage.setItem("ar-notes",notes?"1":"0")}catch(e){}applyNotes()});applyNotes();
+})();
+</script>

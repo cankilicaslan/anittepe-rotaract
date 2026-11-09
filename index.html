@@ -369,7 +369,7 @@ form.cf .btn{justify-self:start}
 
 /* ---------- Footer ---------- */
 footer.site{background:var(--blush-2);color:var(--ink);padding-block:56px 32px;position:relative;overflow:hidden}
-.foot{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:32px;position:relative;z-index:1}
+.foot{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1.2fr;gap:32px;position:relative;z-index:1}
 .foot .lg{width:220px}
 .foot h4{margin:0 0 12px;font-size:.9rem;color:var(--cran-deep);font-weight:700}
 .foot ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
@@ -425,6 +425,13 @@ body.show-notes .note{display:block}
 @view-transition{navigation:auto}
 ::view-transition-old(root),::view-transition-new(root){animation-duration:.28s}
 @media (prefers-reduced-motion: reduce){::view-transition-old(root),::view-transition-new(root){animation:none}}
+.qlinks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:40px}
+.qlinks a{display:grid;gap:4px;text-decoration:none;color:var(--ink);background:#fff;border:1.5px solid var(--blush-2);border-radius:20px;padding:18px 20px;transition:border-color .2s,transform .2s}
+.qlinks a:hover{border-color:var(--cran);transform:translateY(-2px)}
+.qlinks b{font-size:1.08rem;color:var(--cran-deep)}
+.qlinks span{color:var(--muted);font-size:.9rem;line-height:1.45}
+.qlinks small{margin-top:6px;font-size:.8rem;color:var(--muted)}
+@media (max-width:760px){.qlinks{grid-template-columns:1fr}}
 </style>
 
 <div class="progress" id="progress" aria-hidden="true"></div>
@@ -732,10 +739,15 @@ body.show-notes .note{display:block}
       <div class="family rv">
         <div class="fam"><small>1905'ten beri · 1 milyon+ üye</small><a href="https://www.rotary.org/tr" target="_blank" rel="noopener">Rotary International</a></div>
         <div class="fam"><small>Türkiye, Azerbaycan ve Orta Asya</small><a href="https://rotary2430.org.tr" target="_blank" rel="noopener">Rotary 2430. Bölge</a></div>
-        <div class="fam"><small>60 kulüp · BRT Alper Abacıgil</small><a href="https://rotaract2430.org.tr" target="_blank" rel="noopener">Rotaract 2430</a></div>
+        <div class="fam"><small>60 kulüp · BRT Alper Abacıgil</small><a href="https://rotary2430.org.tr/sayfa-rotaract-5920" target="_blank" rel="noopener">Rotaract 2430</a></div>
         <div class="fam"><small>Sponsor kulübümüz</small><a href="#top">Ankara Anıttepe Rotary</a></div>
         <div class="fam"><small>Kasım 1996'dan beri</small><a href="#top">Anıttepe Rotaract</a></div>
       </div>
+      <nav class="qlinks" aria-label="Rotary bağlantıları">
+        <a href="https://rotary2430.org.tr/sayfa-rotaract-5920" target="_blank" rel="noopener"><b>Rotaract Bölge 2430</b><span>Bölge etkinlikleri, kulüpler ve duyurular</span><small>rotary2430.org.tr/rotaract</small></a>
+        <a href="https://rotary2430.org.tr" target="_blank" rel="noopener"><b>Rotary Bölge 2430</b><span>Türkiye, Azerbaycan ve Orta Asya'daki Rotary kulüpleri</span><small>rotary2430.org.tr</small></a>
+        <a href="https://my.rotary.org/tr" target="_blank" rel="noopener"><b>My Rotary</b><span>Üye girişi, Rotary eğitimleri ve kaynaklar</span><small>my.rotary.org/tr</small></a>
+      </nav>
     </div>
   </section>
 
@@ -833,6 +845,7 @@ body.show-notes .note{display:block}
       </div>
       <div><h4>Kulüp</h4><ul><li><a href="#hikaye">30 yıl</a></li><li><a href="#yonetim">Yönetim</a></li><li><a href="#belgeler">Belgeler</a></li></ul></div>
       <div><h4>Katıl</h4><ul><li><a href="#basvuru">Misafir üye başvurusu</a></li><li><a href="#uyelik">Üyelik süreci</a></li><li><a href="#projeler">Geleneksel projeler</a></li></ul></div>
+      <div><h4>Rotary bağlantıları</h4><ul><li><a href="https://rotary2430.org.tr/sayfa-rotaract-5920" target="_blank" rel="noopener">Rotaract Bölge 2430</a></li><li><a href="https://rotary2430.org.tr" target="_blank" rel="noopener">Rotary Bölge 2430</a></li><li><a href="https://my.rotary.org/tr" target="_blank" rel="noopener">My Rotary</a></li></ul></div>
       <div><h4>Takip et</h4><ul><li><a href="https://www.instagram.com/anitteperotaract/" target="_blank" rel="noopener">Instagram</a></li><li><a href="https://www.linkedin.com/company/anittepe-rotaract/" target="_blank" rel="noopener">LinkedIn</a></li><li><a href="https://www.facebook.com/AnittepeRotaractKulubu/" target="_blank" rel="noopener">Facebook</a></li></ul></div>
     </div>
     <div class="foot-bottom"><span>© <span id="yr">2026</span> Ankara Anıttepe Rotaract Kulübü · 1996'dan beri</span><span>Kendinden önce hizmet</span></div>

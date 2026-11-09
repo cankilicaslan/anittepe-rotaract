@@ -414,9 +414,17 @@ body.show-notes .note{display:block}
 .foci li:last-child{grid-column:1/-1}
 @media (max-width:900px){.values{grid-template-columns:1fr}}
 @media (max-width:520px){.foci ul{grid-template-columns:1fr}}
-.lang{font:700 .85rem var(--f);text-decoration:none;color:var(--cran-deep);border:1.5px solid var(--cran-soft);background:#fff;border-radius:999px;padding:7px 12px;white-space:nowrap;letter-spacing:.02em}
-.lang:hover{border-color:var(--cran)}
-@media (max-width:1200px){.lang{margin-left:auto}.hdr .menu-btn{margin-left:10px}}
+.lang-sw{display:inline-flex;align-items:center;background:#fff;border:1.5px solid var(--blush-2);border-radius:999px;padding:3px;gap:2px;flex:none}
+.lang-sw a{font:700 .82rem/1 var(--f);text-decoration:none;color:var(--muted);padding:8px 11px;border-radius:999px;letter-spacing:.03em;transition:background .2s,color .2s}
+.lang-sw a:hover{color:var(--cran-deep);background:var(--cran-soft)}
+.lang-sw a[aria-current="true"]{background:var(--cran);color:#fff;pointer-events:none}
+@media (max-width:1200px){.lang-sw{margin-left:auto}.hdr .menu-btn{margin-left:10px}}
+.lang-hint{position:fixed;left:50%;top:calc(var(--hdr) + 14px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:80;display:flex;align-items:center;gap:12px;background:#fff;color:var(--ink);border:1.5px solid var(--blush-2);box-shadow:0 18px 40px -24px rgba(163,12,77,.55);border-radius:18px;padding:10px 12px 10px 16px;font-size:.92rem;max-width:calc(100% - 32px)}
+.lang-hint a{font-weight:700;color:#fff;background:var(--cran);text-decoration:none;border-radius:999px;padding:7px 14px;white-space:nowrap}
+.lang-hint button{border:0;background:none;color:var(--muted);font-size:1.2rem;cursor:pointer;padding:4px 6px;line-height:1}
+@view-transition{navigation:auto}
+::view-transition-old(root),::view-transition-new(root){animation-duration:.28s}
+@media (prefers-reduced-motion: reduce){::view-transition-old(root),::view-transition-new(root){animation:none}}
 </style>
 
 <div class="progress" id="progress" aria-hidden="true"></div>
@@ -440,7 +448,7 @@ body.show-notes .note{display:block}
       <a href="#haberler">News</a>
       <a href="#iletisim">Contact</a>
     </nav>
-    <a class="lang" href="https://cankilicaslan.github.io/anittepe-rotaract/" hreflang="tr" lang="tr" aria-label="Türkçe sürüm">TR</a>
+    <div class="lang-sw" role="group" aria-label="Language"><a href="https://cankilicaslan.github.io/anittepe-rotaract/" hreflang="tr" lang="tr" data-lang="tr" aria-label="Türkçe">TR</a><a href="https://cankilicaslan.github.io/anittepe-rotaract/en/" hreflang="en" lang="en" data-lang="en" aria-current="true" aria-label="English">EN</a></div>
     <a class="btn btn-cran" href="#basvuru">Visit as a guest</a>
     <button class="menu-btn" id="menuBtn" type="button" aria-expanded="false" aria-controls="nav" aria-label="Open menu">☰</button>
   </div>
@@ -1078,5 +1086,34 @@ body.show-notes .note{display:block}
     const n=btns.filter(x=>x.getAttribute("aria-pressed")==="true").length;
     out.textContent=n===4?"Yes to all four: this idea fits the Rotary spirit.":n===0?"Think of an idea you have and tick the four questions one by one.":n+" of 4 answered yes.";
   }));
+})();
+
+// Language switch: remembers choice and keeps your place on the page
+(function(){
+  const CUR="en",KEY="ar-lang",POS="ar-lang-pos";
+  const get=(s,k)=>{try{return s.getItem(k)}catch(e){return null}}, set=(s,k,v)=>{try{s.setItem(k,v)}catch(e){}};
+  function here(){
+    const secs=[...document.querySelectorAll("main section[id],main[id]")];let best=null;
+    for(const s of secs){const t=s.getBoundingClientRect().top;if(t<=120)best=s}
+    if(!best)return null;return {id:best.id,off:Math.round(-best.getBoundingClientRect().top)};
+  }
+  document.querySelectorAll(".lang-sw a,.lang-hint a").forEach(a=>a.addEventListener("click",()=>{
+    set(localStorage,KEY,a.dataset.lang);const p=here();if(p)set(sessionStorage,POS,JSON.stringify(p));
+  }));
+  // restore position after switching
+  const raw=get(sessionStorage,POS);
+  if(raw){try{sessionStorage.removeItem(POS)}catch(e){}
+    try{const p=JSON.parse(raw),el=document.getElementById(p.id);if(el&&p.id!=="top"){const go=()=>scrollTo({top:el.getBoundingClientRect().top+scrollY+p.off,behavior:"instant"});go();addEventListener("load",go,{once:true})}}catch(e){}
+  }
+  // first visit: suggest the other language if the browser prefers it
+  const pref=get(localStorage,KEY), nav=(navigator.language||"").slice(0,2).toLowerCase();
+  if(!pref&&!raw&&nav&&nav!==CUR&&(nav==="en"||nav==="tr")){
+    const h=document.createElement("div");h.className="lang-hint";h.setAttribute("role","status");
+    h.innerHTML=CUR==="tr"?'<span>This site is also available in English.</span><a href="https://cankilicaslan.github.io/anittepe-rotaract/en/" hreflang="en" data-lang="en">English</a><button type="button" aria-label="Close">×</button>'
+                          :'<span>Bu sitenin Türkçesi de var.</span><a href="https://cankilicaslan.github.io/anittepe-rotaract/" hreflang="tr" data-lang="tr">Türkçe</a><button type="button" aria-label="Kapat">×</button>';
+    document.body.appendChild(h);
+    h.querySelector("a").addEventListener("click",e=>{set(localStorage,KEY,e.currentTarget.dataset.lang);const p=here();if(p)set(sessionStorage,POS,JSON.stringify(p))});
+    h.querySelector("button").addEventListener("click",()=>{set(localStorage,KEY,CUR);h.remove()});
+  }
 })();
 </script>

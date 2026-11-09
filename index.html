@@ -280,13 +280,7 @@ nav.main a:hover{opacity:1;background:color-mix(in srgb,currentColor 12%,transpa
 .committees ul.cm li b{font-weight:700}
 .committees ul.cm li span{font-size:.9rem}
 .mini{flex:none;width:52px;height:52px;border-radius:50%;object-fit:cover;object-position:50% 30%;background:var(--cran-soft)}
-.members{margin-top:56px}
-.members h3{margin-bottom:6px}
-.members > p{color:var(--muted);margin-bottom:22px}
-.mgrid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:22px 16px}
-.mgrid li{display:grid;justify-items:center;text-align:center;gap:10px;font-weight:600;font-size:.92rem;line-height:1.3}
-.mgrid img{width:100%;max-width:132px;aspect-ratio:1;border-radius:50%;object-fit:cover;object-position:50% 30%;border:4px solid #fff;box-shadow:0 10px 24px -16px rgba(163,12,77,.6)}
-@media (max-width:540px){.committees ul.cm{grid-template-columns:1fr}.mgrid{grid-template-columns:repeat(3,1fr);gap:16px 10px}}
+@media (max-width:540px){.committees ul.cm{grid-template-columns:1fr}}
 .person b{display:block;font-weight:700}
 .person span{color:var(--muted);font-size:.9rem}
 .board.fade{animation:swap .45s cubic-bezier(.2,.8,.2,1)}
@@ -679,11 +673,6 @@ body.show-notes .note{display:block}
       </div>
       <div class="board" id="board"></div>
       <div class="committees" id="committees"></div>
-      <div class="members">
-        <h3>Üyelerimiz</h3>
-        <p>Toplantılarda tanışacağın ekip.</p>
-        <ul class="mgrid" id="members"></ul>
-      </div>
     </div>
   </section>
 
@@ -1039,8 +1028,7 @@ body.show-notes .note{display:block}
   };
   const COMMITTEES={"2026":[["Hizmet Projeleri","Melishan Özkan Ağca"],["Üyelik ve Üyeliği Geliştirme","Begüm Gözüpek"],["Uluslararası Hizmetler","Muhammed Alperen Çelik"],["Halkla İlişkiler ve Tanıtım","Muhammed Alperen Çelik"],["Kulüp Hizmetleri","Ezgi Erdoğan"],["Meslek Hizmetleri","Gizem Hanoğlu"],["Afet","Zehra Cansu Taşanlar"],["Hobi","Ezgi Erdoğan"]]};
   const PHOTO=n=>{const s=n.replace(/ı/g,"i").replace(/İ/g,"I").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");return PHOTOS.includes(s)?`assets/uyeler/${s}.jpg`:null};
-  const MEMBERS=["Simay Oğuzkurt","Selva Tuluy","Oğulcan Görgülü","Umut Ekin Akkuş","Can Kılıçaslan","Begüm Gözüpek","Berfu Laçin Karaman","Cansu Ergürbüz Demirrenk","Ezgi Erdoğan","Gizem Hanoğlu","Kaan Özmen","Mehmet Berkay Yeşil","Melishan Özkan Ağca","Metehan Can Çırak","Muhammed Alperen Çelik","Muhammed Özmen","Pınar Canberk","Zehra Cansu Taşanlar"];
-  const PHOTOS=["begum-gozupek","berfu-lacin-karaman","can-kilicaslan","cansu-ergurbuz-demirrenk","ezgi-erdogan","gizem-hanoglu","kaan-ozmen","mehmet-berkay-yesil","melishan-ozkan-agca","metehan-can-cirak","muhammed-alperen-celik","muhammed-ozmen","ogulcan-gorgulu","pinar-canberk","selva-tuluy","simay-oguzkurt","umut-ekin-akkus","zehra-cansu-tasanlar"];
+  const PHOTOS=["begum-gozupek","can-kilicaslan","ezgi-erdogan","gizem-hanoglu","melishan-ozkan-agca","metehan-can-cirak","muhammed-alperen-celik","ogulcan-gorgulu","selva-tuluy","simay-oguzkurt","umut-ekin-akkus","zehra-cansu-tasanlar"];
   const ini=n=>n.split(" ").filter(Boolean).slice(0,2).map(w=>w[0]).join("").toLocaleUpperCase("tr");
   function renderBoard(t){
     const b=$("#board");
@@ -1051,7 +1039,6 @@ body.show-notes .note{display:block}
   }
   $$(".seg button").forEach(btn=>btn.addEventListener("click",()=>{$$(".seg button").forEach(x=>x.setAttribute("aria-pressed",x===btn));renderBoard(btn.dataset.term)}));
   renderBoard("2026");
-  $("#members").innerHTML=MEMBERS.slice().sort((a,b)=>a.localeCompare(b,"tr")).map(n=>`<li>${PHOTO(n)?`<img src="${PHOTO(n)}" alt="${n}" loading="lazy">`:""}${n}</li>`).join("");
 
   // ---------- Culture box ----------
   const CB=[["Mustafa Kemal Atatürk","Cumhuriyet'in kurucusu; kutuya onun hikâyesini anlatan bir kart koyuyoruz.","#D41367"],["Anıtkabir","Ankara'nın sembolü, kulübümüze adını veren semtin hemen yanında.","#17458F"],["Türk kahvesi","UNESCO somut olmayan kültürel miras listesinde.","#6B3E1E"],["Türk çayı","İnce belli bardakta, demli. Misafirliğin ilk ikramı.","#B4261C"],["Şalgam","Adana'nın mor içeceği; kutuyu açanların en çok şaşırdığı tat.","#6A1B4D"],["Lokum","Yüzyıllardır sofraların tatlısı.","#E58A00"],["Fındık","Dünyadaki fındığın büyük kısmı Karadeniz'den çıkıyor.","#8A5A2B"],["Kolonya","Misafire ikram edilen limon kokusu.","#1F8A4C"],["Türk bayrağı","Ay yıldızlı bayrağımız, 29 Ekim projemizin de simgesi.","#E30A17"],["Mevlana","Hoşgörünün sesi; Konya'dan bütün dünyaya.","#17458F"],["Nazar boncuğu","Kem gözlere karşı mavi bir koruyucu.","#1F5FBF"],["Tespih","Elden ele geçen, sakinleştiren bir alışkanlık.","#6E5F69"],["Geyik motifli halı","Anadolu dokumasında sık görülen bereket simgesi.","#8A5A2B"],["Çini bardak","İznik çinisinden ilham alan desenler.","#1F7A8C"],["Çini bardak altlığı","Aynı desenin sofradaki tamamlayıcısı.","#1F7A8C"],["Kilim","Her motifi ayrı bir dilek taşıyan el dokuması.","#B4261C"]];

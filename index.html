@@ -384,6 +384,26 @@ body.show-notes .note{display:block}
   html{scroll-behavior:auto}
   *,*::before,*::after{animation:none!important;transition:none!important}
 }
+/* VALUES: 4'lü özdenetim + 7 odak alanı */
+.values{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:clamp(28px,4vw,56px);align-items:start}
+.fwt{background:#fff;border:1.5px solid var(--blush-2);box-shadow:0 18px 40px -28px rgba(163,12,77,.45);border-radius:28px;padding:clamp(22px,3vw,36px)}
+.fwt h3{font-size:1.5rem;color:var(--cran-deep);margin-bottom:6px}
+.fwt > p{color:var(--muted);margin-bottom:18px}
+.fwt ol{list-style:none;display:grid;gap:10px;padding:0;margin:0}
+.fwt button{width:100%;display:flex;align-items:center;gap:14px;text-align:left;font:700 1.08rem/1.35 var(--f);color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:18px;padding:14px 16px;cursor:pointer;transition:background .2s,border-color .2s,color .2s}
+.fwt button i{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:800;background:var(--cran-soft);color:var(--cran-deep);transition:background .2s,color .2s}
+.fwt button[aria-pressed="true"]{background:var(--cran);border-color:var(--cran);color:#fff}
+.fwt button[aria-pressed="true"] i{background:#fff;color:var(--cran)}
+.fwt .fwt-out{margin:16px 0 0;font-weight:700;color:var(--cran-deep);min-height:1.6em}
+.foci h3{font-size:1.5rem;margin-bottom:6px}
+.foci > p{color:var(--muted);margin-bottom:18px;max-width:56ch}
+.foci ul{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.foci li{border-radius:20px;padding:16px 18px;background:var(--c,#fff)}
+.foci li b{display:block;font-size:1.02rem;line-height:1.3;margin-bottom:4px}
+.foci li span{font-size:.92rem;color:var(--muted);line-height:1.45;display:block}
+.foci li:last-child{grid-column:1/-1}
+@media (max-width:900px){.values{grid-template-columns:1fr}}
+@media (max-width:520px){.foci ul{grid-template-columns:1fr}}
 </style>
 
 <div class="progress" id="progress" aria-hidden="true"></div>
@@ -399,7 +419,8 @@ body.show-notes .note{display:block}
     </a>
     <nav class="main" id="nav" aria-label="Ana menü">
       <a href="#hikaye">30 yıl</a>
-      <a href="#projeler">Projeler</a>
+      <a href="#projeler">Geleneksel projeler</a>
+      <a href="#degerler">Değerler</a>
       <a href="#takvim">Takvim</a>
       <a href="#uyelik">Üyelik</a>
       <a href="#yonetim">Yönetim</a>
@@ -422,7 +443,7 @@ body.show-notes .note{display:block}
         <p class="lead">Ankara Anıttepe Rotaract, 18–30 yaş arası gençlerin gönüllülük, liderlik ve dostlukla topluma hizmet ettiği bir Rotary kulübü. 2026–27 dönemindeki hedefimiz: Kalıcı Etki Yarat.</p>
         <div class="hero-actions">
           <a class="btn btn-cran" href="#basvuru">Misafir üye başvurusu yap</a>
-          <a class="btn btn-line" href="#projeler">Projelerimizi gör</a>
+          <a class="btn btn-line" href="#projeler">Geleneksel projelerimiz</a>
         </div>
         <div class="ticket" aria-live="polite">
           <div class="ticket-date"><div><b id="mDay">19</b><span id="mMon">Kasım</span></div></div>
@@ -535,8 +556,9 @@ body.show-notes .note{display:block}
       <div class="note"><b>Taslak notu:</b> Projeler sürüklenebilir bir şeritte duruyor (fareyle tutup kaydırılabiliyor, oklar da çalışıyor). Canlıda her kartın kendi sayfası ve gerçek fotoğrafı olacak.</div>
       <div class="rail-head">
         <div class="sec-head" style="margin:0">
-          <span class="kicker">Projelerimiz</span>
+          <span class="kicker">Geleneksel projelerimiz</span>
           <h2>Her yıl yeniden yaptığımız işler</h2>
+          <p class="lead">Kulübün yıllardır sürdürdüğü projeler. Her dönem yeni üyelerle yeniden hayata geçiyor.</p>
         </div>
         <div class="arrows"><button type="button" id="rPrev" aria-label="Önceki projeler">←</button><button type="button" id="rNext" aria-label="Sonraki projeler">→</button></div>
       </div>
@@ -550,6 +572,43 @@ body.show-notes .note{display:block}
     </div>
     <div class="rail" id="rail" tabindex="0" aria-label="Proje kartları"></div>
     <div class="wrap"><div class="rail-progress" aria-hidden="true"><i id="railBar"></i></div></div>
+  </section>
+
+  <!-- VALUES -->
+  <section class="band" id="degerler" style="background:linear-gradient(180deg,var(--blush-2) 0%,var(--blush) 55%,#fff 100%)">
+    <div class="wrap">
+      <div class="sec-head rv">
+        <span class="kicker">Değerlerimiz</span>
+        <h2>Neye göre karar veriyoruz</h2>
+        <p class="lead">Rotary ailesindeki her kulüp aynı dört soruyu sorar ve aynı yedi alanda hizmet eder. Projelerimizi de bunlara göre seçiyoruz.</p>
+      </div>
+      <div class="values">
+        <div class="fwt">
+          <h3>4'lü Özdenetim</h3>
+          <p>Düşündüğümüz, söylediğimiz ya da yaptığımız her şey için:</p>
+          <ol id="fwt">
+            <li><button type="button" aria-pressed="false"><i>1</i>Doğru mu?</button></li>
+            <li><button type="button" aria-pressed="false"><i>2</i>İlgili herkes için adil mi?</button></li>
+            <li><button type="button" aria-pressed="false"><i>3</i>İyi niyet ve daha iyi dostluklar sağlayacak mı?</button></li>
+            <li><button type="button" aria-pressed="false"><i>4</i>İlgili herkesin yararına mı?</button></li>
+          </ol>
+          <p class="fwt-out" id="fwtOut" aria-live="polite">Aklındaki bir fikri düşün ve dört soruyu sırayla işaretle.</p>
+        </div>
+        <div class="foci">
+          <h3>Rotary'nin 7 odak alanı</h3>
+          <p>Dünyadaki tüm Rotary ve Rotaract kulüpleri hizmet projelerini bu yedi alanda yürütür.</p>
+          <ul>
+            <li style="--c:var(--cran-soft)"><b>Barış ve çatışmaların önlenmesi</b><span>Diyaloğu ve karşılıklı anlayışı güçlendirmek.</span></li>
+            <li style="--c:var(--sky-soft)"><b>Hastalıklarla mücadele</b><span>Polio başta olmak üzere hastalıkları önlemek, tedaviye erişimi artırmak.</span></li>
+            <li style="--c:#E3F4F8"><b>Temiz su, sanitasyon ve hijyen</b><span>Güvenli suya ve sağlıklı yaşam koşullarına erişim.</span></li>
+            <li style="--c:var(--gold-soft)"><b>Anne ve çocuk sağlığı</b><span>Annelerin ve küçük çocukların sağlıklı yaşaması.</span></li>
+            <li style="--c:#F1ECFB"><b>Temel eğitim ve okuryazarlık</b><span>Her çocuğun okula ve öğrenmeye ulaşabilmesi.</span></li>
+            <li style="--c:#FDEBE3"><b>Toplumsal ve ekonomik kalkınma</b><span>Yerel ekonomileri ve meslek edinmeyi desteklemek.</span></li>
+            <li style="--c:#E6F5EA"><b>Çevrenin korunması</b><span>Doğal kaynakları korumak, sürdürülebilir yaşamı yaygınlaştırmak.</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
   </section>
 
   <!-- YEAR DIAL -->
@@ -751,7 +810,7 @@ body.show-notes .note{display:block}
         <p>Kasım 1996'dan beri Ankara'da. Sponsor kulübümüz Ankara Anıttepe Rotary Kulübü, 2430. Bölge.</p>
       </div>
       <div><h4>Kulüp</h4><ul><li><a href="#hikaye">30 yıl</a></li><li><a href="#yonetim">Yönetim</a></li><li><a href="#belgeler">Belgeler</a></li></ul></div>
-      <div><h4>Katıl</h4><ul><li><a href="#basvuru">Misafir üye başvurusu</a></li><li><a href="#uyelik">Üyelik süreci</a></li><li><a href="#projeler">Projeler</a></li></ul></div>
+      <div><h4>Katıl</h4><ul><li><a href="#basvuru">Misafir üye başvurusu</a></li><li><a href="#uyelik">Üyelik süreci</a></li><li><a href="#projeler">Geleneksel projeler</a></li></ul></div>
       <div><h4>Takip et</h4><ul><li><a href="https://www.instagram.com/anitteperotaract/" target="_blank" rel="noopener">Instagram</a></li><li><a href="https://www.linkedin.com/company/anittepe-rotaract/" target="_blank" rel="noopener">LinkedIn</a></li><li><a href="https://www.facebook.com/AnittepeRotaractKulubu/" target="_blank" rel="noopener">Facebook</a></li></ul></div>
     </div>
     <div class="foot-bottom"><span>© <span id="yr">2026</span> Ankara Anıttepe Rotaract Kulübü · 1996'dan beri</span><span>Kendinden önce hizmet</span></div>
@@ -991,5 +1050,16 @@ body.show-notes .note{display:block}
   const nt=$("#notesToggle");let notes=false;try{notes=localStorage.getItem("ar-notes")==="1"}catch(e){}
   const applyNotes=()=>{document.body.classList.toggle("show-notes",notes);nt.textContent=notes?"Taslak notlarını gizle":"Taslak notlarını göster";nt.setAttribute("aria-pressed",notes)};
   nt.addEventListener("click",()=>{notes=!notes;try{localStorage.setItem("ar-notes",notes?"1":"0")}catch(e){}applyNotes()});applyNotes();
+})();
+// 4'lü özdenetim
+(function(){
+  const box=document.getElementById("fwt"),out=document.getElementById("fwtOut");
+  if(!box) return;
+  const btns=[...box.querySelectorAll("button")];
+  btns.forEach(b=>b.addEventListener("click",()=>{
+    b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")==="true"?"false":"true");
+    const n=btns.filter(x=>x.getAttribute("aria-pressed")==="true").length;
+    out.textContent=n===4?"Dördüne de evet: bu fikir Rotary ruhuna uygun.":n===0?"Aklındaki bir fikri düşün ve dört soruyu sırayla işaretle.":n+" / 4 soruya evet.";
+  }));
 })();
 </script>

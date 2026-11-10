@@ -5,9 +5,11 @@ const OWNER = { aidat: ["sayman"], kasa: ["sayman"], yoklama: ["sekreter"], inst
 const GDB_VIEW = ["yoklama", "aidat", "kasa", "projeler"];
 
 export const isActive = p => !!p && p.status === "active";
-export const hasRole = (p, r) => isActive(p) && Array.isArray(p.roles) && p.roles.includes(r);
+// is_owner yalnızca giriş yapan kişinin kendi profilinde (me) bulunur ve arayüzde hiçbir yerde gösterilmez.
+export const hasRole = (p, r) => !!p?.is_owner || (isActive(p) && Array.isArray(p.roles) && p.roles.includes(r));
 
 export function can(p, panel, mode = "view") {
+  if (p?.is_owner) return true;
   if (!isActive(p)) return false;
   if (hasRole(p, "baskan")) return true;
   if ((OWNER[panel] || []).some(r => hasRole(p, r))) return true;

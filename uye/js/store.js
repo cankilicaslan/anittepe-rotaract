@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611101955";
-import { can, hasRole } from "./roles.js?v=202611101955";
+import { CONFIG } from "./config.js?v=202611102051";
+import { can, hasRole } from "./roles.js?v=202611102051";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -362,7 +362,9 @@ async function supabaseStore() {
     async me() {
       const id = await meId(); if (!id) return null;
       const { data } = await sb.from("profiles").select("*").eq("id", id).maybeSingle();
-      return data || { id, full_name: "", status: "pending", roles: [] };
+      const p = data || { id, full_name: "", status: "pending", roles: [] };
+      try { const { data: o } = await sb.rpc("is_owner"); if (o === true) p.is_owner = true; } catch {}
+      return p;
     },
     async listMembers() { return ok(await sb.from("profiles").select("*").order("full_name")); },
 

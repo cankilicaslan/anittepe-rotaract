@@ -827,3 +827,68 @@ create policy "photos_insert" on storage.objects for insert to authenticated
 drop policy if exists "photos_delete" on storage.objects;
 create policy "photos_delete" on storage.objects for delete to authenticated
   using (bucket_id = 'photos' and (owner = auth.uid() or public.can_manage_albums()));
+
+-- =====================================================================
+-- v7: Gizli site sahibi (en yetkili hesap)
+-- app_owners tablosundaki hesap her şeyi düzenleyebilir; başkan dahil hiç kimse onun yetkilerini,
+-- durumunu ya da unvanını değiştiremez veya hesabını silemez. Tablo tarayıcıdan okunamaz ve
+-- arayüzde hiçbir yerde gösterilmez. Sahip hesap SQL Editor'dan ayrıca eklenir (e-posta bu dosyada tutulmaz).
+-- =====================================================================
+create table if not exists public.app_owners (
+  user_id uuid primary key references auth.users(id) on delete cascade
+);
+alter table public.app_owners enable row level security;  -- politika yok: kimse okuyamaz/yazamaz
+
+create or replace function public.is_owner()
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.app_owners where user_id = auth.uid());
+$$;
+revoke all on function public.is_owner() from public, anon;
+grant execute on function public.is_owner() to authenticated;
+
+-- Sahip, başkanın tüm yetkilerine sahiptir (rolü kaldırılsa bile)
+create or replace function public.is_admin()
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.has_role('baskan') or public.is_owner();
+$$;
+
+create or replace function public.protect_profile_fields()
+returns trigger language plpgsql set search_path = public as $$
+begin
+  -- Sahip hesabın yetki ve kimlik alanlarını kendisinden başkası değiştiremez
+  if auth.uid() is not null and not public.is_owner()
+     and exists (select 1 from public.app_owners where user_id = old.id) then
+    new.title            := old.title;
+    new.roles            := old.roles;
+    new.status           := old.status;
+    new.past_president   := old.past_president;
+    new.hide_roles       := old.hide_roles;
+    new.email            := old.email;
+    new.id               := old.id;
+    new.created_at       := old.created_at;
+    return new;
+  end if;
+  if public.is_admin() then
+    return new;
+  end if;
+  if auth.uid() is null and current_user not in ('anon', 'authenticated') then
+    return new;  -- SQL Editor (postgres) veya service_role
+  end if;
+  new.title            := old.title;
+  new.roles            := old.roles;
+  new.status           := old.status;
+  new.past_president   := old.past_president;
+  new.email            := old.email;
+  new.id               := old.id;
+  new.created_at       := old.created_at;
+  new.joined_at        := old.joined_at;
+  new.hide_roles       := old.hide_roles;
+  new.start_meeting_id := old.start_meeting_id;
+  return new;
+end;
+$$;
+
+-- Sahip hesabın profili silinemez
+drop policy if exists profiles_delete on public.profiles;
+create policy profiles_delete on public.profiles for delete to authenticated
+  using (public.is_admin() and not exists (select 1 from public.app_owners o where o.user_id = profiles.id));

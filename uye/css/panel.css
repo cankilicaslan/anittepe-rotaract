@@ -401,3 +401,10 @@ dialog form{max-height:min(86vh,760px);overflow:auto}
   .photo-grid .ph{border-radius:6px}
   .lb-nav{display:none}
 }
+/* Kendi yüklediğin fotoğrafı silme düğmesi */
+.ph-wrap{position:relative}
+.ph-wrap .ph{width:100%}
+.photo-grid .ph-wrap>.ph{display:block;aspect-ratio:1;border-radius:10px;overflow:hidden;background:#F6EFF2}
+.ph-del{position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:50%;border:0;background:rgba(20,8,14,.72);color:#fff;font-size:.9rem;font-weight:700;line-height:1;cursor:pointer;display:grid;place-items:center}
+.ph-del:hover{background:var(--bad,#C0392B)}
+.ph-del:focus-visible{outline:3px solid #fff;outline-offset:1px}

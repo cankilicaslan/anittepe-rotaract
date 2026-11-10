@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611101839";
-import { can, hasRole, ROLE_LABELS } from "./roles.js?v=202611101839";
+import { createStore, trDate } from "./store.js?v=202611101842";
+import { can, hasRole, ROLE_LABELS } from "./roles.js?v=202611101842";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -866,7 +866,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611101839");
+  const { mountComposer } = await import("./composer.js?v=202611101842");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1391,7 +1391,8 @@ async function viewAlbum(v, albumId) {
     header(esc(album.name), `${T[1]} · ${trDate(album.date)} · ${photos.length} fotoğraf`, `<a class="btn" href="#yukle/${album.id}">Fotoğraf yükle</a>`) +
     (manager ? `<details class="card"><summary style="cursor:pointer;font-weight:700">Yükleme linki ve albüm ayarları</summary>${shareLinkBox(album)}
       <div class="row" style="margin-top:14px"><button type="button" class="btn danger sm" id="delalbum">Albümü ve tüm fotoğrafları sil</button></div></details>` : "") +
-    (photos.length ? `<div class="photo-grid">${photos.map((p, i) => `<button type="button" class="ph" data-i="${i}" aria-label="Fotoğraf ${i + 1}${p.uploader ? ", yükleyen " + esc(p.uploader) : ""}"><img src="${esc(p.thumb_url)}" alt="" loading="lazy"></button>`).join("")}</div>`
+    (photos.some(p => p.uploaded_by === me.id) ? `<p class="muted" style="font-size:.86rem;margin:4px 0 0">Kendi yüklediğin fotoğrafların köşesinde silme düğmesi var; yanlış yüklediğini oradan kaldırabilirsin.</p>` : "") +
+    (photos.length ? `<div class="photo-grid">${photos.map((p, i) => `<div class="ph-wrap"><button type="button" class="ph" data-i="${i}" aria-label="Fotoğraf ${i + 1}${p.uploader ? ", yükleyen " + esc(p.uploader) : ""}"><img src="${esc(p.thumb_url)}" alt="" loading="lazy"></button>${p.uploaded_by === me.id ? `<button type="button" class="ph-del" data-del="${i}" aria-label="Yüklediğin ${i + 1}. fotoğrafı sil" title="Sil">✕</button>` : ""}</div>`).join("")}</div>`
       : `<div class="card"><p class="muted" style="margin:0">Bu albümde henüz fotoğraf yok. İlk yükleyen sen ol.</p></div>`) +
     `<dialog id="lb" class="lightbox"></dialog>`;
   bindShare(v, [album]);
@@ -1422,6 +1423,12 @@ async function viewAlbum(v, albumId) {
   lb.addEventListener("touchstart", e => { x0 = e.touches[0].clientX; }, { passive: true });
   lb.addEventListener("touchend", e => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 50) show(cur + (dx < 0 ? 1 : -1)); x0 = null; });
   v.querySelectorAll(".ph").forEach(b => b.onclick = () => show(+b.dataset.i));
+  // Üye yalnızca kendi yüklediği fotoğrafı ızgaradan silebilir
+  v.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
+    const p = photos[+b.dataset.del];
+    if (!confirm("Yüklediğin bu fotoğraf silinsin mi?")) return;
+    try { await store.deleteAlbumPhoto(p); toast("Fotoğraf silindi."); viewAlbum(v, albumId); } catch (e) { fail(e); }
+  });
 }
 
 async function viewUpload(v) {
@@ -1453,10 +1460,18 @@ async function viewUpload(v) {
       while (queue.length) {
         const f = queue.shift(); busy++;
         try {
-          await store.uploadAlbumPhoto(album.id, f);
+          const row = await store.uploadAlbumPhoto(album.id, f);
           done++;
           const u = URL.createObjectURL(f); const im = document.createElement("img"); im.src = u; im.alt = ""; im.onload = () => URL.revokeObjectURL(u);
-          const c = document.createElement("div"); c.className = "ph"; c.appendChild(im); grid.prepend(c);
+          const c = document.createElement("div"); c.className = "ph-wrap";
+          const ph = document.createElement("div"); ph.className = "ph"; ph.appendChild(im); c.appendChild(ph);
+          // Yanlış yüklenen fotoğraf hemen geri alınabilir
+          const x = document.createElement("button"); x.type = "button"; x.className = "ph-del"; x.textContent = "✕"; x.title = "Sil"; x.setAttribute("aria-label", "Bu fotoğrafı sil");
+          x.onclick = async () => {
+            if (!confirm("Bu fotoğraf silinsin mi?")) return;
+            try { await store.deleteAlbumPhoto(row); c.remove(); done--; total--; paint(); toast("Fotoğraf silindi."); } catch (e) { fail(e); }
+          };
+          c.appendChild(x); grid.prepend(c);
         } catch (e) { failed++; console.error(e); if (failed === 1) toast(`Bir fotoğraf yüklenemedi: ${esc(e.message)}`, "bad"); }
         busy--; paint();
       }

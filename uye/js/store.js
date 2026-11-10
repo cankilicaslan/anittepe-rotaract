@@ -10,6 +10,7 @@ const localISO = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,
 const today = () => localISO(new Date());
 const addDays = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return localISO(d); };
 const TYPE_TR = { toplanti: "toplantı", ocakbasi: "ocakbaşı", proje: "proje", etkinlik: "etkinlik" };
+const MONTHS_TR = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 const MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 export const trDate = iso => { if (!iso) return ""; const d = new Date(iso + "T12:00:00"); return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`; };
 
@@ -87,6 +88,26 @@ function demoStore() {
   let S;
   try { S = JSON.parse(localStorage.getItem(KEY) || "null"); } catch { S = null; }
   if (!S) S = seed();
+  // v2 alanları (eski demo verisi olan tarayıcılar için de)
+  if (!S.clubEvents) S.clubEvents = [
+    { id: uid(), club: "Bölge 2430 Rotaract", title: "Bölge Rotaract buluşması (örnek)", date: addDays(today(), 12), time: "14:00", location: "Ankara", description: "Bölgedeki kulüplerle tanışma ve ortak proje fikirleri.", link: "", created_by: null, created_at: new Date().toISOString() }
+  ];
+  if (!S.rsvps) S.rsvps = [];
+  if (!S.announcements) S.announcements = [];
+  if (!S.privates) S.privates = {};
+  if (!S.monthlyDues) {
+    // Demo: dönemin kalan ayları için de aidat günleri (takvimde her ay görünsün)
+    const have = new Set(S.dues.map(d => d.period));
+    const [sy, sm] = S.term.start_date.split("-").map(Number);
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(sy, sm - 1 + i, 1), period = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      if (have.has(period) || period < "2026-09") continue;
+      const due = { id: uid(), term_id: S.term.id, label: `${MONTHS_TR[d.getMonth()]} ${d.getFullYear()} aidatı`, period, amount: 250, due_date: `${period}-15`, created_at: new Date().toISOString() };
+      S.dues.push(due);
+      S.profiles.filter(p => p.status === "active").forEach(p => S.charges.push({ id: uid(), due_id: due.id, member_id: p.id, amount: 250, paid_at: null }));
+    }
+    S.monthlyDues = true;
+  }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { throw new Error("Tarayıcı depolaması dolu. Daha küçük bir fotoğraf deneyin."); } };
   save();
   const me = () => S.profiles.find(p => p.id === S.session) || null;
@@ -122,9 +143,25 @@ function demoStore() {
       if (!p) throw new Error("Üye bulunamadı.");
       const admin = hasRole(m, "baskan");
       if (!admin && m?.id !== id) throw new Error("Bu işlem için yetkiniz yok.");
-      const allowed = admin ? Object.keys(patch) : ["full_name", "phone", "photo_url", "birth_date", "profession"];
-      allowed.forEach(k => { if (k in patch) p[k] = patch[k]; });
+      const allowed = admin ? Object.keys(patch) : ["full_name", "phone", "photo_url", "birth_date", "profession", "instagram"];
+      allowed.forEach(k => { if (k in patch && k !== "blood_type") p[k] = patch[k]; });
+      if ("blood_type" in patch) S.privates[id] = { ...(S.privates[id] || {}), blood_type: patch.blood_type };
       save(); return clone(p);
+    },
+    async addMember(d) {
+      if (!hasRole(me(), "baskan")) throw new Error("Bu işlem için yetkiniz yok.");
+      const email = (d.email || "").trim().toLowerCase();
+      if (!d.full_name) throw new Error("Ad soyad zorunlu.");
+      if (email && S.profiles.some(p => p.email === email)) throw new Error("Bu e-posta ile zaten bir üye var.");
+      const p = { id: uid(), full_name: d.full_name.trim(), phone: d.phone || "", email, photo_url: "", title: d.title || "Üye", roles: [], past_president: false, status: "active", birth_date: d.birth_date || null, profession: d.profession || "", instagram: d.instagram || "", joined_at: d.joined_at || today(), created_at: new Date().toISOString() };
+      S.profiles.push(p);
+      if (d.blood_type) S.privates[p.id] = { blood_type: d.blood_type };
+      save(); return clone(p);
+    },
+    async getPrivate(id) {
+      const m = me();
+      if (!(m?.id === id || hasRole(m, "baskan") || (m?.status === "active" && m.past_president))) return {};
+      return clone(S.privates[id] || {});
     },
     async approveMember(id) { return this.updateMember(id, { status: "active" }); },
     async uploadPhoto(id, file) {
@@ -174,6 +211,37 @@ function demoStore() {
       save(); return clone(p);
     },
     async deleteProject(id) { need("projeler"); S.projects = S.projects.filter(p => p.id !== id); save(); },
+    // Ortak takvim: her aktif üye tüm projeleri görür
+    async listCalendarProjects() { if (me()?.status !== "active") return []; return clone(S.projects); },
+
+    // Diğer kulüplerin etkinlikleri
+    async listClubEvents() { return clone(S.clubEvents).sort((a, b) => a.date.localeCompare(b.date)); },
+    async saveClubEvent(e) {
+      const m = me(); if (m?.status !== "active") throw new Error("Bu işlem için yetkiniz yok.");
+      if (e.id) {
+        const x = S.clubEvents.find(z => z.id === e.id);
+        if (x.created_by !== m.id && !hasRole(m, "baskan")) throw new Error("Bu etkinliği yalnızca ekleyen kişi ya da başkan düzenleyebilir.");
+        Object.assign(x, e);
+      } else { e = { ...e, id: uid(), created_by: m.id, created_at: new Date().toISOString() }; S.clubEvents.push(e); }
+      save(); return clone(e);
+    },
+    async deleteClubEvent(id) {
+      const m = me(), x = S.clubEvents.find(z => z.id === id);
+      if (!x || (x.created_by !== m?.id && !hasRole(m, "baskan"))) throw new Error("Bu etkinliği yalnızca ekleyen kişi ya da başkan silebilir.");
+      S.clubEvents = S.clubEvents.filter(z => z.id !== id); S.rsvps = S.rsvps.filter(r => r.event_id !== id); save();
+    },
+    async listRsvps() { return clone(S.rsvps); },
+    async setRsvp(event_id, status, note = "") {
+      const m = me(); if (m?.status !== "active") throw new Error("Bu işlem için yetkiniz yok.");
+      S.rsvps = S.rsvps.filter(r => !(r.event_id === event_id && r.member_id === m.id));
+      if (status) S.rsvps.push({ event_id, member_id: m.id, status, note, updated_at: new Date().toISOString() });
+      save();
+    },
+
+    // Duyurular
+    async listAnnouncements() { need("duyuru", "view"); return clone(S.announcements).sort((a, b) => b.created_at.localeCompare(a.created_at)); },
+    async saveAnnouncement(a) { need("duyuru"); const x = { id: uid(), created_by: S.session, created_at: new Date().toISOString(), ...a }; S.announcements.push(x); save(); return clone(x); },
+    async sendAnnouncement() { need("duyuru"); return { ok: false, demo: true }; },
 
     async listPosts() { need("instagram", "view"); return clone(S.posts); },
     async savePost(p) {
@@ -220,7 +288,11 @@ async function supabaseStore() {
       return data || { id, full_name: "", status: "pending", roles: [] };
     },
     async listMembers() { return ok(await sb.from("profiles").select("*").order("full_name")); },
-    async updateMember(id, patch) { return ok(await sb.from("profiles").update(patch).eq("id", id).select().single()); },
+    async updateMember(id, patch) {
+      const { blood_type, ...rest } = patch;
+      if (blood_type !== undefined) ok(await sb.from("profile_private").upsert({ member_id: id, blood_type }));
+      return Object.keys(rest).length ? ok(await sb.from("profiles").update(rest).eq("id", id).select().single()) : null;
+    },
     async approveMember(id) { return this.updateMember(id, { status: "active" }); },
     async uploadPhoto(id, file) {
       const blob = await squareBlob(file, 480);
@@ -265,6 +337,25 @@ async function supabaseStore() {
                 : ok(await sb.from("projects").insert(rest).select().single());
     },
     async deleteProject(id) { ok(await sb.from("projects").delete().eq("id", id)); },
+    async listCalendarProjects() { return ok(await sb.from("projects").select("*").order("date")); },
+    async addMember(d) { const r = await fn("invite-member", d); return r.profile; },
+    async getPrivate(id) { const { data } = await sb.from("profile_private").select("*").eq("member_id", id).maybeSingle(); return data || {}; },
+    async listClubEvents() { return ok(await sb.from("club_events").select("*").order("date")); },
+    async saveClubEvent(e) {
+      const { id, ...rest } = e;
+      return id ? ok(await sb.from("club_events").update(rest).eq("id", id).select().single())
+                : ok(await sb.from("club_events").insert(rest).select().single());
+    },
+    async deleteClubEvent(id) { ok(await sb.from("club_events").delete().eq("id", id)); },
+    async listRsvps() { return ok(await sb.from("club_event_rsvps").select("*")); },
+    async setRsvp(event_id, status, note = "") {
+      const member_id = await meId();
+      if (!status) ok(await sb.from("club_event_rsvps").delete().match({ event_id, member_id }));
+      else ok(await sb.from("club_event_rsvps").upsert({ event_id, member_id, status, note, updated_at: new Date().toISOString() }));
+    },
+    async listAnnouncements() { return ok(await sb.from("announcements").select("*").order("created_at", { ascending: false })); },
+    async saveAnnouncement(a) { return ok(await sb.from("announcements").insert(a).select().single()); },
+    async sendAnnouncement(a) { return fn("announce", a); },
     async listPosts() { return ok(await sb.from("posts").select("*").order("created_at", { ascending: false })); },
     async savePost(p) { return ok(await sb.from("posts").insert({ ...p, created_by: await meId() }).select().single()); },
     async generateCaption(input) {

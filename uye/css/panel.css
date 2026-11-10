@@ -218,3 +218,37 @@ dialog h2{margin:0;font-size:1.2rem}
 /* Geniş tablolar sayfayı değil kendi kutusunu kaydırsın. */
 .shell > div,.grid > *,.card{min-width:0}
 .tbl-wrap{max-width:100%}
+
+/* ---------- v2: ortak takvim ---------- */
+:root{--c-top:#17458F;--c-top-s:#E6EEF9;--c-proj:#D41367;--c-proj-s:#FCE6EF;--c-etk:#9A5B00;--c-etk-s:#FEF1D6;--c-ocak:#B4461B;--c-ocak-s:#FBE6DC;--c-dig:#5E5368;--c-dig-s:#EFEAF2;--c-aid:#1D7A4E;--c-aid-s:#E3F4EC;--c-kul:#6B3FA0;--c-kul-s:#EFE7F8}
+.t-toplanti{--c:var(--c-top);--cs:var(--c-top-s)}.t-hizmet{--c:var(--c-proj);--cs:var(--c-proj-s)}.t-etkinlik{--c:var(--c-etk);--cs:var(--c-etk-s)}.t-ocakbasi{--c:var(--c-ocak);--cs:var(--c-ocak-s)}.t-diger{--c:var(--c-dig);--cs:var(--c-dig-s)}.t-aidat{--c:var(--c-aid);--cs:var(--c-aid-s)}.t-kulup{--c:var(--c-kul);--cs:var(--c-kul-s)}
+.tag[class*="t-"]{background:var(--cs);color:var(--c)}
+.cal-filters{display:flex;flex-wrap:wrap;gap:6px}
+.cf{border:1.5px solid var(--cs);background:#fff;color:var(--c);border-radius:999px;padding:4px 11px;font-weight:700;font-size:.8rem;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.cf::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c)}
+.cf[aria-pressed=true]{background:var(--cs);border-color:var(--cs)}
+.cf[aria-pressed=false]{opacity:.55;text-decoration:line-through}
+.cal-export{background:#fff;border-radius:var(--r)}
+.cal-print-head{display:none;align-items:center;gap:18px;padding:0 0 14px}
+.cal-print-head img{height:46px}
+.cal-print-head b{display:block;font-size:1.4rem}
+.cal-print-head span{color:var(--muted);font-size:.9rem}
+.cal2 .day{min-height:112px}
+.cal2 .ev{background:var(--cs);color:var(--c);border-left:3px solid var(--c);border-radius:5px}
+.cal2 .ev i{font-style:normal;font-weight:800}
+.cal2 .ev.done{text-decoration:none;opacity:.55}
+.agenda{margin-top:18px;display:grid;gap:6px}
+.agenda h3{margin:0 0 6px;font-size:1rem}
+.ag-row{display:grid;grid-template-columns:190px auto minmax(0,1fr);gap:12px;align-items:center;text-align:left;border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 12px;cursor:pointer;font:inherit;color:inherit}
+.ag-row:hover{border-color:var(--cran)}
+.ag-date{font-weight:700;font-size:.88rem}
+.ag-t b{display:block;line-height:1.3}
+.ag-t small{color:var(--muted)}
+.cal-export-frame{position:fixed;left:-12000px;top:0;width:1240px;background:#fff;padding:0}
+.cal-export-frame .cal-export{padding:28px}
+.cal-export-frame .cal-print-head{display:flex}
+.cal-export-frame .cal2 .ev{white-space:normal;overflow:visible}
+.cal-export-frame .ag-row{grid-template-columns:230px 140px minmax(0,1fr)}
+.seg.rsvp button[aria-pressed=true][data-v=katiliyorum]{background:var(--ok);color:#fff}
+.seg.rsvp button[aria-pressed=true][data-v=katilamiyorum]{background:var(--bad);color:#fff}
+@media (max-width:860px){.cal2 .day{min-height:70px}.ag-row{grid-template-columns:1fr}.cal-filters{width:100%}}

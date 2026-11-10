@@ -4,6 +4,8 @@ Bu rehber, Anıttepe Rotaract üye panelini (`/uye/`) gerçek verilerle, gerçek
 
 Panel kurulum yapılmadan da açılır: bu durumda **demo modunda** çalışır, veriler yalnızca o tarayıcıda tutulur ve güvenli değildir. Gerçek kullanım için aşağıdaki adımlar gerekir.
 
+> **Site adresi:** Site artık **https://www.anitteperotaract.org/** adresinde yayında; panel **https://www.anitteperotaract.org/uye/** adresindedir. Rehberdeki tüm adresler buna göredir.
+
 ## Ne kadar tutar?
 
 | Hizmet | Ne için | Ücret |
@@ -12,6 +14,8 @@ Panel kurulum yapılmadan da açılır: bu durumda **demo modunda** çalışır,
 | GitHub Pages | Sitenin yayınlanması | Ücretsiz |
 | Claude API (Anthropic) | "Yapay zekâ ile açıklama yaz" düğmesi | **Kullandıkça ücretli.** Her açıklama üretimi küçük bir ücret doğurur; önceden kredi yüklenir. İsteğe bağlıdır: kurulmazsa panel hazır şablonla açıklama üretir. |
 | Instagram / Meta | Panelden doğrudan paylaşım | Ücretsiz |
+| Resend | Sunucudan duyuru e-postası, davet e-postaları (SMTP) | Ücretsiz plan: ayda 3.000, günde 100 e-posta (kulüp için yeterli). İsteğe bağlı. |
+| Netgsm veya Twilio | Sunucudan duyuru SMS'i | **SMS başına ücretli.** Netgsm: paket/kontör alınır, Türkçe karakterli uzun mesajlar birden fazla SMS sayılır. Twilio: Türkiye'ye SMS başına dolar bazında yüksek ücret. İsteğe bağlı: kurulmazsa panel duyuruyu telefonun kendi SMS/e-posta uygulamasıyla gönderir. |
 
 ---
 
@@ -184,6 +188,92 @@ Graph API Explorer'da, az önceki anahtarla şu iki sorguyu sırayla çalıştı
 - [ ] (İsteğe bağlı) `caption` ve `instagram-publish` fonksiyonları yüklendi
 - [ ] (İsteğe bağlı) `ANTHROPIC_API_KEY`, `IG_USER_ID`, `IG_ACCESS_TOKEN` girildi
 - [ ] (İsteğe bağlı) 60 günlük Instagram anahtarı yenileme hatırlatması kuruldu
+- [ ] (v2) `schema.sql` güncel hâliyle yeniden çalıştırıldı
+- [ ] (v2, isteğe bağlı) `announce` ve `invite-member` yüklendi; Resend alan adı doğrulandı; SMS servisi ayarlandı
+
+## 10. Sürüm 2: etkinlik takvimi, duyurular, üye daveti
+
+### 10.1 Veritabanını güncelleyin
+
+`schema.sql` dosyasının sonuna **"-- v2"** başlıklı bir bölüm eklendi. Dosyanın **tamamını** SQL Editor'a yapıştırıp yeniden **Run** demeniz güvenlidir (mevcut veriler silinmez). Bu bölüm şunları ekler:
+
+- Profillere **Instagram** kullanıcı adı (üye kendisi düzenler).
+- **Kan grubu**, sağlık verisi olduğu için ayrı bir tabloda (`profile_private`) tutulur: yalnızca üyenin kendisi, başkan ve geçmiş başkanlar görür. Diğer üyeler göremez.
+- **Kulüp etkinlikleri takvimi** (`club_events`) ve üyelerin "katılıyorum / katılamıyorum" cevapları (`club_event_rsvps`). Her aktif üye etkinlik ekleyebilir; düzenleme/silme ekleyen kişi veya başkan.
+- **Duyuru kayıtları** (`announcements`): Başkan, Sekreter ve PR görür ve gönderir; geçmiş başkanlar görüntüler.
+- **Projeler** artık ortak aylık takvimde görünmesi için tüm aktif üyelere açık (yalnızca görüntüleme; düzenleme yine Hizmet ve Başkan). Sitede herkese açık olanlar yine yalnızca "public" işaretli projelerdir.
+
+### 10.2 Yeni fonksiyonları yükleyin
+
+6.1'deki hazırlığı daha önce yaptıysanız, `backend` klasöründe:
+
+```
+xcopy /E /I /Y functions supabase\functions
+npx supabase functions deploy announce
+npx supabase functions deploy invite-member
+```
+
+- **announce**: Seçilen üyelere sunucudan e-posta ve/veya SMS gönderir. Kurmazsanız panel duyuruyu cihazın kendi e-posta/SMS uygulamasıyla gönderir.
+- **invite-member**: Başkan yeni üyeyi e-postayla davet eder; üye doğrudan "aktif" olarak eklenir, e-postadaki bağlantıdan şifresini belirler. Ek secret gerekmez.
+
+### 10.3 E-posta: Resend
+
+1. https://resend.com adresinde hesap açın (ücretsiz plan yeterli).
+2. **Domains > Add Domain** ile `anitteperotaract.org` ekleyin. Resend size birkaç DNS kaydı gösterir (SPF için TXT, DKIM için TXT, gönderim alt alanı için MX; genellikle `send` ve `resend._domainkey` gibi alt alan adlarında).
+3. **DNS kayıtları Wix'te yönetiliyor.** Wix'e girin: **Alan Adları > anitteperotaract.org > DNS Kayıtlarını Yönet**. Resend'in gösterdiği TXT ve MX kayıtlarını **aynen** (ad/host, değer, öncelik) ekleyin.
+   - **Dikkat:** Ana alan adındaki (`@`) mevcut **Yandex MX kayıtlarına dokunmayın**; kulübün gelen e-postası onlarla çalışır. Resend'in MX kaydı yalnızca `send` gibi bir **alt alan adına** eklenir, ana alan adına değil.
+   - Ana alan adında zaten bir SPF (`v=spf1 ...`) TXT kaydı varsa ikinci bir SPF kaydı eklemeyin; Resend'in SPF kaydı alt alan adında olduğu için normalde çakışma olmaz.
+4. Resend'de **Verify** deyin. DNS'in yayılması birkaç dakika ile birkaç saat sürebilir.
+5. **API Keys > Create API Key** (izin: "Sending access") ile anahtar oluşturun ve girin:
+
+```
+npx supabase secrets set RESEND_API_KEY=re_...
+npx supabase secrets set "RESEND_FROM=Anıttepe Rotaract <duyuru@anitteperotaract.org>"
+npx supabase secrets set RESEND_REPLY_TO=kulup-adresiniz@anitteperotaract.org
+```
+
+   (`RESEND_REPLY_TO` isteğe bağlıdır: üyeler duyuruya "yanıtla" deyince bu adrese yazar. `duyuru@` adresinin gerçekten var olması gerekmez.)
+
+6. **Önerilen:** Davet ve şifre sıfırlama e-postaları da Supabase'in kısıtlı servisi yerine Resend'den gitsin. Supabase: **Authentication > Emails > SMTP Settings > Enable custom SMTP**: Host `smtp.resend.com`, Port `465`, Kullanıcı adı `resend`, Şifre: Resend API anahtarı, Gönderen: `duyuru@anitteperotaract.org`. Davet e-postasının metnini **Authentication > Emails > Invite user** şablonundan Türkçeleştirebilirsiniz.
+
+Her üyeye ayrı e-posta gönderilir; alıcılar birbirinin adresini görmez.
+
+### 10.4 SMS: Netgsm (önerilen) veya Twilio
+
+**Netgsm** (Türk sağlayıcı, Türkiye'ye SMS için daha ucuz):
+
+1. https://www.netgsm.com.tr üzerinden kurumsal hesap açın ve SMS paketi alın (SMS başına ücret; Türkçe karakter içeren veya uzun mesajlar birden fazla SMS sayılır).
+2. **Gönderici adı (mesaj başlığı)** başvurusu yapın, ör. `ANITTEPERTR`. Başlık BTK kuralları gereği onaylanmadan gönderim yapılamaz; onay birkaç iş günü sürebilir ve belge istenebilir.
+3. Netgsm panelinde bir **API kullanıcısı** oluşturun / API erişimini açın. IP kısıtı varsa kapatın (Supabase fonksiyonlarının sabit IP'si yoktur).
+4. **İYS:** Duyurular üyelere yönelik **bilgilendirme** mesajlarıdır; ticari (kampanya/tanıtım) içerik göndermeyin. Ticari ileti İleti Yönetim Sistemi (İYS) onayı gerektirir.
+5. Secret'ları girin:
+
+```
+npx supabase secrets set SMS_PROVIDER=netgsm
+npx supabase secrets set NETGSM_USER=850xxxxxxx
+npx supabase secrets set NETGSM_PASS=...
+npx supabase secrets set NETGSM_HEADER=ANITTEPERTR
+```
+
+**Twilio** (alternatif; kurulumu kolay ama Türkiye'ye SMS pahalı ve alfanümerik başlık için ayrıca kayıt gerekebilir):
+
+```
+npx supabase secrets set SMS_PROVIDER=twilio
+npx supabase secrets set TWILIO_SID=AC...
+npx supabase secrets set TWILIO_TOKEN=...
+npx supabase secrets set TWILIO_FROM=+1...
+```
+
+Telefon numaraları otomatik olarak `905XXXXXXXXX` biçimine çevrilir; geçersiz numaralı üyeler sonuçta "telefonu eksik" olarak listelenir. Bir kanalın ayarları eksikse o kanal atlanır ve panel bunu Türkçe olarak bildirir; diğer kanal yine gönderilir.
+
+> **Not:** Netgsm API çağrısının ayrıntıları (parametreler, dönüş kodları) Netgsm dokümanından doğrulanamadı; ilk gönderimi kendinize deneyin. Sorun olursa **Edge Functions > announce > Logs** ayrıntıyı gösterir.
+
+### 10.5 v2 maliyet özeti
+
+- Resend: ücretsiz plan ayda 3.000 e-posta (40 üyeye ayda ~70 duyuru). Davet/şifre e-postaları da bu kotadan düşer.
+- Netgsm: SMS başına birkaç kuruş ile birkaç on kuruş arası (paket büyüklüğüne göre); 40 üyeye tek duyuru = en az 40 SMS, Türkçe karakterli uzun metinde 2-3 katı.
+- Twilio: Türkiye'ye SMS başına yaklaşık birkaç on sent; Netgsm'den belirgin şekilde pahalı.
+- Hiçbiri kurulmazsa: panel cihazın kendi e-posta/SMS uygulamasını açar, ücret yoktur.
 
 ## Sorun giderme
 

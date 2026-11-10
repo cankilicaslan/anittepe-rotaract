@@ -449,3 +449,177 @@ on conflict (term_id, term_no) do nothing;
 --    yalnızca bu satırı çalıştırın:
 -- ---------------------------------------------------------------------
 -- update profiles set status='active', roles='{baskan}', title='Başkan' where email='ornek@eposta.com';
+
+-- =====================================================================
+-- -- v2  (Kasım 2026): Instagram ve kan grubu, kulüp etkinlikleri ve
+--         katılım cevapları, duyurular, projelerin tüm üyelere açılması.
+-- Bu bölüm de tekrar çalıştırılabilir. v1'i daha önce kurduysanız dosyanın
+-- tamamını yeniden çalıştırmanız güvenlidir (veya yalnızca bu bölümü).
+-- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- v2.1 profiles.instagram
+--      Üye kendisi düzenleyebilir. Koruma tetikleyicisi (protect_profile_fields)
+--      yalnızca unvan/rol/durum/geçmiş başkan/e-posta/katılım tarihini kilitler,
+--      bu yüzden tetikleyicide değişiklik gerekmez.
+-- ---------------------------------------------------------------------
+alter table public.profiles add column if not exists instagram text;
+
+-- ---------------------------------------------------------------------
+-- v2.2 profile_private: sağlık verisi (kan grubu). Diğer üyeler GÖREMEZ.
+--      Okuma: üyenin kendisi, başkan, geçmiş başkanlar.
+--      Yazma: üyenin kendisi, başkan.
+-- ---------------------------------------------------------------------
+create table if not exists public.profile_private (
+  member_id  uuid primary key references public.profiles(id) on delete cascade,
+  blood_type text,
+  updated_at timestamptz not null default now(),
+  constraint profile_private_blood_len_chk check (blood_type is null or char_length(blood_type) <= 12)
+);
+
+drop trigger if exists profile_private_touch on public.profile_private;
+create trigger profile_private_touch
+  before insert or update on public.profile_private
+  for each row execute function public.touch_updated_at();
+
+-- ---------------------------------------------------------------------
+-- v2.3 club_events: kulüplerin (bizim ve diğer kulüplerin) etkinlik takvimi
+-- ---------------------------------------------------------------------
+create table if not exists public.club_events (
+  id          uuid primary key default gen_random_uuid(),
+  club        text not null,
+  title       text not null,
+  date        date not null,
+  time        text,
+  location    text,
+  description text,
+  link        text,
+  created_by  uuid default auth.uid() references public.profiles(id) on delete set null,
+  created_at  timestamptz not null default now()
+);
+create index if not exists club_events_date_idx on public.club_events (date);
+
+-- ---------------------------------------------------------------------
+-- v2.4 club_event_rsvps: üyenin etkinliğe katılım cevabı
+-- ---------------------------------------------------------------------
+create table if not exists public.club_event_rsvps (
+  event_id   uuid not null references public.club_events(id) on delete cascade,
+  member_id  uuid not null references public.profiles(id) on delete cascade,
+  status     text not null,
+  note       text,
+  updated_at timestamptz not null default now(),
+  primary key (event_id, member_id),
+  constraint club_event_rsvps_status_chk check (status in ('katiliyorum','katilamiyorum'))
+);
+create index if not exists club_event_rsvps_member_idx on public.club_event_rsvps (member_id);
+
+drop trigger if exists club_event_rsvps_touch on public.club_event_rsvps;
+create trigger club_event_rsvps_touch
+  before insert or update on public.club_event_rsvps
+  for each row execute function public.touch_updated_at();
+
+-- ---------------------------------------------------------------------
+-- v2.5 announcements: gönderilen duyuruların kaydı
+--      sent_via: 'cihaz'  = ön yüz cihazın e-posta/SMS uygulamasını açtı (kaydı ön yüz ekler)
+--                'sunucu' = "announce" Edge Function'ı gönderdi (kaydı fonksiyon ekler)
+-- ---------------------------------------------------------------------
+create table if not exists public.announcements (
+  id            uuid primary key default gen_random_uuid(),
+  kind          text not null default 'diger',
+  subject       text,
+  body          text,
+  channels      text[] not null default '{}',
+  recipient_ids uuid[] not null default '{}',
+  sent_via      text not null default 'cihaz',
+  result        jsonb,
+  created_by    uuid default auth.uid() references public.profiles(id) on delete set null,
+  created_at    timestamptz not null default now(),
+  constraint announcements_kind_chk     check (kind in ('toplanti','etkinlik','proje','diger')),
+  constraint announcements_sent_via_chk check (sent_via in ('cihaz','sunucu')),
+  constraint announcements_channels_chk check (channels <@ array['email','sms']::text[])
+);
+create index if not exists announcements_created_idx on public.announcements (created_at desc);
+
+-- ---------------------------------------------------------------------
+-- v2.6 Yetkiler ve RLS
+--      Supabase yeni tablolara anon'a da varsayılan yetki verir; geri alıyoruz.
+-- ---------------------------------------------------------------------
+alter table public.profile_private  enable row level security;
+alter table public.club_events      enable row level security;
+alter table public.club_event_rsvps enable row level security;
+alter table public.announcements    enable row level security;
+
+revoke all on public.profile_private, public.club_events, public.club_event_rsvps, public.announcements from anon;
+grant select, insert, update, delete
+  on public.profile_private, public.club_events, public.club_event_rsvps, public.announcements
+  to authenticated;
+
+-- ---- profile_private ----
+drop policy if exists profile_private_select on public.profile_private;
+create policy profile_private_select on public.profile_private for select to authenticated
+  using (member_id = auth.uid() or public.can_view_all());
+
+drop policy if exists profile_private_insert on public.profile_private;
+create policy profile_private_insert on public.profile_private for insert to authenticated
+  with check (member_id = auth.uid() or public.is_admin());
+
+drop policy if exists profile_private_update on public.profile_private;
+create policy profile_private_update on public.profile_private for update to authenticated
+  using (member_id = auth.uid() or public.is_admin())
+  with check (member_id = auth.uid() or public.is_admin());
+
+drop policy if exists profile_private_delete on public.profile_private;
+create policy profile_private_delete on public.profile_private for delete to authenticated
+  using (member_id = auth.uid() or public.is_admin());
+
+-- ---- club_events ----
+drop policy if exists club_events_select on public.club_events;
+create policy club_events_select on public.club_events for select to authenticated
+  using (public.is_active());
+
+drop policy if exists club_events_insert on public.club_events;
+create policy club_events_insert on public.club_events for insert to authenticated
+  with check (public.is_active() and (created_by = auth.uid() or public.is_admin()));
+
+drop policy if exists club_events_update on public.club_events;
+create policy club_events_update on public.club_events for update to authenticated
+  using ((public.is_active() and created_by = auth.uid()) or public.is_admin())
+  with check ((public.is_active() and created_by = auth.uid()) or public.is_admin());
+
+drop policy if exists club_events_delete on public.club_events;
+create policy club_events_delete on public.club_events for delete to authenticated
+  using ((public.is_active() and created_by = auth.uid()) or public.is_admin());
+
+-- ---- club_event_rsvps ----
+drop policy if exists club_event_rsvps_select on public.club_event_rsvps;
+create policy club_event_rsvps_select on public.club_event_rsvps for select to authenticated
+  using (public.is_active());
+
+drop policy if exists club_event_rsvps_insert on public.club_event_rsvps;
+create policy club_event_rsvps_insert on public.club_event_rsvps for insert to authenticated
+  with check (member_id = auth.uid() and public.is_active());
+
+drop policy if exists club_event_rsvps_update on public.club_event_rsvps;
+create policy club_event_rsvps_update on public.club_event_rsvps for update to authenticated
+  using (member_id = auth.uid() and public.is_active())
+  with check (member_id = auth.uid() and public.is_active());
+
+drop policy if exists club_event_rsvps_delete on public.club_event_rsvps;
+create policy club_event_rsvps_delete on public.club_event_rsvps for delete to authenticated
+  using (member_id = auth.uid() and public.is_active());
+
+-- ---- announcements ----
+drop policy if exists announcements_select on public.announcements;
+create policy announcements_select on public.announcements for select to authenticated
+  using (public.is_admin() or public.has_role('sekreter') or public.has_role('pr') or public.can_view_all());
+
+drop policy if exists announcements_insert on public.announcements;
+create policy announcements_insert on public.announcements for insert to authenticated
+  with check ((public.is_admin() or public.has_role('sekreter') or public.has_role('pr'))
+              and created_by = auth.uid());
+
+-- ---- projects: ortak aylık takvim için tüm aktif üyeler TÜM projeleri görür ----
+--      (anon için "public = true" politikası projects_select_public aynen kalır)
+drop policy if exists projects_select_members on public.projects;
+create policy projects_select_members on public.projects for select to authenticated
+  using (public.is_active());

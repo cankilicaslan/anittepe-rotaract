@@ -126,8 +126,11 @@ function pendingView(passive = false) {
 /* ------------------------------ Kabuk ------------------------------ */
 const PAGES = [
   { id: "profil", label: "Profilim", show: () => true },
+  { id: "takvim", label: "Takvim", show: () => true },
   { id: "uyeler", label: "Üye listesi", show: () => true },
+  { id: "kulupler", label: "Diğer kulüplerin etkinlikleri", show: () => true },
   { grp: "Yönetim" },
+  { id: "duyurular", label: "Duyurular", panel: "duyuru" },
   { id: "yoklama", label: "Yoklama", panel: "yoklama" },
   { id: "aidat", label: "Aidat", panel: "aidat" },
   { id: "kasa", label: "Kulüp kasası", panel: "kasa" },
@@ -169,7 +172,7 @@ function shell() {
   const rs = document.getElementById("reset");
   if (rs) rs.onclick = () => { if (confirm("Örnek veriler ilk haline dönsün mü? Bu tarayıcıdaki demo değişiklikleri silinir.")) { store.resetDemo(); location.hash = ""; location.reload(); } };
   const view = document.getElementById("view");
-  const fn = { profil: viewProfile, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram }[id];
+  const fn = { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram }[id];
   fn(view).catch(e => { view.innerHTML = `<div class="err">${esc(e.message)}</div>`; });
 }
 const header = (title, sub = "", actions = "") => `<div class="page-h"><div><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ""}</div><div class="spacer"></div>${actions}</div>`;
@@ -194,7 +197,7 @@ function debtOf(memberId, charges, dues) {
 
 /* ------------------------------ Profil ------------------------------ */
 async function viewProfile(v) {
-  const [meetings, att, charges, dues] = await Promise.all([store.listMeetings(), store.listAttendance(), store.listCharges(), store.listDues()]);
+  const [meetings, att, charges, dues, priv] = await Promise.all([store.listMeetings(), store.listAttendance(), store.listCharges(), store.listDues(), store.getPrivate(me.id)]);
   const st = attendanceStats(me.id, meetings, att);
   const debt = debtOf(me.id, charges, dues);
   const roles = (me.roles || []).map(r => `<span class="tag cran">${ROLE_LABELS[r]}</span>`).join(" ") + (me.past_president ? ` <span class="tag">Geçmiş dönem başkanı</span>` : "");
@@ -226,6 +229,8 @@ async function viewProfile(v) {
       <label class="f">E-posta <small>Değiştirmek için başkana yazın</small><input type="email" value="${esc(me.email)}" disabled></label>
       <label class="f">Doğum tarihi<input type="date" name="birth_date" value="${esc(me.birth_date || "")}"></label>
       <label class="f">Meslek / okul<input type="text" name="profession" value="${esc(me.profession)}"></label>
+      <label class="f">Instagram<input type="text" name="instagram" value="${esc(me.instagram || "")}" placeholder="@kullaniciadi"></label>
+      <label class="f">Kan grubu <small>Yalnızca sen ve başkan görür</small><input type="text" name="blood_type" value="${esc(priv.blood_type || "")}" placeholder="ör. A Rh+"></label>
       <label class="f">Görev <small>Başkan atar</small><input type="text" value="${esc(me.title || "Üye")}" disabled></label>
     </div>
     <div class="row" style="margin-top:14px"><button class="btn" type="submit">Kaydet</button></div>
@@ -258,33 +263,47 @@ async function viewMembers(v) {
         <td>${m.email ? `<a href="mailto:${esc(m.email)}">${esc(m.email)}</a>` : ""}</td>
         <td>${m.birth_date ? trDate(m.birth_date) : '<span class="muted">Eklenmedi</span>'}</td>
         <td>${esc(m.profession) || '<span class="muted">Eklenmedi</span>'}</td>
+        <td>${m.instagram ? `<a href="https://instagram.com/${esc(m.instagram.replace(/^@/, ""))}" target="_blank" rel="noopener">@${esc(m.instagram.replace(/^@/, ""))}</a>` : '<span class="muted">Eklenmedi</span>'}</td>
         <td>${trDate(m.joined_at)}</td>
         <td><span class="tag ${STATUS[m.status]?.[1] || ""}">${STATUS[m.status]?.[0] || esc(m.status)}</span>${(m.roles || []).map(r => ` <span class="tag cran">${ROLE_LABELS[r]}</span>`).join("")}${m.past_president ? ' <span class="tag">GDB</span>' : ""}</td>
         ${seeDebt ? `<td class="num">${d.total ? `<b>${TL(d.total)}</b>${d.overdue.length ? ' <span class="tag bad">Gecikmiş</span>' : ""}` : '<span class="tag ok">Yok</span>'}</td>` : ""}
         ${admin ? `<td><button class="btn ghost sm" data-edit="${m.id}">Düzenle</button></td>` : ""}
       </tr>`;
     }).join("");
-  v.innerHTML = header("Üye listesi", `${members.filter(m => m.status === "active").length} aktif üye`, `<input type="search" id="q" placeholder="İsim, görev, telefon ara" style="max-width:280px" aria-label="Üye ara">`) +
+  v.innerHTML = header("Üye listesi", `${members.filter(m => m.status === "active").length} aktif üye`, `<div class="row"><input type="search" id="q" placeholder="İsim, görev, telefon ara" style="max-width:260px" aria-label="Üye ara">${admin ? `<button class="btn" id="addm">Yeni üye ekle</button><label class="btn ghost" style="cursor:pointer">Excel'den bilgileri al<input type="file" id="xls" accept=".xlsx,.xls,.csv" class="sr"></label>` : ""}</div>`) +
+    (admin ? `<p class="muted" style="margin:-8px 0 16px;font-size:.86rem">Excel'den alma yalnızca listedeki mevcut üyelerin telefon, e-posta, doğum tarihi, meslek, Instagram ve kan grubu bilgilerini günceller; yeni kişi eklemez. Dosya bu tarayıcıda okunur, hiçbir yere yüklenmez.</p>` : "") +
     (admin && pending.length ? `<div class="card" style="margin-bottom:16px"><h2>Onay bekleyen hesaplar</h2>${pending.map(m => `<div class="pay-row">${person(m)}<span class="muted">${esc(m.email)} · ${esc(m.phone)}</span><button class="btn sm" data-approve="${m.id}">Onayla</button><button class="btn danger sm" data-reject="${m.id}">Pasife al</button></div>`).join("")}</div>` : "") +
-    `<div class="tbl-wrap"><table><thead><tr><th>Üye</th><th>Telefon</th><th>E-posta</th><th>Doğum tarihi</th><th>Meslek / okul</th><th>Üyelik</th><th>Durum</th>${seeDebt ? '<th class="num">Aidat borcu</th>' : ""}${admin ? "<th></th>" : ""}</tr></thead><tbody id="tb">${rows("")}</tbody></table></div>
+    `<div class="tbl-wrap"><table><thead><tr><th>Üye</th><th>Telefon</th><th>E-posta</th><th>Doğum tarihi</th><th>Meslek / okul</th><th>Instagram</th><th>Üyelik</th><th>Durum</th>${seeDebt ? '<th class="num">Aidat borcu</th>' : ""}${admin ? "<th></th>" : ""}</tr></thead><tbody id="tb">${rows("")}</tbody></table></div>
     <dialog id="dlg"></dialog>`;
   const tb = document.getElementById("tb");
   const bind = () => tb.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => editMember(members.find(m => m.id === b.dataset.edit)));
   document.getElementById("q").oninput = e => { tb.innerHTML = rows(e.target.value.trim().toLocaleLowerCase("tr")); bind(); };
   bind();
+  if (admin) {
+    document.getElementById("addm").onclick = () => editMember(null);
+    document.getElementById("xls").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) importMembers(f, members); };
+  }
   v.querySelectorAll("[data-approve]").forEach(b => b.onclick = async () => { try { await store.approveMember(b.dataset.approve); toast("Üye onaylandı."); refresh(); } catch (e) { fail(e); } });
   v.querySelectorAll("[data-reject]").forEach(b => b.onclick = async () => { try { await store.updateMember(b.dataset.reject, { status: "passive" }); toast("Hesap pasife alındı."); refresh(); } catch (e) { fail(e); } });
 }
 
-function editMember(m) {
+async function editMember(m) {
+  const isNew = !m;
+  m ||= { full_name: "", title: "Üye", phone: "", email: "", status: "active", joined_at: today(), roles: [], past_president: false };
+  const priv = isNew ? {} : await store.getPrivate(m.id);
   const dlg = document.getElementById("dlg");
   dlg.innerHTML = `<form method="dialog" id="f-em">
-    <h2>${esc(m.full_name)}</h2>
+    <h2>${isNew ? "Yeni üye ekle" : esc(m.full_name)}</h2>
+    ${isNew && store.mode === "supabase" ? `<p class="muted" style="margin:0">Üyeye e-postasına bir davet gider; bağlantıya tıklayıp şifresini belirleyince panele girebilir.</p>` : ""}
     <div class="grid g2">
-      <label class="f">Ad soyad<input type="text" name="full_name" value="${esc(m.full_name)}"></label>
+      <label class="f">Ad soyad<input type="text" name="full_name" value="${esc(m.full_name)}" required></label>
       <label class="f">Görev<input type="text" name="title" value="${esc(m.title)}" list="titles"></label>
-      <label class="f">Telefon<input type="tel" name="phone" value="${esc(m.phone)}"></label>
-      <label class="f">E-posta<input type="email" name="email" value="${esc(m.email)}"></label>
+      <label class="f">Telefon<input type="tel" name="phone" value="${esc(m.phone)}" placeholder="05xx xxx xx xx"></label>
+      <label class="f">E-posta<input type="email" name="email" value="${esc(m.email)}" ${isNew && store.mode === "supabase" ? "required" : ""}></label>
+      <label class="f">Doğum tarihi<input type="date" name="birth_date" value="${esc(m.birth_date || "")}"></label>
+      <label class="f">Meslek / okul<input type="text" name="profession" value="${esc(m.profession || "")}"></label>
+      <label class="f">Instagram<input type="text" name="instagram" value="${esc(m.instagram || "")}" placeholder="@kullaniciadi"></label>
+      <label class="f">Kan grubu<input type="text" name="blood_type" value="${esc(priv.blood_type || "")}" placeholder="ör. A Rh+"></label>
       <label class="f">Durum<select name="status">${[["active", "Aktif"], ["pending", "Onay bekliyor"], ["passive", "Pasif"]].map(([k, l]) => `<option value="${k}" ${m.status === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
       <label class="f">Üyelik tarihi<input type="date" name="joined_at" value="${esc(m.joined_at || "")}"></label>
     </div>
@@ -299,9 +318,65 @@ function editMember(m) {
   dlg.querySelector("form").onsubmit = async e => {
     if (e.submitter?.value !== "save") return;
     const fd = new FormData(e.target);
-    const patch = { full_name: fd.get("full_name"), title: fd.get("title"), phone: fd.get("phone"), email: fd.get("email"), status: fd.get("status"), joined_at: fd.get("joined_at") || null, roles: fd.getAll("role"), past_president: fd.has("past_president") };
-    try { await store.updateMember(m.id, patch); if (m.id === me.id) me = await store.me(); toast("Üye bilgileri kaydedildi."); refresh(); } catch (er) { fail(er); }
+    const patch = { full_name: fd.get("full_name"), title: fd.get("title"), phone: fd.get("phone"), email: fd.get("email"), birth_date: fd.get("birth_date") || null, profession: fd.get("profession"), instagram: fd.get("instagram"), blood_type: fd.get("blood_type"), status: fd.get("status"), joined_at: fd.get("joined_at") || null, roles: fd.getAll("role"), past_president: fd.has("past_president") };
+    try {
+      if (isNew) {
+        const { roles, past_president, status, ...base } = patch;
+        const created = await store.addMember(base);
+        if (created?.id && (roles.length || past_president || status !== "active")) await store.updateMember(created.id, { roles, past_president, status });
+        toast(`${esc(patch.full_name)} üye listesine eklendi.`);
+      } else { await store.updateMember(m.id, patch); if (m.id === me.id) me = await store.me(); toast("Üye bilgileri kaydedildi."); }
+      refresh();
+    } catch (er) { fail(er); }
   };
+}
+
+/* ------------------------- Excel'den üye bilgisi ------------------------- */
+const XLSX_URL = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+const loadScript = src => new Promise((res, rej) => { if ([...document.scripts].some(s => s.src === src)) return res(); const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("Gerekli kütüphane yüklenemedi. İnternet bağlantını kontrol et.")); document.head.appendChild(s); });
+const norm = s => String(s || "").replace(/İ/g, "i").replace(/I/g, "ı").toLocaleLowerCase("tr").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ı/g, "i").replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+function lev(a, b) { const d = Array.from({ length: a.length + 1 }, (_, i) => [i]); for (let j = 1; j <= b.length; j++) d[0][j] = j; for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); return d[a.length][b.length]; }
+function excelDate(v) {
+  if (v == null || v === "") return null;
+  if (typeof v === "string" && /^d{4,5}(.d+)?$/.test(v.trim())) v = +v;
+  if (typeof v === "number") { const d = new Date(Math.round((v - 25569) * 864e5)); return d.toISOString().slice(0, 10); }
+  if (v instanceof Date) return `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, "0")}-${String(v.getDate()).padStart(2, "0")}`;
+  const m = String(v).trim().match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/); if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  const iso = String(v).match(/^\d{4}-\d{2}-\d{2}/); return iso ? iso[0] : null;
+}
+const cleanPhone = v => { const d = String(v || "").replace(/\D/g, ""); if (!d) return ""; const n = d.startsWith("90") ? d.slice(2) : d.startsWith("0") ? d.slice(1) : d; return n.length === 10 ? `0${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6, 8)} ${n.slice(8)}` : String(v).trim(); };
+async function importMembers(file, members) {
+  try {
+    await loadScript(XLSX_URL);
+    const wb = window.XLSX.read(await file.arrayBuffer(), { type: "array" });
+    const rows = window.XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: true, defval: "" });
+    const hi = rows.findIndex(r => r.some(c => /isim|ad soyad/i.test(norm(c))));
+    if (hi < 0) throw new Error("Dosyada \"İsim Soyisim\" sütunu bulunamadı.");
+    const H = rows[hi].map(norm), col = re => H.findIndex(h => re.test(h));
+    const C = { name: col(/isim|ad soyad/), birth: col(/dogum/), phone: col(/telefon|tel/), mail: col(/mail|e posta/), insta: col(/instagram/), job: col(/meslek/), blood: col(/kan/) };
+    const people = rows.slice(hi + 1).filter(r => String(r[C.name] || "").trim()).map(r => ({ r, n: norm(r[C.name]) }));
+    const site = members.filter(m => m.status !== "pending");
+    const updated = [], missing = [];
+    for (const m of site) {
+      const mn = norm(m.full_name);
+      let best = people.find(p => p.n === mn);
+      if (!best) { const c = people.map(p => ({ p, d: lev(p.n, mn) })).sort((a, b) => a.d - b.d)[0]; if (c && c.d <= 2) best = c.p; }
+      if (!best) { missing.push(m.full_name); continue; }
+      const r = best.r, patch = {};
+      if (C.phone >= 0 && r[C.phone]) patch.phone = cleanPhone(r[C.phone]);
+      if (C.mail >= 0 && r[C.mail]) patch.email = String(r[C.mail]).trim().toLowerCase();
+      if (C.birth >= 0 && excelDate(r[C.birth])) patch.birth_date = excelDate(r[C.birth]);
+      if (C.job >= 0 && r[C.job]) patch.profession = String(r[C.job]).trim();
+      if (C.insta >= 0 && r[C.insta] && String(r[C.insta]).trim() !== "-") patch.instagram = String(r[C.insta]).trim().replace(/^https?:\/\/(www\.)?instagram\.com\//, "").replace(/\/.*$/, "").replace(/^@/, "");
+      if (C.blood >= 0 && r[C.blood]) patch.blood_type = String(r[C.blood]).trim();
+      await store.updateMember(m.id, patch);
+      updated.push(m.full_name);
+    }
+    me = await store.me();
+    const skipped = people.length - updated.length;
+    toast(`${updated.length} üyenin bilgileri güncellendi.${missing.length ? ` Listede bulunamayan: ${esc(missing.join(", "))}.` : ""} ${skipped > 0 ? `Listedeki diğer ${skipped} kişi eklenmedi.` : ""}`);
+    refresh();
+  } catch (e) { fail(e); }
 }
 
 /* ------------------------------ Yoklama ------------------------------ */
@@ -419,6 +494,12 @@ async function viewDues(v) {
     </details>
     <div class="row" style="margin-top:14px"><button class="btn" type="submit">Aidatı ekle</button></div>
   </form>`}
+  ${ro ? "" : `<form class="card" id="f-month"><h2>Dönemin her ayı için aidat oluştur</h2>
+    <p class="muted" style="margin-top:-6px">Temmuz’dan Haziran’a kadar, henüz aidatı olmayan her ay için aynı tutar ve aynı son ödeme günüyle aidat açılır. Takvimde de her ayın aidat günü görünür.</p>
+    <div class="grid g3"><label class="f">Aylık tutar (TL)<input type="number" name="amount" min="0" step="0.01" required></label>
+      <label class="f">Son ödeme günü <small>Ayın kaçı</small><input type="number" name="day" min="1" max="28" value="15" required></label>
+      <div class="f" style="align-self:end"><button class="btn" type="submit">Eksik ayları oluştur</button></div></div>
+  </form>`}
   <div class="card"><h2>Aidat dönemleri</h2>
     ${dues.length ? dues.slice().sort((a, b) => (b.due_date || "").localeCompare(a.due_date || "")).map(d => {
       const cs = charges.filter(c => c.due_id === d.id).sort((a, b) => (mmap[a.member_id]?.full_name || "").localeCompare(mmap[b.member_id]?.full_name || "", "tr"));
@@ -436,6 +517,21 @@ async function viewDues(v) {
     ${members.map(m => ({ m, d: debtOf(m.id, charges, dues) })).sort((a, b) => b.d.total - a.d.total).map(({ m, d }) => `<tr><td>${person(m)}</td><td class="num">${d.open.length}</td><td class="num">${d.overdue.length ? `<span class="tag bad">${d.overdue.length}</span>` : 0}</td><td class="num"><b>${TL(d.total)}</b></td></tr>`).join("")}
   </tbody></table></div></div>`;
   if (ro) return;
+  document.getElementById("f-month").onsubmit = async e => {
+    e.preventDefault(); const fd = new FormData(e.target), amount = +fd.get("amount"), day = String(+fd.get("day")).padStart(2, "0");
+    const term = await store.getTerm(); const [sy, sm] = term.start_date.split("-").map(Number);
+    const have = new Set(dues.map(d => d.period));
+    const ids = members.filter(m => m.status === "active").map(m => m.id);
+    let n = 0;
+    try {
+      for (let i = 0; i < 12; i++) {
+        const d = new Date(sy, sm - 1 + i, 1), period = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        if (have.has(period)) continue;
+        await store.createDue({ label: `${MONTHS[d.getMonth()]} ${d.getFullYear()} aidatı`, period, amount, due_date: `${period}-${day}`, member_ids: ids }); n++;
+      }
+      toast(n ? `${n} ay için aidat oluşturuldu.` : "Dönemin bütün aylarında zaten aidat var."); refresh();
+    } catch (er) { fail(er); }
+  };
   const f = document.getElementById("f-due");
   f.addEventListener("change", () => { const n = f.querySelectorAll("[name=mem]:checked").length, t = f.querySelectorAll("[name=mem]").length; document.getElementById("who-n").textContent = n === t ? "Tüm aktif üyeler" : `${n} üye seçili`; });
   f.onsubmit = async e => {
@@ -554,7 +650,7 @@ async function viewProjects(v) {
   v.querySelectorAll("[data-ep]").forEach(b => b.onclick = () => ro ? null : editProject(projects.find(p => p.id === b.dataset.ep), v));
   const np = document.getElementById("newp"); if (np) np.onclick = () => editProject(null, v);
 }
-function editProject(p, v) {
+function editProject(p, v, after = viewProjects) {
   p ||= { title: "", kind: "hizmet", date: "", time: "", location: "", description: "", plan: "", owner: me.full_name, status: "planlandi", public: false };
   const dlg = document.getElementById("dlg");
   dlg.innerHTML = `<form method="dialog">
@@ -583,7 +679,7 @@ function editProject(p, v) {
         await store.saveProject(p.id ? { ...d, id: p.id } : d); toast(p.id ? "Proje güncellendi." : "Proje listeye ve takvime eklendi.");
         if (d.date) calMonth = d.date.slice(0, 7);
       } else return;
-      viewProjects(v);
+      after(v);
     } catch (er) { fail(er); }
   };
 }
@@ -594,6 +690,291 @@ async function viewInstagram(v) {
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
   const { mountComposer } = await import("./composer.js");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
+}
+
+/* ------------------------------- Takvim ------------------------------- */
+const DAYS_TR = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
+const CAL_TYPES = {
+  toplanti: "Toplantı", hizmet: "Proje", etkinlik: "Etkinlik", ocakbasi: "Ocakbaşı", diger: "Diğer", aidat: "Aidat ödemesi", kulup: "Diğer kulüpler"
+};
+let cal2Month = today().slice(0, 7);
+const calOff = new Set();
+const longDate = iso => { const d = new Date(iso + "T12:00:00"); return `${d.getDate()} ${MONTHS[d.getMonth()]} ${DAYS_TR[d.getDay()]}`; };
+
+async function calendarItems() {
+  const [meetings, projects, dues, charges, clubs, rsvps] = await Promise.all([
+    store.listMeetings(), store.listCalendarProjects(), store.listDues(), store.listCharges(), store.listClubEvents(), store.listRsvps()
+  ]);
+  const items = [];
+  meetings.forEach(m => items.push({ date: m.date, type: "toplanti", time: "19.30", title: `${m.term_no}. toplantı`, sub: `Kulübümüzün ${m.club_no}. toplantısı · Hybrid Hub${m.note ? " · " + m.note : ""}`, ref: m }));
+  projects.filter(p => p.date && p.status !== "iptal").forEach(p => items.push({ date: p.date, type: CAL_TYPES[p.kind] ? p.kind : "diger", time: p.time || "", title: p.title, sub: [p.location, p.owner].filter(Boolean).join(" · "), desc: p.description, ref: p, done: p.status === "tamamlandi" }));
+  dues.filter(d => d.due_date).forEach(d => {
+    const mine = charges.find(c => c.due_id === d.id && c.member_id === me.id);
+    const paidN = charges.filter(c => c.due_id === d.id && c.paid_at).length, allN = charges.filter(c => c.due_id === d.id).length;
+    items.push({ date: d.due_date, type: "aidat", time: "", title: `Aidat son günü`, sub: `${d.label} · ${TL(d.amount)}${mine ? (mine.paid_at ? " · Ödedin" : " · Henüz ödemedin") : ""}${can(me, "aidat", "view") ? ` · ${paidN}/${allN} ödendi` : ""}`, ref: d, done: !!mine?.paid_at });
+  });
+  clubs.forEach(e => {
+    const mine = rsvps.find(r => r.event_id === e.id && r.member_id === me.id);
+    items.push({ date: e.date, type: "kulup", time: e.time || "", title: `${e.club}: ${e.title}`, sub: [e.location, mine ? (mine.status === "katiliyorum" ? "Katılıyorsun" : "Katılamıyorsun") : "Yanıt vermedin"].filter(Boolean).join(" · "), desc: e.description, ref: e });
+  });
+  return items.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
+}
+
+async function viewCalendar(v) {
+  const items = (await calendarItems()).filter(i => !calOff.has(i.type));
+  const [y, m] = cal2Month.split("-").map(Number);
+  const first = new Date(y, m - 1, 1), start = new Date(first); start.setDate(1 - ((first.getDay() + 6) % 7));
+  const weeks = Math.ceil((((first.getDay() + 6) % 7) + new Date(y, m, 0).getDate()) / 7);
+  const cells = Array.from({ length: weeks * 7 }, (_, i) => { const d = new Date(start); d.setDate(start.getDate() + i); return d; });
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const monthItems = items.filter(i => i.date.startsWith(cal2Month));
+  const canAdd = can(me, "projeler", "edit");
+  const idx = new Map(); items.forEach((it, i) => idx.set(it, i));
+  v.innerHTML = header("Takvim", "Toplantılar, projeler, etkinlikler, ocakbaşları, aidat günleri ve diğer kulüplerin etkinlikleri. Yeni bir kayıt eklendiğinde takvim kendiliğinden güncellenir.",
+    `<div class="row">${canAdd ? `<button class="btn" id="cal-add">Yeni ekle</button>` : ""}<button class="btn ghost" id="cal-png">PNG indir</button><button class="btn ghost" id="cal-pdf">PDF indir</button></div>`) + `
+  <div class="row" style="margin-bottom:12px">
+    <button class="btn ghost sm" id="c-prev" aria-label="Önceki ay">‹</button>
+    <h2 style="margin:0;font-size:1.2rem;min-width:160px;text-align:center">${MONTHS[m - 1]} ${y}</h2>
+    <button class="btn ghost sm" id="c-next" aria-label="Sonraki ay">›</button>
+    <button class="btn ghost sm" id="c-today">Bu ay</button>
+    <div class="spacer"></div>
+    <div class="cal-filters" role="group" aria-label="Takvimde göster">${Object.entries(CAL_TYPES).map(([k, l]) => `<button type="button" class="cf t-${k}" data-f="${k}" aria-pressed="${!calOff.has(k)}">${l}</button>`).join("")}</div>
+  </div>
+  <div id="cal-export" class="cal-export">
+    <div class="cal-print-head"><img src="../assets/logo-cranberry.webp" alt=""><div><b>${MONTHS[m - 1]} ${y} takvimi</b><span>Ankara Anıttepe Rotaract Kulübü · Toplantılar iki haftada bir perşembe 19.30, Hybrid Hub</span></div></div>
+    <div class="cal cal2">${["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"].map(d => `<div class="dow">${d}</div>`).join("")}
+    ${cells.map(d => { const k = iso(d); return `<div class="day ${d.getMonth() !== m - 1 ? "out" : ""} ${k === today() ? "today" : ""}"><span class="n">${d.getDate()}</span>
+      ${items.filter(i => i.date === k).map(i => `<button type="button" class="ev t-${i.type} ${i.done ? "done" : ""}" data-i="${idx.get(i)}" title="${esc(i.title)}">${i.time ? `<i>${esc(i.time)}</i> ` : ""}${esc(i.title)}</button>`).join("")}</div>`; }).join("")}
+    </div>
+    <div class="agenda">
+      <h3>${MONTHS[m - 1]} ayında ${monthItems.length ? monthItems.length + " kayıt" : "kayıt yok"}</h3>
+      ${monthItems.map(i => `<button type="button" class="ag-row" data-i="${idx.get(i)}"><span class="ag-date">${longDate(i.date)}${i.time ? ` · ${esc(i.time)}` : ""}</span><span class="tag t-${i.type}">${CAL_TYPES[i.type]}</span><span class="ag-t"><b>${esc(i.title)}</b>${i.sub ? `<small>${esc(i.sub)}</small>` : ""}</span></button>`).join("")}
+    </div>
+  </div>
+  <dialog id="dlg"></dialog>`;
+  const shift = n => { const d = new Date(y, m - 1 + n, 1); cal2Month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; viewCalendar(v); };
+  document.getElementById("c-prev").onclick = () => shift(-1);
+  document.getElementById("c-next").onclick = () => shift(1);
+  document.getElementById("c-today").onclick = () => { cal2Month = today().slice(0, 7); viewCalendar(v); };
+  v.querySelectorAll("[data-f]").forEach(b => b.onclick = () => { calOff.has(b.dataset.f) ? calOff.delete(b.dataset.f) : calOff.add(b.dataset.f); viewCalendar(v); });
+  v.querySelectorAll("[data-i]").forEach(b => b.onclick = () => calDetail(items[+b.dataset.i], v));
+  if (canAdd) document.getElementById("cal-add").onclick = () => editProject({ title: "", kind: "etkinlik", date: `${cal2Month}-${cal2Month === today().slice(0, 7) ? today().slice(8) : "01"}`, time: "", location: "", description: "", plan: "", owner: me.full_name, status: "planlandi", public: false }, v, viewCalendar);
+  document.getElementById("cal-png").onclick = () => exportCalendar("png", `${MONTHS[m - 1]}-${y}`);
+  document.getElementById("cal-pdf").onclick = () => exportCalendar("pdf", `${MONTHS[m - 1]}-${y}`);
+}
+
+function calDetail(it, v) {
+  const dlg = document.getElementById("dlg");
+  const canEditProj = ["hizmet", "etkinlik", "ocakbasi", "diger"].includes(it.type) && can(me, "projeler", "edit");
+  const canAnnounce = can(me, "duyuru", "edit") && it.type !== "aidat";
+  dlg.innerHTML = `<form method="dialog">
+    <div class="row"><span class="tag t-${it.type}">${CAL_TYPES[it.type]}</span><span class="muted">${longDate(it.date)}${it.time ? " · " + esc(it.time) : ""}</span></div>
+    <h2>${esc(it.title)}</h2>
+    ${it.sub ? `<p style="margin:0">${esc(it.sub)}</p>` : ""}
+    ${it.desc ? `<p class="muted" style="margin:0;white-space:pre-line">${esc(it.desc)}</p>` : ""}
+    ${it.type === "kulup" && it.ref.link ? `<p style="margin:0"><a href="${esc(it.ref.link)}" target="_blank" rel="noopener">Etkinlik bağlantısı</a></p>` : ""}
+    <div class="row">
+      ${canEditProj ? `<button class="btn" value="edit">Düzenle</button>` : ""}
+      ${it.type === "kulup" ? `<button class="btn" value="club">Katılım durumunu seç</button>` : ""}
+      ${canAnnounce ? `<button class="btn ghost" value="announce">Duyuru gönder</button>` : ""}
+      <button class="btn ghost" value="close">Kapat</button>
+    </div></form>`;
+  dlg.showModal();
+  dlg.querySelector("form").onsubmit = e => {
+    const a = e.submitter?.value;
+    if (a === "edit") setTimeout(() => editProject(it.ref, v, viewCalendar));
+    if (a === "club") location.hash = "#kulupler";
+    if (a === "announce") { sessionStorage.setItem("ar-announce", JSON.stringify(announceTemplate(it))); location.hash = "#duyurular"; }
+  };
+}
+
+const H2C = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+const JSPDF = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+async function exportCalendar(kind, name) {
+  const src = document.getElementById("cal-export");
+  toast("Takvim hazırlanıyor…");
+  const box = document.createElement("div");
+  box.className = "cal-export-frame";
+  box.appendChild(src.cloneNode(true));
+  document.body.appendChild(box);
+  try {
+    await loadScript(H2C);
+    if (kind === "pdf") await loadScript(JSPDF);
+    await document.fonts.ready;
+    const canvas = await window.html2canvas(box.firstElementChild, { scale: 2, backgroundColor: "#ffffff", useCORS: true, logging: false });
+    const file = `anittepe-rotaract-takvim-${name.toLocaleLowerCase("tr").replace(/[^a-z0-9ğüşıöç-]+/g, "-")}`;
+    if (kind === "png") {
+      const a = document.createElement("a"); a.href = canvas.toDataURL("image/png"); a.download = file + ".png"; a.click();
+    } else {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+      const W = 297, Hh = 210, mg = 8, iw = W - mg * 2, ih = canvas.height * iw / canvas.width;
+      const img = canvas.toDataURL("image/jpeg", 0.92);
+      // Uzun aylar birden fazla sayfaya bölünür
+      let y = 0; const pageH = Hh - mg * 2;
+      while (y < ih) { if (y > 0) pdf.addPage(); pdf.addImage(img, "JPEG", mg, mg - y, iw, ih); y += pageH; }
+      pdf.save(file + ".pdf");
+    }
+    toast(kind === "png" ? "Takvim PNG olarak indirildi." : "Takvim PDF olarak indirildi.");
+  } catch (e) { fail(e); } finally { box.remove(); }
+}
+
+/* ---------------------- Diğer kulüplerin etkinlikleri ---------------------- */
+async function viewClubEvents(v) {
+  const [events, rsvps, members] = await Promise.all([store.listClubEvents(), store.listRsvps(), store.listMembers()]);
+  const mmap = Object.fromEntries(members.map(x => [x.id, x]));
+  const admin = hasRole(me, "baskan");
+  const up = events.filter(e => e.date >= today()), past = events.filter(e => e.date < today()).reverse();
+  const card = e => {
+    const rs = rsvps.filter(r => r.event_id === e.id), mine = rs.find(r => r.member_id === me.id)?.status;
+    const yes = rs.filter(r => r.status === "katiliyorum").map(r => mmap[r.member_id]?.full_name).filter(Boolean);
+    const no = rs.filter(r => r.status === "katilamiyorum").map(r => mmap[r.member_id]?.full_name).filter(Boolean);
+    const d = new Date(e.date + "T12:00:00");
+    const mayEdit = admin || e.created_by === me.id;
+    return `<div class="proj"><div class="date"><b>${d.getDate()}</b><span>${MONTHS[d.getMonth()].slice(0, 3)} ${d.getFullYear()}</span></div>
+      <div><span class="tag t-kulup">${esc(e.club)}</span><h3 style="margin-top:6px">${esc(e.title)}</h3>
+        <p class="muted" style="margin:0;font-size:.88rem">${[DAYS_TR[d.getDay()], e.time, e.location].filter(Boolean).map(esc).join(" · ")}</p>
+        ${e.description ? `<p>${esc(e.description)}</p>` : ""}${e.link ? `<p><a href="${esc(e.link)}" target="_blank" rel="noopener">Etkinlik bağlantısı</a></p>` : ""}
+        <div class="row" style="margin-top:10px">
+          <div class="seg rsvp" role="group" aria-label="Katılım durumun"><button type="button" data-ev="${e.id}" data-v="katiliyorum" aria-pressed="${mine === "katiliyorum"}">Katılıyorum</button><button type="button" data-ev="${e.id}" data-v="katilamiyorum" aria-pressed="${mine === "katilamiyorum"}">Katılamıyorum</button></div>
+          <span class="tag ok">${yes.length} katılıyor</span><span class="tag">${no.length} katılamıyor</span>
+        </div>
+        ${yes.length || no.length ? `<details style="margin-top:8px"><summary style="cursor:pointer;font-size:.88rem;font-weight:600">Kimler yanıt verdi?</summary><p style="font-size:.88rem;margin:6px 0 0"><b>Katılıyor:</b> ${esc(yes.join(", ") || "Henüz kimse")}</p><p style="font-size:.88rem;margin:4px 0 0"><b>Katılamıyor:</b> ${esc(no.join(", ") || "Kimse")}</p></details>` : ""}
+      </div>
+      <div class="acts row">${can(me, "duyuru", "edit") ? `<button class="btn ghost sm" data-ann="${e.id}">Duyur</button>` : ""}${mayEdit ? `<button class="btn ghost sm" data-ed="${e.id}">Düzenle</button>` : ""}</div></div>`;
+  };
+  v.innerHTML = header("Diğer kulüplerin etkinlikleri", "Başka kulüplerin etkinlik ve organizasyonlarını ekle; herkes katılıp katılamayacağını işaretlesin.", `<button class="btn" id="ce-add">Etkinlik ekle</button>`) + `
+  <div class="card"><h2>Yaklaşan etkinlikler</h2>${up.length ? up.map(card).join("") : '<p class="muted">Yaklaşan bir etkinlik yok. "Etkinlik ekle" ile ilkini gir.</p>'}</div>
+  ${past.length ? `<details class="card"><summary style="cursor:pointer;font-weight:700">Geçmiş etkinlikler (${past.length})</summary>${past.map(card).join("")}</details>` : ""}
+  <dialog id="dlg"></dialog>`;
+  v.querySelectorAll(".rsvp button").forEach(b => b.onclick = async () => {
+    const was = b.getAttribute("aria-pressed") === "true";
+    try { await store.setRsvp(b.dataset.ev, was ? null : b.dataset.v); toast(was ? "Yanıtın kaldırıldı." : b.dataset.v === "katiliyorum" ? "Katılacağını işaretledin." : "Katılamayacağını işaretledin."); refreshKeep(v, viewClubEvents); } catch (e) { fail(e); }
+  });
+  v.querySelectorAll("[data-ed]").forEach(b => b.onclick = () => editClubEvent(events.find(e => e.id === b.dataset.ed), v));
+  v.querySelectorAll("[data-ann]").forEach(b => b.onclick = () => { const e = events.find(x => x.id === b.dataset.ann); sessionStorage.setItem("ar-announce", JSON.stringify(announceTemplate({ type: "kulup", date: e.date, time: e.time, title: `${e.club}: ${e.title}`, sub: e.location, desc: e.description, ref: e }))); location.hash = "#duyurular"; });
+  document.getElementById("ce-add").onclick = () => editClubEvent(null, v);
+}
+function editClubEvent(e, v) {
+  e ||= { club: "", title: "", date: today(), time: "", location: "", link: "", description: "" };
+  const dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<form method="dialog">
+    <h2>${e.id ? "Etkinliği düzenle" : "Diğer kulübün etkinliğini ekle"}</h2>
+    <div class="grid g2">
+      <label class="f">Kulüp<input type="text" name="club" value="${esc(e.club)}" required placeholder="ör. Ankara Çankaya Rotaract"></label>
+      <label class="f">Etkinlik adı<input type="text" name="title" value="${esc(e.title)}" required></label>
+      <label class="f">Tarih<input type="date" name="date" value="${esc(e.date)}" required></label>
+      <label class="f">Saat<input type="time" name="time" value="${esc(e.time)}"></label>
+      <label class="f">Yer<input type="text" name="location" value="${esc(e.location)}"></label>
+      <label class="f">Bağlantı <small>Davet, Instagram gönderisi…</small><input type="url" name="link" value="${esc(e.link)}" placeholder="https://"></label>
+    </div>
+    <label class="f">Açıklama<textarea name="description" rows="3">${esc(e.description)}</textarea></label>
+    <div class="row"><button class="btn" value="save">Kaydet</button><button class="btn ghost" value="cancel" formnovalidate>Vazgeç</button><div class="spacer"></div>${e.id ? `<button class="btn danger" value="delete" formnovalidate>Sil</button>` : ""}</div>
+  </form>`;
+  dlg.showModal();
+  dlg.querySelector("form").onsubmit = async ev => {
+    const a = ev.submitter?.value;
+    try {
+      if (a === "delete") { if (!confirm("Etkinlik ve katılım yanıtları silinsin mi?")) { ev.preventDefault(); return; } await store.deleteClubEvent(e.id); toast("Etkinlik silindi."); }
+      else if (a === "save") { const d = Object.fromEntries(new FormData(ev.target)); await store.saveClubEvent(e.id ? { ...d, id: e.id } : d); toast(e.id ? "Etkinlik güncellendi." : "Etkinlik eklendi; takvimde de görünüyor."); }
+      else return;
+      viewClubEvents(v);
+    } catch (er) { fail(er); }
+  };
+}
+
+/* ------------------------------ Duyurular ------------------------------ */
+const CLUB_MAIL = "anitteperotaract1996@gmail.com";
+const SIGN = "\n\nAnkara Anıttepe Rotaract Kulübü";
+function announceTemplate(it) {
+  const when = `${longDate(it.date)}${it.time ? " " + it.time : ""}`;
+  if (it.type === "toplanti") return { kind: "toplanti", subject: `${when}: ${it.ref.term_no}. toplantımız`, body: `Merhaba,\n\nDönemimizin ${it.ref.term_no}., kulübümüzün ${it.ref.club_no}. toplantısı ${when}'da Hybrid Hub'da.${it.ref.note ? "\n\nGündem: " + it.ref.note : ""}\n\nGelemeyeceksen lütfen sekreterimize haber ver.` + SIGN };
+  if (it.type === "kulup") return { kind: "etkinlik", subject: `${it.title} · ${when}`, body: `Merhaba,\n\n${it.title} etkinliği ${when}${it.sub ? ", " + it.sub : ""}.${it.desc ? "\n\n" + it.desc : ""}\n\nKatılıp katılamayacağını üye panelindeki "Diğer kulüplerin etkinlikleri" sayfasından işaretleyebilirsin: https://www.anitteperotaract.org/uye/#kulupler` + SIGN };
+  const label = CAL_TYPES[it.type] || "Etkinlik";
+  return { kind: it.type === "hizmet" ? "proje" : "etkinlik", subject: `${label}: ${it.title} · ${when}`, body: `Merhaba,\n\n${it.title} ${when}${it.ref?.location ? ", " + it.ref.location : ""}.${it.desc ? "\n\n" + it.desc : ""}\n\nSeni de aramızda görmek isteriz.` + SIGN };
+}
+const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const isPhone = () => /Android|iPhone|iPod/i.test(navigator.userAgent);
+const smsNumber = p => { const d = String(p || "").replace(/\D/g, ""); if (!d) return ""; const n = d.startsWith("90") ? d.slice(2) : d.startsWith("0") ? d.slice(1) : d; return n.length === 10 ? "+90" + n : ""; };
+
+async function viewAnnounce(v) {
+  const ro = !can(me, "duyuru", "edit");
+  const [members, items, log] = await Promise.all([store.listMembers(), calendarItems(), store.listAnnouncements()]);
+  const active = members.filter(m => m.status === "active").sort((a, b) => a.full_name.localeCompare(b.full_name, "tr"));
+  const upcoming = items.filter(i => i.date >= today() && i.type !== "aidat").slice(0, 12);
+  let pre = null; try { pre = JSON.parse(sessionStorage.getItem("ar-announce") || "null"); sessionStorage.removeItem("ar-announce"); } catch {}
+  if (!pre && upcoming[0]) pre = announceTemplate(upcoming.find(i => i.type === "toplanti") || upcoming[0]);
+  pre ||= { kind: "diger", subject: "", body: "Merhaba,\n\n" + SIGN };
+  const noMail = active.filter(m => !m.email).length, noPhone = active.filter(m => !smsNumber(m.phone)).length;
+  v.innerHTML = header("Duyurular", "Toplantı ve etkinlik duyurularını üyelerin e-postasına ve telefonuna gönder.") + (ro ? roBanner("duyuru") : "") +
+    (store.mode === "demo" ? `<div class="banner info">Demo modunda gönderim senin cihazından yapılır: "E-posta ile gönder" e-posta uygulamanı, "SMS gönder" telefonunun mesaj uygulamasını alıcılar ve metin hazır şekilde açar; son adımda Gönder'e sen basarsın. Sunucudan otomatik gönderim için kurulum rehberindeki e-posta ve SMS adımları gerekir.</div>` : "") + `
+  <form class="card" id="f-ann"><fieldset ${ro ? "disabled" : ""}>
+    <label class="f">Hazır metin <small>Takvimdeki yaklaşan kayıtlardan biriyle doldur</small>
+      <select id="tpl"><option value="">Seç…</option>${upcoming.map((i, k) => `<option value="${k}">${longDate(i.date)} · ${esc(CAL_TYPES[i.type])}: ${esc(i.title)}</option>`).join("")}</select></label>
+    <div class="grid" style="margin-top:12px">
+      <label class="f">Konu<input type="text" name="subject" value="${esc(pre.subject)}" required></label>
+      <label class="f">Mesaj <small>SMS'te de aynı metin gider; kısa tutmak iyi olur</small><textarea name="body" rows="8" required>${esc(pre.body)}</textarea></label>
+      <p class="muted" style="margin:-6px 0 0;font-size:.84rem" id="smslen"></p>
+    </div>
+    <details style="margin-top:14px" open><summary style="cursor:pointer;font-weight:700">Alıcılar <span class="muted" id="rc"></span></summary>
+      <div class="row" style="margin:10px 0"><button type="button" class="btn ghost sm" id="r-all">Hepsini seç</button><button type="button" class="btn ghost sm" id="r-none">Hiçbirini seçme</button>
+      ${noMail || noPhone ? `<span class="muted" style="font-size:.84rem">${noMail ? `${noMail} üyenin e-postası, ` : ""}${noPhone ? `${noPhone} üyenin telefonu ` : ""}eksik. Üye listesinden ekleyebilirsin.</span>` : ""}</div>
+      <div class="grid g3">${active.map(m => `<label class="check"><input type="checkbox" name="to" value="${m.id}" checked> ${esc(m.full_name)} ${!m.email ? '<span class="tag warn">e-posta yok</span>' : ""}${!smsNumber(m.phone) ? '<span class="tag warn">telefon yok</span>' : ""}</label>`).join("")}</div>
+    </details>
+    <input type="hidden" name="kind" value="${esc(pre.kind)}">
+    <div class="row" style="margin-top:16px">
+      <button type="button" class="btn" id="s-mail">E-posta ile gönder</button>
+      <button type="button" class="btn" id="s-sms">SMS gönder</button>
+      ${store.mode === "supabase" ? `<button type="button" class="btn ghost" id="s-server">Sunucudan gönder (e-posta + SMS)</button>` : ""}
+      <div class="spacer"></div>
+      <button type="button" class="btn ghost sm" id="c-mail">E-postaları kopyala</button>
+      <button type="button" class="btn ghost sm" id="c-tel">Numaraları kopyala</button>
+    </div>
+    <p class="muted" style="font-size:.84rem;margin:10px 0 0">E-postada alıcılar gizli (BCC) eklenir, birbirlerinin adresini görmezler. SMS, telefondan açıldığında mesaj uygulamanda toplu mesaj olarak hazırlanır.</p>
+  </fieldset></form>
+  <div class="card"><h2>Gönderilen duyurular</h2>${log.length ? `<div class="tbl-wrap"><table><thead><tr><th>Tarih</th><th>Konu</th><th>Kanal</th><th class="num">Alıcı</th></tr></thead><tbody>${log.map(a => `<tr><td>${trDate(a.created_at.slice(0, 10))}</td><td>${esc(a.subject)}</td><td>${(a.channels || []).map(c => `<span class="tag">${c === "email" ? "E-posta" : "SMS"}</span>`).join(" ")}</td><td class="num">${(a.recipient_ids || []).length}</td></tr>`).join("")}</tbody></table></div>` : '<p class="muted">Henüz duyuru gönderilmedi.</p>'}</div>`;
+  if (ro) return;
+  const f = document.getElementById("f-ann");
+  const sel = () => active.filter(m => f.querySelector(`[name=to][value="${m.id}"]`)?.checked);
+  const upd = () => {
+    const s = sel(); document.getElementById("rc").textContent = `${s.length} kişi seçili · ${s.filter(m => m.email).length} e-posta · ${s.filter(m => smsNumber(m.phone)).length} telefon`;
+    const n = f.body.value.length; document.getElementById("smslen").textContent = `${n} karakter · yaklaşık ${Math.max(1, Math.ceil(n / 153))} SMS`;
+  };
+  f.addEventListener("input", upd); f.addEventListener("change", upd); upd();
+  document.getElementById("tpl").onchange = e => { const it = upcoming[+e.target.value]; if (!it) return; const t = announceTemplate(it); f.subject.value = t.subject; f.body.value = t.body; f.kind.value = t.kind; upd(); };
+  document.getElementById("r-all").onclick = () => { f.querySelectorAll("[name=to]").forEach(c => c.checked = true); upd(); };
+  document.getElementById("r-none").onclick = () => { f.querySelectorAll("[name=to]").forEach(c => c.checked = false); upd(); };
+  const log1 = (channels, sent_via, result) => store.saveAnnouncement({ kind: f.kind.value, subject: f.subject.value, body: f.body.value, channels, recipient_ids: sel().map(m => m.id), sent_via, result }).catch(() => {});
+  const copy = async (txt, what) => { try { await navigator.clipboard.writeText(txt); toast(`${what} panoya kopyalandı.`); } catch { prompt("Kopyalayın:", txt); } };
+  document.getElementById("s-mail").onclick = async () => {
+    if (!f.reportValidity()) return;
+    const to = sel().map(m => m.email).filter(Boolean);
+    if (!to.length) return toast("Seçili üyelerin hiçbirinin e-postası yok.", "bad");
+    const url = `mailto:${CLUB_MAIL}?bcc=${to.map(encodeURIComponent).join(",")}&subject=${encodeURIComponent(f.subject.value)}&body=${encodeURIComponent(f.body.value)}`;
+    if (url.length > 1900) toast("Alıcı çok fazla olduğu için bazı e-posta uygulamaları kesebilir; gerekirse adresleri kopyalayıp yapıştır.");
+    location.href = url; await log1(["email"], "cihaz"); toast(`E-posta uygulaman ${to.length} alıcıyla açıldı. Gönder'e bastığında duyuru gider.`);
+  };
+  document.getElementById("s-sms").onclick = async () => {
+    if (!f.reportValidity()) return;
+    const nums = sel().map(m => smsNumber(m.phone)).filter(Boolean);
+    if (!nums.length) return toast("Seçili üyelerin hiçbirinin telefonu yok.", "bad");
+    const body = encodeURIComponent(f.body.value);
+    if (!isPhone()) { await copy(nums.join(", "), `${nums.length} telefon numarası`); toast("SMS telefonda açılır. Bu sayfayı telefondan açıp tekrar dene; numaralar şimdilik panoya kopyalandı."); return; }
+    location.href = isIOS() ? `sms:/open?addresses=${nums.join(",")}&body=${body}` : `sms:${nums.join(",")}?body=${body}`;
+    await log1(["sms"], "cihaz"); toast(`Mesaj uygulaman ${nums.length} alıcıyla açıldı. Gönder'e bastığında SMS gider.`);
+  };
+  const srv = document.getElementById("s-server");
+  if (srv) srv.onclick = async () => {
+    if (!f.reportValidity()) return;
+    srv.disabled = true; srv.textContent = "Gönderiliyor…";
+    try {
+      const r = await store.sendAnnouncement({ subject: f.subject.value, body: f.body.value, recipient_ids: sel().map(m => m.id), channels: ["email", "sms"] });
+      toast(`Gönderildi: ${r.email?.sent ?? 0} e-posta, ${r.sms?.sent ?? 0} SMS.${(r.email?.failed || r.sms?.failed) ? " Bazıları gönderilemedi." : ""}`);
+      viewAnnounce(v);
+    } catch (e) { fail(e); srv.disabled = false; srv.textContent = "Sunucudan gönder (e-posta + SMS)"; }
+  };
+  document.getElementById("c-mail").onclick = () => copy(sel().map(m => m.email).filter(Boolean).join(", "), "E-posta adresleri");
+  document.getElementById("c-tel").onclick = () => copy(sel().map(m => smsNumber(m.phone)).filter(Boolean).join(", "), "Telefon numaraları");
 }
 
 boot();

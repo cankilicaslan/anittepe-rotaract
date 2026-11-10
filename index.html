@@ -638,6 +638,12 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   .fab{right:calc(122px + env(safe-area-inset-right,0px));font-size:.88rem}
   .fab-login{width:102px;font-size:.88rem}
 }
+
+/* Geleneksel projeler: fotoğraflı kartlar */
+.proj-art.has-img{background-color:#2a1520}
+.proj-art .proj-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.proj-art.has-img::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(25,6,15,.72),rgba(25,6,15,.05) 60%)}
+.proj-art.has-img>span{position:relative;z-index:1}
 </style>
 
 <div class="progress" id="progress" aria-hidden="true"></div>
@@ -766,7 +772,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
         <article class="tl-card"><span class="yr">1968</span><h3>Rotaract doğuyor</h3><p>Rotary International, gençler için Rotaract programını 13 Mart 1968'de başlatıyor. Bugün 180 ülkede 10.000'den fazla kulüp var.</p></article>
         <article class="tl-card hl"><span class="yr">1996</span><h3>Anıttepe Rotaract kuruluyor</h3><p>Kasım 1996'da, Ankara Anıttepe Rotary Kulübü'nün sponsorluğunda Ankara'nın Rotaract kulüplerinden biri olarak yola çıkıyoruz.</p></article>
         <article class="tl-card"><span class="yr">2007</span><h3>İlk Döneme Merhaba Partisi</h3><p>Her yeni dönemi açan, farklı kulüpleri buluşturan partimiz başlıyor. 2026'da 20. kez yapıldı.</p></article>
-        <article class="tl-card"><span class="yr">Her yıl</span><h3>Gelenekler büyüyor</h3><p>Yer Gök Kırmızı Beyaz, Balon Perileri, Bugün Hiç Bitmesin ve Şarap Peynir Gecesi kulübün kuşaktan kuşağa devrettiği projeler oluyor.</p></article>
+        <article class="tl-card"><span class="yr">Her yıl</span><h3>Gelenekler büyüyor</h3><p>Yer Gök Kırmızı Beyaz, Balon Perileri, Bugün Hiç Bitmesin ve Bordo kulübün kuşaktan kuşağa devrettiği projeler oluyor.</p></article>
         <article class="tl-card"><span class="yr">2026</span><h3>Kalıcı Etki Yarat</h3><p>1 Temmuz'da Simay Oğuzkurt başkanlığındaki kurul görevi devralıyor. Ekimde Cumhuriyet'in 103. yılında 103 bayrakla sokaklardayız.</p></article>
         <article class="tl-card dark"><span class="yr">610</span><h3>30. yaş, 610. toplantı</h3><p>Kasım 2026'da kulüp 30 yaşına giriyor. 19 Kasım'daki toplantı kuruluştan bu yana 610. toplantımız.</p></article>
       </div>
@@ -1184,18 +1190,18 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 
   // ---------- Projects ----------
   const PROJECTS=[
-    {id:"merhaba",t:"Döneme Merhaba Partisi",cat:"kulup",m:8,d:19,when:"Eylül",big:"20. yıl",since:"2026 teması: Vogue",x:"Yeni dönemin ilk büyük buluşması. Farklı kulüplerden Rotaractörlerle her yıl başka bir temayla kutluyoruz.",bg:"linear-gradient(135deg,#D41367,#F7A81B)"},
-    {id:"yesil",t:"Yeşili Fark Et!",cat:"farkindalik",m:9,d:6,when:"6 Ekim",big:"Yeşil",since:"Dünya Serebral Palsi Günü",x:"Yeşil giyip paylaşıyor, serebral palsi farkındalığını sosyal medyaya taşıyoruz.",bg:"linear-gradient(135deg,#1F8A4C,#7CC88F)"},
+    {id:"merhaba",t:"Döneme Merhaba Partisi",cat:"kulup",m:8,d:19,when:"Eylül",big:"20. yıl",since:"2026 teması: Vogue",x:"Yeni dönemin ilk büyük buluşması. Farklı kulüplerden Rotaractörlerle her yıl başka bir temayla kutluyoruz: Matrix, G.O.R.A., Sunset Soirée…",bg:"linear-gradient(135deg,#D41367,#F7A81B)",img:"doneme-merhaba.jpg",pos:"center 12%"},
+    {id:"yesil",t:"Yeşili Fark Et!",cat:"farkindalik",m:9,d:6,when:"6 Ekim",big:"Yeşil",since:"Dünya Serebral Palsi Farkındalık Günü",x:"6 Ekim'de yeşil giyiyor, yeşil aksesuar takıyor ve fotoğraflarımızı paylaşarak serebral palsi farkındalığını sosyal medyaya taşıyoruz.",bg:"linear-gradient(135deg,#1F8A4C,#7CC88F)",img:"yesili-fark-et.jpg"},
+    {id:"kirmizi",t:"Yer Gök Kırmızı Beyaz",cat:"hizmet",m:9,d:29,when:"29 Ekim haftası",big:"103",since:"2026: 103 Türk + 103 Atatürk bayrağı",x:"Cumhuriyet Bayramı haftasında öğrencilerle birlikte I. TBMM'yi ve Cumhuriyet Müzesi'ni geziyor, sokakları kırmızı beyaza büründürüyoruz.",bg:"linear-gradient(160deg,#E30A17 0 60%,#B00812 60% 100%)",img:"yer-gok-kirmizi-beyaz.jpg"},
+    {id:"bordo",t:"Bordo",cat:"kaynak",m:1,d:22,when:"Şubat",big:"Paint &amp; Drink",since:"Rotaractör–Rotaryen buluşması",x:"Rotaractörler ve Rotaryenler şarap eşliğinde bir araya geliyor; Paint&Drink ve ödüllü trivia ile geçen gecenin geliri projelerimize aktarılıyor.",bg:"linear-gradient(135deg,#6D0F2A,#A30C4D)",img:"bordo.jpg"},
+    {id:"balon",t:"Balon Perileri",cat:"hizmet",m:3,d:23,when:"23 Nisan haftası",big:"Dilekler",since:"Okul ziyaretleri ve bağış kampanyası",x:"İhtiyacı olan çocukların dilek listelerini topluyor, hediyelerini 23 Nisan haftasında okullarında teslim ediyoruz.",bg:"linear-gradient(135deg,#F7A81B,#F2C14E)",img:"balon-perileri.jpg",pos:"center 8%"},
     {id:"polio",t:"Dünya Polio Günü",cat:"farkindalik",m:9,d:24,when:"24 Ekim",big:"End Polio",since:"Rotary'nin küresel kampanyası",x:"Çocuk felcinin olmadığı bir dünya için aşıya erişimi ve farkındalığı destekliyoruz.",bg:"linear-gradient(135deg,#A30C4D,#D41367)"},
-    {id:"kirmizi",t:"Yer Gök Kırmızı Beyaz",cat:"hizmet",m:9,d:29,when:"29 Ekim",big:"103",since:"2026: 103 Türk + 103 Atatürk bayrağı",x:"Cumhuriyet Bayramı'nda çocuklarla sokakları kırmızı beyaza büründürüyoruz.",bg:"linear-gradient(160deg,#E30A17 0 60%,#B00812 60% 100%)"},
     {id:"kurulus",t:"Kuruluş yıldönümü",cat:"kulup",m:10,d:15,when:"Kasım",big:"30",since:"Kasım 1996'dan beri",x:"Kulübümüzün doğum ayı. 2026'da 30. yaşımızı kutluyoruz.",bg:"linear-gradient(135deg,#D41367,#F78FB8)"},
-    {id:"yilbasi",t:"Bugün Hiç Bitmesin",cat:"hizmet",m:11,d:28,when:"Aralık sonu",big:"Yeni yıl",since:"Yaklaşık 10 yıldır",x:"Zihinsel ve fiziksel engelli dostlarımızla birlikte yeni yılı kutladığımız gün.",bg:"linear-gradient(135deg,#17458F,#4E7BD0)"},
-    {id:"balon",t:"Balon Perileri",cat:"hizmet",m:3,d:23,when:"23 Nisan",big:"Dilekler",since:"Okul ziyaretleri ve bağış kampanyası",x:"İhtiyacı olan çocukların dilek listelerini topluyor, hediyelerini 23 Nisan'da teslim ediyoruz.",bg:"linear-gradient(135deg,#F7A81B,#F2C14E)"},
-    {id:"sarap",t:"Şarap Peynir Gecesi",cat:"kaynak",m:null,d:null,when:"Tarih her yıl duyurulur",big:"15 yıl",since:"En köklü etkinliğimiz",x:"Rotaractörler ve Rotaryenler bir araya geliyor; gelir projelerimize aktarılıyor.",bg:"linear-gradient(135deg,#A30C4D,#E8508A)"}
+    {id:"yilbasi",t:"Bugün Hiç Bitmesin",cat:"hizmet",m:11,d:28,when:"Aralık sonu",big:"Yeni yıl",since:"Yaklaşık 10 yıldır",x:"Zihinsel ve fiziksel engelli dostlarımızla birlikte yeni yılı kutladığımız gün.",bg:"linear-gradient(135deg,#17458F,#4E7BD0)"}
   ];
   const rail=$("#rail");
   rail.innerHTML=PROJECTS.map(p=>`<article class="proj" data-cat="${p.cat}">
-    <div class="proj-art" style="background:${p.bg}"><span class="when">${p.when}</span><span class="big">${p.big}</span></div>
+    <div class="proj-art${p.img?" has-img":""}" style="background:${p.bg}">${p.img?`<img class="proj-img" style="object-position:${p.pos||"center"}" src="assets/projeler/${p.img}" alt="${p.t} fotoğrafı" loading="lazy" decoding="async">`:""}<span class="when">${p.when}</span><span class="big">${p.big}</span></div>
     <div class="proj-body"><h3>${p.t}</h3><p>${p.x}</p><small>${p.since}</small></div></article>`).join("");
   $$(".chip").forEach(c=>c.addEventListener("click",()=>{
     $$(".chip").forEach(x=>x.setAttribute("aria-pressed",x===c));

@@ -638,6 +638,12 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   .fab{right:calc(122px + env(safe-area-inset-right,0px));font-size:.88rem}
   .fab-login{width:102px;font-size:.88rem}
 }
+
+/* Geleneksel projeler: fotoğraflı kartlar */
+.proj-art.has-img{background-color:#2a1520}
+.proj-art .proj-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.proj-art.has-img::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(25,6,15,.72),rgba(25,6,15,.05) 60%)}
+.proj-art.has-img>span{position:relative;z-index:1}
 </style>
 
 <div class="progress" id="progress" aria-hidden="true"></div>
@@ -766,7 +772,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
         <article class="tl-card"><span class="yr">1968</span><h3>Rotaract is born</h3><p>Rotary International launches the Rotaract programme for young people on 13 March 1968. Today there are more than 10,000 clubs in 180 countries.</p></article>
         <article class="tl-card hl"><span class="yr">1996</span><h3>Anıttepe Rotaract is founded</h3><p>In November 1996 we start out as one of Ankara's Rotaract clubs, sponsored by the Rotary Club of Ankara Anıttepe.</p></article>
         <article class="tl-card"><span class="yr">2007</span><h3>The first Hello New Term Party</h3><p>Our party that opens every new term and brings clubs together begins. In 2026 it was held for the 20th time.</p></article>
-        <article class="tl-card"><span class="yr">Every year</span><h3>Traditions grow</h3><p>Red and White Everywhere, Balloon Fairies, May Today Never End and the Wine and Cheese Night become projects passed down from one generation of members to the next.</p></article>
+        <article class="tl-card"><span class="yr">Every year</span><h3>Traditions grow</h3><p>Red and White Everywhere, Balloon Fairies, May Today Never End and Bordo become projects passed down from one generation of members to the next.</p></article>
         <article class="tl-card"><span class="yr">2026</span><h3>Create Lasting Impact</h3><p>On 1 July the board led by President Simay Oğuzkurt takes office. In October, for the Republic's 103rd year, we take to the streets with 103 flags.</p></article>
         <article class="tl-card dark"><span class="yr">610</span><h3>30 years, 610 meetings</h3><p>The club turns 30 in November 2026. The meeting on 19 November is our 610th since the club was founded.</p></article>
       </div>
@@ -1185,18 +1191,18 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 
   // ---------- Projects ----------
   const PROJECTS=[
-    {id:"merhaba",t:"Hello New Term Party",cat:"kulup",m:8,d:19,when:"September",big:"20th year",since:"Döneme Merhaba · 2026 theme: Vogue",x:"The first big get-together of the new term. Every year we celebrate with Rotaractors from other clubs, each time with a new theme.",bg:"linear-gradient(135deg,#D41367,#F7A81B)"},
-    {id:"yesil",t:"Notice the Green!",cat:"farkindalik",m:9,d:6,when:"6 October",big:"Green",since:"Yeşili Fark Et · World Cerebral Palsy Day",x:"We wear green and share it online to raise awareness of cerebral palsy.",bg:"linear-gradient(135deg,#1F8A4C,#7CC88F)"},
+    {id:"merhaba",t:"Hello New Term Party",cat:"kulup",m:8,d:19,when:"September",big:"20th year",since:"Döneme Merhaba · 2026 theme: Vogue",x:"The first big get-together of the new term. Every year we celebrate with Rotaractors from other clubs under a new theme: Matrix, G.O.R.A., Sunset Soirée…",bg:"linear-gradient(135deg,#D41367,#F7A81B)",img:"doneme-merhaba.jpg",pos:"center 12%"},
+    {id:"yesil",t:"Notice the Green!",cat:"farkindalik",m:9,d:6,when:"6 October",big:"Green",since:"Yeşili Fark Et · World Cerebral Palsy Day",x:"On 6 October we wear green, put on green accessories and share our photos to raise awareness of cerebral palsy online.",bg:"linear-gradient(135deg,#1F8A4C,#7CC88F)",img:"yesili-fark-et.jpg"},
+    {id:"kirmizi",t:"Red and White Everywhere",cat:"hizmet",m:9,d:29,when:"Week of 29 October",big:"103",since:"Yer Gök Kırmızı Beyaz · 2026: 103 Turkish + 103 Atatürk flags",x:"During Republic Day week we visit the first Grand National Assembly building and the Republic Museum with schoolchildren and dress the streets in red and white.",bg:"linear-gradient(160deg,#E30A17 0 60%,#B00812 60% 100%)",img:"yer-gok-kirmizi-beyaz.jpg"},
+    {id:"bordo",t:"Bordo",cat:"kaynak",m:1,d:22,when:"February",big:"Paint &amp; Drink",since:"Rotaractor–Rotarian get-together",x:"Rotaractors and Rotarians meet over wine; the proceeds of a night of Paint&Drink and a trivia quiz with prizes go to our projects.",bg:"linear-gradient(135deg,#6D0F2A,#A30C4D)",img:"bordo.jpg"},
+    {id:"balon",t:"Balloon Fairies",cat:"hizmet",m:3,d:23,when:"Week of 23 April",big:"Wishes",since:"Balon Perileri · school visits and a donation drive",x:"We collect wish lists from children in need and deliver their gifts at their school in the week of 23 April, Children's Day.",bg:"linear-gradient(135deg,#F7A81B,#F2C14E)",img:"balon-perileri.jpg",pos:"center 8%"},
     {id:"polio",t:"World Polio Day",cat:"farkindalik",m:9,d:24,when:"24 October",big:"End Polio",since:"Rotary's global campaign",x:"We support vaccine access and awareness for a world without polio.",bg:"linear-gradient(135deg,#A30C4D,#D41367)"},
-    {id:"kirmizi",t:"Red and White Everywhere",cat:"hizmet",m:9,d:29,when:"29 October",big:"103",since:"Yer Gök Kırmızı Beyaz · 2026: 103 Turkish + 103 Atatürk flags",x:"On Republic Day we dress the streets in red and white together with children.",bg:"linear-gradient(160deg,#E30A17 0 60%,#B00812 60% 100%)"},
     {id:"kurulus",t:"Club anniversary",cat:"kulup",m:10,d:15,when:"November",big:"30",since:"Since November 1996",x:"Our club's birthday month. In 2026 we celebrate turning 30.",bg:"linear-gradient(135deg,#D41367,#F78FB8)"},
-    {id:"yilbasi",t:"May Today Never End",cat:"hizmet",m:11,d:28,when:"Late December",big:"New Year",since:"Bugün Hiç Bitmesin · for about 10 years",x:"The day we celebrate the new year together with our friends with intellectual and physical disabilities.",bg:"linear-gradient(135deg,#17458F,#4E7BD0)"},
-    {id:"balon",t:"Balloon Fairies",cat:"hizmet",m:3,d:23,when:"23 April",big:"Wishes",since:"Balon Perileri · school visits and a donation drive",x:"We collect wish lists from children in need and deliver their gifts on 23 April, Children's Day.",bg:"linear-gradient(135deg,#F7A81B,#F2C14E)"},
-    {id:"sarap",t:"Wine and Cheese Night",cat:"kaynak",m:null,d:null,when:"Date announced each year",big:"15 years",since:"Şarap Peynir Gecesi · our longest-running event",x:"Rotaractors and Rotarians get together; the proceeds go to our projects.",bg:"linear-gradient(135deg,#A30C4D,#E8508A)"}
+    {id:"yilbasi",t:"May Today Never End",cat:"hizmet",m:11,d:28,when:"Late December",big:"New Year",since:"Bugün Hiç Bitmesin · for about 10 years",x:"The day we celebrate the new year together with our friends with intellectual and physical disabilities.",bg:"linear-gradient(135deg,#17458F,#4E7BD0)"}
   ];
   const rail=$("#rail");
   rail.innerHTML=PROJECTS.map(p=>`<article class="proj" data-cat="${p.cat}">
-    <div class="proj-art" style="background:${p.bg}"><span class="when">${p.when}</span><span class="big">${p.big}</span></div>
+    <div class="proj-art${p.img?" has-img":""}" style="background:${p.bg}">${p.img?`<img class="proj-img" style="object-position:${p.pos||"center"}" src="../assets/projeler/${p.img}" alt="${p.t} photo" loading="lazy" decoding="async">`:""}<span class="when">${p.when}</span><span class="big">${p.big}</span></div>
     <div class="proj-body"><h3>${p.t}</h3><p>${p.x}</p><small>${p.since}</small></div></article>`).join("");
   $$(".chip").forEach(c=>c.addEventListener("click",()=>{
     $$(".chip").forEach(x=>x.setAttribute("aria-pressed",x===c));

@@ -1240,7 +1240,9 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
     const[lx,ly]=pt((a0+a1)/2,172);const tx=el("text",{x:lx,y:ly+4,"text-anchor":"middle",class:"mlabel"});tx.textContent=MON_S[m];
   }
   el("circle",{cx:C,cy:C,r:132,fill:"none",stroke:"var(--line)","stroke-width":1.5,"stroke-dasharray":"2 6"});
-  const ta=((now-rs)/YEAR)*360-90;const[nx0,ny0]=pt(ta,112),[nx1,ny1]=pt(ta,200);
+  const ta=((now-rs)/YEAR)*360-90;
+  // 1 Temmuz (yılın başı) ile bugün arasında geçen süre: ince sarı yay
+  if(ta>-89.5){const[px0,py0]=pt(-90,132),[px1,py1]=pt(ta,132);el("path",{d:`M${px0} ${py0} A132 132 0 ${ta+90>180?1:0} 1 ${px1} ${py1}`,fill:"none",stroke:"var(--gold)","stroke-width":2.5,"stroke-linecap":"round",class:"elapsed"})}const[nx0,ny0]=pt(ta,112),[nx1,ny1]=pt(ta,200);
   el("line",{x1:nx0,y1:ny0,x2:nx1,y2:ny1,class:"needle"});
   const[tlx,tly]=pt(ta,214);el("text",{x:tlx,y:tly+4,"text-anchor":"middle",class:"today-t"}).textContent="Today";
   const sorted=EVENTS.map(e=>({...e,a:angFor(e.m,e.d)})).sort((p,q)=>p.a-q.a);

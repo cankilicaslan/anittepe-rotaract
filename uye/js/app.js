@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611102111";
-import { can, hasRole, ROLE_LABELS } from "./roles.js?v=202611102111";
+import { createStore, trDate } from "./store.js?v=202611102115";
+import { can, hasRole, ROLE_LABELS } from "./roles.js?v=202611102115";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -13,15 +13,19 @@ const pct = x => `%${Math.round(x * 100)}`;
 const MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 
 let store, me;
-// Panelden yapılan her yeni kayıt kulüp Gmail'ine de bildirilir (ana sayfadaki başvuru formuyla aynı servis: FormSubmit).
-const CLUB_INBOX = "anitteperotaract1996@gmail.com";
+// Panelden yapılan her yeni kayıt kulüp Gmail adresine iletilir ve başvurular tablosuna kaydedilir (basvuru fonksiyonu).
 async function notifyClubOfSignup(d) {
   if (store.mode === "demo") return;
-  const body = `Üye panelinden yeni bir hesap açıldı ve başkan onayı bekliyor.\n\nAd soyad: ${d.full_name}\nTelefon: ${d.phone}\nE-posta: ${d.email}\nTarih: ${new Date().toLocaleString("tr-TR")}\n\nOnaylamak için: https://anitteperotaract.org/uye/#uyeler (Onay bekleyen hesaplar)`;
+  const body = `Üye panelinden yeni bir hesap açıldı ve başkan onayı bekliyor.
+Ad soyad: ${d.full_name}
+Telefon: ${d.phone}
+E-posta: ${d.email}
+Tarih: ${new Date().toLocaleString("tr-TR")}
+Onaylamak için üye panelinde Üye listesi > Onay bekleyen hesaplar bölümüne bakın: https://anitteperotaract.org/uye/#uyeler`;
   try {
-    const r = await fetch(`https://formsubmit.co/ajax/${CLUB_INBOX}`, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ _subject: `Üyelik başvurusu (panel): ${d.full_name}`, _template: "table", _captcha: "false", _replyto: d.email, "Ad soyad": d.full_name, "Telefon": d.phone, "E-posta": d.email, "Mesaj": body }) });
-    if (!r.ok) throw new Error(r.status);
+    const r = await fetch(`${CONFIG_URL}/functions/v1/basvuru`, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "panel", subject: `Üyelik başvurusu (panel): ${d.full_name}`, body, reply_to: d.email, page: location.href }) });
+    const j = await r.json().catch(() => ({})); if (!j.ok) throw new Error(j.error || r.status);
   } catch (e) { console.warn("Kayıt bildirimi gönderilemedi", e); }
 }
 // Görünüm önizleme (yalnızca site sahibi görür): başka bir görevlinin panelini onun gözünden gösterir; değişiklik yapılamaz.
@@ -953,7 +957,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611102111");
+  const { mountComposer } = await import("./composer.js?v=202611102115");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 

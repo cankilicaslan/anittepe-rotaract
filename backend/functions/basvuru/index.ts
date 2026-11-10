@@ -42,7 +42,7 @@ function bodyHtml(subject: string, body: string): string {
 <p style="margin:0 0 16px;font-weight:700;color:#D41367">Ankara Anıttepe Rotaract · web sitesi</p>
 <h2 style="font-size:19px;margin:0 0 14px">${esc(subject)}</h2>
 ${rows.length ? `<table style="border-collapse:collapse;margin:0 0 14px">${rows.join("")}</table>` : ""}${paras.join("")}
-<p style="margin:20px 0 0;font-size:12px;color:#888">Bu başvuru siteden otomatik iletildi ve üye panelindeki kayıtlara da eklendi. Yanıtla dediğinizde başvuran kişiye yazarsınız.</p></div>`;
+<p style="margin:20px 0 0;font-size:12px;color:#888">Bu başvuru siteden otomatik iletildi ve kulübün başvuru kayıtlarına da eklendi. Yanıtla dediğinizde başvuran kişiye yazarsınız.</p></div>`;
 }
 
 Deno.serve(async (req: Request) => {

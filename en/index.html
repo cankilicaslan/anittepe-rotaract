@@ -1154,9 +1154,9 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   $("#gInterest").innerHTML=INTERESTS.map(x=>`<button type="button" aria-pressed="false">${x}</button>`).join("");
   $$("#gInterest button").forEach(b=>b.addEventListener("click",()=>b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")!=="true")));
 
-  // Formlar kulüp mailine doğrudan gider (FormSubmit). Sunucuya ulaşılamazsa e-posta uygulaması açılır.
-  const sendMail=(subject,body,replyTo)=>fetch("https://formsubmit.co/ajax/anitteperotaract1996@gmail.com",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({_subject:subject,_template:"table",_captcha:"false",_replyto:replyTo,"Mesaj":body})})
-    .then(r=>r.json()).then(j=>{if(String(j.success)!=="true")throw new Error("not sent");return true})
+  // Formlar kulüp sunucusuna (Supabase) gider: başvuru kaydedilir ve kulüp Gmail adresine iletilir. Ulaşılamazsa e-posta uygulaması açılır.
+  const sendMail=(subject,body,replyTo,kind)=>fetch("https://fyjcgfbooajuljebxnil.supabase.co/functions/v1/basvuru",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({kind:kind||(/başvuru|application/i.test(subject)?"misafir":"iletisim"),subject,body,reply_to:replyTo,page:location.href})})
+    .then(r=>r.json()).then(j=>{if(!j.ok)throw new Error(j.error||"not sent");return true})
     .catch(()=>{location.href="mailto:anitteperotaract1996@gmail.com?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(body);return false});
   $("#gf").addEventListener("submit",e=>{
     e.preventDefault();const err=$("#gErr");

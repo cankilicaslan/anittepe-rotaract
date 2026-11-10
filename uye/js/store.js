@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611102150";
-import { can, hasRole } from "./roles.js?v=202611102150";
+import { CONFIG } from "./config.js?v=202611102154";
+import { can, hasRole } from "./roles.js?v=202611102154";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).

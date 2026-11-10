@@ -52,7 +52,7 @@ class HttpError extends Error {
   }
 }
 
-const ALLOWED_ROLES = ["baskan", "sekreter", "pr"];
+const ALLOWED_ROLES = ["baskan", "sekreter"];
 
 // Çağıranın JWT'sini doğrular; aktif ve baskan/sekreter/pr rolünde değilse hata fırlatır.
 async function requireAnnouncer(req: Request) {
@@ -78,7 +78,7 @@ async function requireAnnouncer(req: Request) {
   if (profErr || !profile) throw new HttpError(403, "Üye profiliniz bulunamadı.");
   const roles: string[] = profile.roles ?? [];
   if (profile.status !== "active" || !roles.some((r) => ALLOWED_ROLES.includes(r))) {
-    throw new HttpError(403, "Duyuru göndermek için Başkan, Sekreter veya Halkla İlişkiler yetkisi gerekiyor.");
+    throw new HttpError(403, "Duyuru göndermek için Başkan veya Sekreter yetkisi gerekiyor.");
   }
   return { user: userData.user, profile };
 }

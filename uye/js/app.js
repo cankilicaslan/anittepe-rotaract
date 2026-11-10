@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611102150";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611102150";
+import { createStore, trDate } from "./store.js?v=202611102154";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611102154";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -320,7 +320,10 @@ function shell() {
   const page = PAGES.find(p => p.id === id);
   if (!page || !visible(page)) { id = "profil"; route = []; }
   const navId = id === "yukle" ? "arsiv" : id;
-  const nav = PAGES.filter(p => p.grp || (visible(p) && !p.hidden));
+  // HİTK (Halkla İlişkiler) fotoğraf arşivini yönettiği için menüde arşiv Yönetim başlığının altında durur.
+  let pages = PAGES;
+  if (hasRole(me, "pr")) { const ar = PAGES.find(p => p.id === "arsiv"), rest = PAGES.filter(p => p !== ar), g = rest.findIndex(p => p.grp); pages = [...rest.slice(0, g + 1), ar, ...rest.slice(g + 1)]; }
+  const nav = pages.filter(p => p.grp || (visible(p) && !p.hidden));
   const navHtml = nav.map((p, i) => p.grp
     ? (nav.slice(i + 1).some(x => !x.grp) ? `<div class="grp">${p.grp}</div>` : "")
     : `<a href="#${p.id}" ${p.id === navId ? 'aria-current="page"' : ""}>${navLabel(p)}</a>`).join("");
@@ -967,7 +970,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611102150");
+  const { mountComposer } = await import("./composer.js?v=202611102154");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 

@@ -931,3 +931,13 @@ returns boolean language sql stable security definer set search_path = public as
     select 1 from public.profiles p
     where p.id = auth.uid() and p.status = 'active' and (p.past_president or 'asbaskan' = any(p.roles)));
 $$;
+
+-- =====================================================================
+-- v10: Duyurular yalnızca başkan ve sekreterde (HİTK/pr çıkarıldı)
+-- =====================================================================
+drop policy if exists announcements_select on public.announcements;
+create policy announcements_select on public.announcements for select to authenticated
+  using (public.is_admin() or public.has_role('sekreter') or public.can_view_all());
+drop policy if exists announcements_insert on public.announcements;
+create policy announcements_insert on public.announcements for insert to authenticated
+  with check ((public.is_admin() or public.has_role('sekreter')) and created_by = auth.uid());

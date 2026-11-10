@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611102154";
-import { can, hasRole } from "./roles.js?v=202611102154";
+import { CONFIG } from "./config.js?v=202611102221";
+import { can, hasRole } from "./roles.js?v=202611102221";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -109,6 +109,7 @@ function demoStore() {
     S.monthlyDues = true;
   }
   if (!S.albums) { S.albums = []; S.albumPhotos = []; }
+  if (!S.donations) S.donations = [];
   if (!S.guests) {
     // Demo: 6. toplantıdan beri gelen bir misafir ve 9. toplantıda üye alınmış biri
     const g = { id: uid(), full_name: "Deniz Yılmaz (örnek misafir)", phone: "", email: "", note: "", created_at: new Date().toISOString() };
@@ -270,10 +271,18 @@ function demoStore() {
     async setChargePaid(id, paid_at) { need("aidat"); S.charges.find(c => c.id === id).paid_at = paid_at; save(); },
 
     async listTransactions() { need("kasa", "view"); return clone(S.transactions); },
-    async addTransaction(t) { need("kasa"); const x = { id: uid(), term_id: S.term.id, ...t, amount: +t.amount }; S.transactions.push(x); save(); return clone(x); },
-    async deleteTransaction(id) { need("kasa"); S.transactions = S.transactions.filter(t => t.id !== id); save(); },
+    async addTransaction(t) {
+      need("kasa"); const x = { id: uid(), term_id: S.term.id, ...t, amount: +t.amount }; S.transactions.push(x);
+      // Kasaya "Bağış" kategorisinde gider girilince bağış listesine aktarılır (canlıda veritabanı tetikleyicisi yapar)
+      if (x.kind === "gider" && x.category === "Bağış") S.donations.push({ id: uid(), tx_id: x.id, date: x.date, fund: x.donation_fund || null, on_behalf: x.donation_for || null, amount: x.amount, note: x.description, district_form_at: null, created_at: new Date().toISOString() });
+      save(); return clone(x);
+    },
+    async deleteTransaction(id) { need("kasa"); S.transactions = S.transactions.filter(t => t.id !== id); S.donations = S.donations.filter(d => d.tx_id !== id); save(); },
+    async listDonations() { need("bagis", "view"); return clone(S.donations).sort((a, b) => b.date.localeCompare(a.date)); },
+    async updateDonation(id, patch) { need("bagis"); Object.assign(S.donations.find(d => d.id === id), patch); save(); },
+    async updateProjectForm(id, patch) { need("proje-form"); Object.assign(S.projects.find(p => p.id === id), patch); save(); },
 
-    async listProjects() { need("projeler", "view"); return clone(S.projects); },
+    async listProjects() { if (!can(me(), "proje-form", "view")) need("projeler", "view"); return clone(S.projects); },
     async saveProject(p) {
       need("projeler");
       if (p.id) Object.assign(S.projects.find(x => x.id === p.id), p);
@@ -467,6 +476,9 @@ async function supabaseStore() {
     async listTransactions() { const t = await term(); return ok(await sb.from("transactions").select("*").eq("term_id", t.id).order("date")); },
     async addTransaction(t) { const tm = await term(); return ok(await sb.from("transactions").insert({ ...t, term_id: tm.id }).select().single()); },
     async deleteTransaction(id) { ok(await sb.from("transactions").delete().eq("id", id)); },
+    async listDonations() { return ok(await sb.from("donations").select("*").order("date", { ascending: false })); },
+    async updateDonation(id, patch) { ok(await sb.from("donations").update(patch).eq("id", id)); },
+    async updateProjectForm(id, patch) { ok(await sb.from("projects").update(patch).eq("id", id)); },
     async listProjects() { return ok(await sb.from("projects").select("*").order("date")); },
     async saveProject(p) {
       const { id, ...rest } = p;

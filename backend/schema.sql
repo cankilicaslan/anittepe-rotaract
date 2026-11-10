@@ -941,3 +941,60 @@ create policy announcements_select on public.announcements for select to authent
 drop policy if exists announcements_insert on public.announcements;
 create policy announcements_insert on public.announcements for insert to authenticated
   with check ((public.is_admin() or public.has_role('sekreter')) and created_by = auth.uid());
+
+-- =====================================================================
+-- v11: Bağışlar (Rotary Vakfı vb.) ve proje formları
+-- Kasaya "Bağış" kategorisinde gider girilince bağış listesine kendiliğinden aktarılır.
+-- Bağışlar: sayman ve başkan yönetir. Proje formları: hizmet (HPK), sekreter ve başkan yönetir.
+-- =====================================================================
+alter table public.transactions add column if not exists donation_fund text;
+alter table public.transactions add column if not exists donation_for  text;
+
+create table if not exists public.donations (
+  id               uuid primary key default gen_random_uuid(),
+  tx_id            uuid unique references public.transactions(id) on delete cascade,
+  date             date not null default current_date,
+  fund             text,
+  on_behalf        text,
+  amount           numeric(12,2) not null check (amount > 0),
+  note             text,
+  district_form_at date,
+  created_at       timestamptz not null default now()
+);
+create index if not exists donations_date_idx on public.donations (date desc);
+
+create or replace function public.tx_to_donation()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.kind = 'gider' and new.category = 'Bağış' then
+    insert into public.donations (tx_id, date, fund, on_behalf, amount, note)
+    values (new.id, new.date, new.donation_fund, new.donation_for, new.amount, new.description)
+    on conflict (tx_id) do nothing;
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists transactions_to_donation on public.transactions;
+create trigger transactions_to_donation after insert on public.transactions
+  for each row execute function public.tx_to_donation();
+
+alter table public.donations enable row level security;
+drop policy if exists donations_select on public.donations;
+create policy donations_select on public.donations for select to authenticated
+  using (public.has_role('sayman') or public.can_view_all());
+drop policy if exists donations_write on public.donations;
+create policy donations_write on public.donations for all to authenticated
+  using (public.has_role('sayman') or public.is_admin())
+  with check (public.has_role('sayman') or public.is_admin());
+
+-- Proje formları: komite ve bölgeye proje formunun girildiği tarih
+alter table public.projects add column if not exists committee text;
+alter table public.projects add column if not exists form_submitted_at date;
+
+-- Sekreter de projeleri görür ve proje formu bilgisini işaretleyebilir
+drop policy if exists projects_select on public.projects;
+create policy projects_select on public.projects for select to authenticated
+  using (public.has_role('hizmet') or public.has_role('sekreter') or public.can_view_all());
+drop policy if exists projects_update_sekreter on public.projects;
+create policy projects_update_sekreter on public.projects for update to authenticated
+  using (public.has_role('sekreter')) with check (public.has_role('sekreter'));

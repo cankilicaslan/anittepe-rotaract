@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611102154";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611102154";
+import { createStore, trDate } from "./store.js?v=202611102221";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611102221";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -294,7 +294,9 @@ const PAGES = [
   { id: "aidat", label: "Aidat", panel: "aidat" },
   { id: "wa-aidat", label: "Aidat hatırlatma (WhatsApp)", panel: "wa-aidat" },
   { id: "kasa", label: "Kulüp kasası", panel: "kasa" },
+  { id: "bagislar", label: "Bağışlar", panel: "bagis" },
   { id: "projeler", label: "Hizmet projeleri", panel: "projeler" },
+  { id: "proje-formlari", label: "Proje formları", panel: "proje-form" },
   // Instagram: yalnızca paylaşım yapabilenler (başkan ve Halkla İlişkiler / HİTK) görür ve açar.
   { id: "instagram", label: "Instagram paylaşımı", panel: "instagram" }
 ];
@@ -362,7 +364,7 @@ function shell() {
   const rs = document.getElementById("reset");
   if (rs) rs.onclick = () => { if (confirm("Örnek veriler ilk haline dönsün mü? Bu tarayıcıdaki demo değişiklikleri silinir.")) { store.resetDemo(); location.hash = ""; location.reload(); } };
   const view = document.getElementById("view");
-  const fn = { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram, arsiv: viewArchive, yukle: viewUpload, "wa-toplanti": viewWaMeeting, "wa-aidat": viewWaDues }[id];
+  const fn = { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram, arsiv: viewArchive, yukle: viewUpload, bagislar: viewDonations, "proje-formlari": viewProjectForms, "wa-toplanti": viewWaMeeting, "wa-aidat": viewWaDues }[id];
   fn(view).catch(e => { view.innerHTML = `<div class="err">${esc(e.message)}</div>`; });
   labelTables(view);
   new MutationObserver(() => labelTables(view)).observe(view, { childList: true, subtree: true });
@@ -833,7 +835,7 @@ async function refreshKeepOpen(v, fn) {
 }
 
 /* ---------------------------- Kulüp kasası ---------------------------- */
-const CATS = { gelir: ["Bağış", "Sponsorluk", "Etkinlik geliri", "Proje geliri", "Diğer gelir"], gider: ["Etkinlik", "Proje", "Bölge katkı payı", "Malzeme", "Ulaşım", "İkram", "Diğer gider"] };
+const CATS = { gelir: ["Bağış", "Sponsorluk", "Etkinlik geliri", "Proje geliri", "Diğer gelir"], gider: ["Etkinlik", "Proje", "Bağış", "Bölge katkı payı", "Malzeme", "Ulaşım", "İkram", "Diğer gider"] };
 async function viewTreasury(v) {
   const ro = !can(me, "kasa", "edit");
   const [term, txs, charges, dues] = await Promise.all([store.getTerm(), store.listTransactions(), store.listCharges(), store.listDues()]);
@@ -862,6 +864,10 @@ async function viewTreasury(v) {
         <label class="f">Kategori<select name="category" id="cat">${CATS.gider.map(c => `<option>${c}</option>`).join("")}</select></label>
         <label class="f">Açıklama<input type="text" name="description" required placeholder="Ne için?"></label>
       </div>
+      <div class="grid g2" id="don-fields" hidden style="margin-top:12px">
+        <label class="f">Bağış yapılan fon<select name="donation_fund">${FUNDS.map(x => `<option>${x}</option>`).join("")}</select></label>
+        <label class="f">Kim adına<input type="text" name="donation_for" placeholder="ör. Kulüp adına / Ad Soyad"></label>
+      </div>
       <div class="row" style="margin-top:14px"><button class="btn" type="submit">Ekle</button></div>
       <p class="muted" style="font-size:.84rem;margin:12px 0 0">Ödenen aidatlar kasaya kendiliğinden gelir olarak eklenir.</p>
     </form>`}
@@ -879,9 +885,17 @@ async function viewTreasury(v) {
   const f = document.getElementById("f-tx");
   f.querySelectorAll("[data-k]").forEach(b => b.onclick = () => {
     f.querySelectorAll("[data-k]").forEach(x => x.setAttribute("aria-pressed", x === b));
-    f.kind.value = b.dataset.k; document.getElementById("cat").innerHTML = CATS[b.dataset.k].map(c => `<option>${c}</option>`).join("");
+    f.kind.value = b.dataset.k; document.getElementById("cat").innerHTML = CATS[b.dataset.k].map(c => `<option>${c}</option>`).join(""); donShow();
   });
-  f.onsubmit = async e => { e.preventDefault(); const d = Object.fromEntries(new FormData(f)); d.amount = +d.amount; try { await store.addTransaction(d); toast("Kasa hareketi eklendi."); refresh(); } catch (er) { fail(er); } };
+  // "Bağış" gideri seçilince fon ve kim adına sorulur; kayıt Bağışlar listesine kendiliğinden aktarılır.
+  const donShow = () => { document.getElementById("don-fields").hidden = !(f.kind.value === "gider" && f.category.value === "Bağış"); };
+  document.getElementById("cat").addEventListener("change", donShow);
+  f.onsubmit = async e => {
+    e.preventDefault(); const d = Object.fromEntries(new FormData(f)); d.amount = +d.amount;
+    const isDon = d.kind === "gider" && d.category === "Bağış";
+    if (!isDon) { delete d.donation_fund; delete d.donation_for; } else d.donation_for = (d.donation_for || "").trim() || null;
+    try { await store.addTransaction(d); toast(isDon ? "Kasa hareketi eklendi; bağış Bağışlar listesine aktarıldı." : "Kasa hareketi eklendi."); refresh(); } catch (er) { fail(er); }
+  };
   document.getElementById("f-open").onsubmit = async e => { e.preventDefault(); try { await store.updateTerm({ opening_balance: +e.target.opening_balance.value }); toast("Dönem başı kasa güncellendi."); refresh(); } catch (er) { fail(er); } };
   v.querySelectorAll("[data-deltx]").forEach(b => b.onclick = async () => { if (!confirm("Bu kasa hareketi silinsin mi?")) return; try { await store.deleteTransaction(b.dataset.deltx); toast("Hareket silindi."); refresh(); } catch (e) { fail(e); } });
 }
@@ -944,6 +958,7 @@ function editProject(p, v, after = viewProjects) {
       <label class="f">Saat<input type="time" name="time" value="${esc(p.time)}"></label>
       <label class="f">Yer<input type="text" name="location" value="${esc(p.location)}"></label>
       <label class="f">Sorumlu<input type="text" name="owner" value="${esc(p.owner)}"></label>
+      <label class="f">Komite<select name="committee"><option value="">Seç…</option>${COMMITTEES.map(c => `<option ${p.committee === c ? "selected" : ""}>${c}</option>`).join("")}</select></label>
       <label class="f">Durum<select name="status">${Object.entries(PSTAT).map(([k, [l]]) => `<option value="${k}" ${p.status === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
     </div>
     <label class="f">Kısa açıklama<textarea name="description" rows="2">${esc(p.description)}</textarea></label>
@@ -970,7 +985,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611102154");
+  const { mountComposer } = await import("./composer.js?v=202611102221");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1592,6 +1607,88 @@ async function viewUpload(v) {
   drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
   drop.addEventListener("dragleave", () => drop.classList.remove("over"));
   drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); run(e.dataTransfer.files); });
+}
+
+/* ------------------------------- Bağışlar ------------------------------- */
+const FUNDS = ["PolioPlus", "Yıllık Fon (Annual Fund)", "Kalıcı Fon (Endowment)", "Afet Müdahale Fonu", "Diğer"];
+const COMMITTEES = ["Hizmet Projeleri", "Kulüp Hizmetleri", "Meslek Hizmetleri", "Uluslararası Hizmetler", "Halkla İlişkiler ve Tanıtım", "Afet", "Üyelik ve Üyeliği Geliştirme", "Diğer"];
+async function viewDonations(v) {
+  const ro = !can(me, "bagis", "edit");
+  const list = await store.listDonations();
+  const total = list.reduce((s, d) => s + +d.amount, 0);
+  const pending = list.filter(d => !d.district_form_at).length;
+  const byFund = {}; list.forEach(d => { const k = d.fund || "Belirtilmedi"; byFund[k] = (byFund[k] || 0) + +d.amount; });
+  v.innerHTML = header("Bağışlar", "Rotary Vakfı ve benzeri fonlara yapılan bağışlar; kim adına, ne kadar ve bölge formunun girilip girilmediği.") + roBanner("bagis") + `
+  <div class="stats">
+    <div class="stat hl"><span>Toplam bağış</span><b>${TL(total)}</b></div>
+    <div class="stat"><span>Bağış sayısı</span><b>${list.length}</b></div>
+    <div class="stat"><span>Bölge formu bekleyen</span><b>${pending}</b></div>
+    <div class="stat"><span>Bölge formu girilen</span><b>${list.length - pending}</b></div>
+  </div>
+  <div class="card"><p class="muted" style="margin:0;font-size:.9rem">Kulüp kasasına <b>Gider → Bağış</b> kategorisinde bir hareket eklendiğinde bağış bu listeye kendiliğinden düşer. Fonu ve kimin adına yapıldığını kasaya girerken ya da buradan düzenleyebilirsin.</p></div>
+  ${Object.keys(byFund).length ? `<div class="card"><h2>Fonlara göre</h2>${Object.entries(byFund).sort((a, b) => b[1] - a[1]).map(([k, a]) => `<div style="margin-bottom:10px"><div class="row" style="font-size:.9rem"><span>${esc(k)}</span><div class="spacer"></div><b>${TL(a)}</b></div><div class="bar"><i style="width:${a / Math.max(...Object.values(byFund)) * 100}%"></i></div></div>`).join("")}</div>` : ""}
+  <div class="card"><h2>Bağış listesi</h2>
+    ${list.length ? `<div class="tbl-wrap"><table><thead><tr><th>Tarih</th><th>Fon</th><th>Kim adına</th><th class="num">Tutar</th><th>Bölge formu girildi</th></tr></thead><tbody>
+    ${list.map(d => `<tr data-id="${d.id}">
+      <td>${trDate(d.date)}</td>
+      <td>${ro ? esc(d.fund || "–") : `<select data-f="fund" aria-label="Fon"><option value="">Seç…</option>${FUNDS.map(f => `<option ${d.fund === f ? "selected" : ""}>${f}</option>`).join("")}${d.fund && !FUNDS.includes(d.fund) ? `<option selected>${esc(d.fund)}</option>` : ""}</select>`}</td>
+      <td>${ro ? esc(d.on_behalf || "–") : `<input type="text" data-f="on_behalf" value="${esc(d.on_behalf || "")}" placeholder="ör. Kulüp adına / Ad Soyad" aria-label="Kim adına">`}</td>
+      <td class="num"><b>${TL(d.amount)}</b>${d.note ? `<br><small class="muted">${esc(d.note)}</small>` : ""}</td>
+      <td><label class="check" style="margin:0"><input type="checkbox" data-form ${d.district_form_at ? "checked" : ""} ${ro ? "disabled" : ""}> ${d.district_form_at ? (ro ? `<span>${trDate(d.district_form_at)}</span>` : "") : '<span class="muted">Girilmedi</span>'}</label>${d.district_form_at && !ro ? `<input type="date" data-fd value="${d.district_form_at}" aria-label="Bölge formunun girildiği tarih" style="margin-top:6px">` : ""}</td>
+    </tr>`).join("")}</tbody></table></div>` : `<p class="muted" style="margin:0">Henüz bağış yok. Kulüp kasasına "Bağış" kategorisinde gider eklendiğinde burada görünür.</p>`}
+  </div>`;
+  if (ro) return;
+  const save = async (id, patch, msg) => { try { await store.updateDonation(id, patch); if (msg) toast(msg); viewDonations(v); } catch (e) { fail(e); } };
+  v.querySelectorAll("tr[data-id]").forEach(tr => {
+    const id = tr.dataset.id;
+    tr.querySelector('[data-f="fund"]').onchange = e => save(id, { fund: e.target.value || null }, "Fon kaydedildi.");
+    const ob = tr.querySelector('[data-f="on_behalf"]'); ob.onchange = () => save(id, { on_behalf: ob.value.trim() || null }, "Kaydedildi.");
+    const fd = tr.querySelector("[data-fd]"); if (fd) fd.onchange = () => fd.value && save(id, { district_form_at: fd.value }, "Tarih kaydedildi.");
+    tr.querySelector("[data-form]").onchange = e => save(id, { district_form_at: e.target.checked ? today() : null }, e.target.checked ? "Bölge formu girildi olarak işaretlendi." : "İşaret kaldırıldı.");
+  });
+}
+
+/* ----------------------------- Proje formları ----------------------------- */
+let pfFilter = "hepsi";
+async function viewProjectForms(v) {
+  const ro = !can(me, "proje-form", "edit");
+  const all = await store.listProjects();
+  const done = all.filter(p => p.status === "tamamlandi").sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const withForm = done.filter(p => p.form_submitted_at);
+  const shown = done.filter(p => pfFilter === "hepsi" || (pfFilter === "girildi" ? p.form_submitted_at : !p.form_submitted_at));
+  const byCom = {};
+  done.forEach(p => { const k = p.committee || "Belirtilmedi"; byCom[k] ||= { done: 0, form: 0 }; byCom[k].done++; if (p.form_submitted_at) byCom[k].form++; });
+  v.innerHTML = header("Proje formları", "Tamamlanan projeler, hangi komiteden yapıldığı ve bölgeye proje formunun girildiği tarih.") + roBanner("proje-form") + `
+  <div class="stats">
+    <div class="stat hl"><span>Tamamlanan proje</span><b>${done.length}</b></div>
+    <div class="stat"><span>Proje formu girilen</span><b>${withForm.length}</b></div>
+    <div class="stat"><span>Form bekleyen</span><b>${done.length - withForm.length}</b></div>
+    <div class="stat"><span>Komite sayısı</span><b>${Object.keys(byCom).filter(k => k !== "Belirtilmedi").length}</b></div>
+  </div>
+  <div class="card"><h2>Komitelere göre</h2>
+    ${Object.keys(byCom).length ? `<div class="tbl-wrap"><table><thead><tr><th>Komite</th><th class="num">Tamamlanan</th><th class="num">Form girilen</th><th>Oran</th></tr></thead><tbody>
+    ${Object.entries(byCom).sort((a, b) => b[1].done - a[1].done).map(([k, c]) => `<tr><td>${esc(k)}</td><td class="num">${c.done}</td><td class="num">${c.form}</td><td><div class="row" style="flex-wrap:nowrap"><div class="bar" style="flex:1"><i style="width:${c.form / c.done * 100}%"></i></div><b style="min-width:44px;text-align:right">${pct(c.form / c.done)}</b></div></td></tr>`).join("")}
+    </tbody></table></div>` : '<p class="muted" style="margin:0">Henüz tamamlanan proje yok.</p>'}
+  </div>
+  <div class="card"><div class="row" style="margin-bottom:12px"><h2 style="margin:0">Tamamlanan projeler</h2><div class="spacer"></div>
+    <div class="seg" role="group" aria-label="Filtre">${[["hepsi", "Hepsi"], ["bekleyen", "Form bekleyen"], ["girildi", "Form girilen"]].map(([k, l]) => `<button type="button" data-pf="${k}" aria-pressed="${pfFilter === k}">${l}</button>`).join("")}</div></div>
+    <p class="muted" style="margin:-4px 0 12px;font-size:.88rem">Hizmet projeleri sayfasında durumu "Tamamlandı" yapılan projeler burada listelenir.</p>
+    ${shown.length ? `<div class="tbl-wrap"><table><thead><tr><th>Proje</th><th>Komite</th><th>Proje tarihi</th><th>Proje formu girildi</th></tr></thead><tbody>
+    ${shown.map(p => `<tr data-id="${p.id}">
+      <td><b>${esc(p.title)}</b>${p.owner ? `<br><small class="muted">${esc(p.owner)}</small>` : ""}</td>
+      <td>${ro ? esc(p.committee || "–") : `<select data-c aria-label="Komite"><option value="">Seç…</option>${COMMITTEES.map(c => `<option ${p.committee === c ? "selected" : ""}>${c}</option>`).join("")}</select>`}</td>
+      <td>${p.date ? trDate(p.date) : "–"}</td>
+      <td><label class="check" style="margin:0"><input type="checkbox" data-pfm ${p.form_submitted_at ? "checked" : ""} ${ro ? "disabled" : ""}> ${p.form_submitted_at ? (ro ? `<span>${trDate(p.form_submitted_at)}</span>` : "") : '<span class="muted">Girilmedi</span>'}</label>${p.form_submitted_at && !ro ? `<input type="date" data-pfd value="${p.form_submitted_at}" aria-label="Proje formunun girildiği tarih" style="margin-top:6px">` : ""}</td>
+    </tr>`).join("")}</tbody></table></div>` : '<p class="muted" style="margin:0">Bu filtrede proje yok.</p>'}
+  </div>`;
+  v.querySelectorAll("[data-pf]").forEach(b => b.onclick = () => { pfFilter = b.dataset.pf; viewProjectForms(v); });
+  if (ro) return;
+  const save = async (id, patch, msg) => { try { await store.updateProjectForm(id, patch); toast(msg); viewProjectForms(v); } catch (e) { fail(e); } };
+  v.querySelectorAll("tr[data-id]").forEach(tr => {
+    tr.querySelector("[data-c]").onchange = e => save(tr.dataset.id, { committee: e.target.value || null }, "Komite kaydedildi.");
+    const pfd = tr.querySelector("[data-pfd]"); if (pfd) pfd.onchange = () => pfd.value && save(tr.dataset.id, { form_submitted_at: pfd.value }, "Tarih kaydedildi.");
+    tr.querySelector("[data-pfm]").onchange = e => save(tr.dataset.id, { form_submitted_at: e.target.checked ? today() : null }, e.target.checked ? "Proje formu girildi olarak işaretlendi." : "İşaret kaldırıldı.");
+  });
 }
 
 boot();

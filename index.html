@@ -498,6 +498,146 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   .cd{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
   .cd div{min-width:0;padding:6px 4px}
 }
+/* ---------- Telefon düzeni (≤640px): daha kısa sayfa, ilk ekranda başlık + başvuru ---------- */
+.fab-login{display:none}
+@media (max-width:640px){
+  body{font-size:16.5px}
+  .band{padding-block:44px}
+  #hikaye + .band{padding-block:32px!important}
+  #projeler{padding-bottom:44px!important}
+  .sec-head{gap:10px;margin-bottom:24px}
+  h2{font-size:clamp(1.75rem,8vw,2.1rem)}
+  .lead{font-size:1.03rem;line-height:1.55}
+  /* Hero: çark köşeye küçülür, başlık ve ana çağrı ilk ekranda */
+  .hero-inner{position:relative;gap:0;padding-block:20px 36px}
+  .hero-copy{gap:16px}
+  .hero-wheel{position:absolute;top:16px;right:var(--gr);width:54px;order:0;box-shadow:0 12px 24px -14px rgba(212,19,103,.6)}
+  .since{font-size:.82rem;gap:8px;white-space:nowrap;padding:4px 12px 4px 4px;margin-right:66px;max-width:calc(100% - 66px)}
+  .hero h1{font-size:clamp(2.35rem,11.2vw,2.9rem);margin-top:4px}
+  .hero .lead{font-size:1rem}
+  .hero-actions{gap:8px}
+  .hero-actions .btn{padding:13px 20px;min-height:50px}
+  .hero-actions .btn-line{border-width:1.5px}
+  .ticket{border-radius:18px}
+  .ticket-date b{font-size:2.1rem}
+  .marquee{padding-block:11px}
+  .marquee span{font-size:.95rem}
+  /* Başvuru: kısa adımlar, sıkı form */
+  .apply-grid{gap:24px}
+  .apply-copy{gap:12px}
+  .apply-steps{display:flex;gap:10px;margin:4px calc(-1 * var(--gr)) 0 calc(-1 * var(--gl));padding:2px var(--gr) 4px var(--gl);overflow-x:auto;scroll-snap-type:x mandatory;scroll-padding-inline:var(--gl);overscroll-behavior-x:contain;scrollbar-width:none}
+  .apply-steps::-webkit-scrollbar{display:none}
+  .apply-steps li{flex:0 0 72vw;scroll-snap-align:start;background:#fff;border-radius:18px;padding:14px;align-content:start}
+  .apply-copy{min-width:0}
+  .apply-steps li{grid-template-columns:32px 1fr;gap:2px 12px}
+  .apply-steps li::before{width:32px;height:32px;font-size:.9rem}
+  .apply-form{border-radius:22px;padding:20px 16px}
+  .gf-fields{gap:12px}
+  .apply-form label,.apply-form legend{font-size:.95rem}
+  .apply-form input:not([type=checkbox]),.apply-form select,form.cf input,form.cf select,form.cf textarea{font-size:16px;min-height:48px;padding:11px 14px}
+  .apply-form legend{margin-bottom:8px}
+  .date-pick .dp{padding:9px 4px;border-radius:14px}
+  .date-pick .dp b{font-size:1.4rem}
+  .interest button{padding:8px 13px}
+  .apply-form .check{font-size:.9rem}
+  .apply-form .check input{width:22px;height:22px;margin-top:0}
+  /* Hikâye */
+  .tl.static .tl-sticky{padding-block:44px;gap:18px}
+  .tl-card{flex-basis:82vw;min-height:0;padding:22px;border-radius:22px}
+  .tl-card .yr{font-size:2.6rem}
+  /* Sayaçlar */
+  .stats{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;margin-inline:calc(-1 * var(--gl)) calc(-1 * var(--gr));padding:2px var(--gr) 4px var(--gl);scroll-padding-inline:var(--gl)}
+  .stats::-webkit-scrollbar{display:none}
+  .stats div{flex:0 0 42vw;scroll-snap-align:start}
+  .stats div{padding:14px 16px;border-radius:18px}
+  .stats b{font-size:1.9rem}
+  /* Projeler: filtreler tek satır kayar, oklar yerine parmakla kaydırma */
+  .rail-head{margin-bottom:18px}
+  .arrows{display:none}
+  .chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-inline:calc(-1 * var(--gl)) calc(-1 * var(--gr));padding-inline:var(--gl) var(--gr);scroll-padding-inline:var(--gl);margin-bottom:18px!important}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex:none}
+  .proj{flex-basis:82vw;border-radius:22px}
+  .proj-art{aspect-ratio:16/9}
+  .proj-art .big{font-size:2.2rem}
+  .proj-body{padding:16px 18px}
+  /* Değerler: 7 odak alanı yatay kaydırılır */
+  .values{gap:28px;grid-template-columns:minmax(0,1fr)}
+  .values > *{min-width:0}
+  .fwt{border-radius:22px;padding:20px 16px}
+  .fwt h3,.foci h3{font-size:1.3rem}
+  .fwt button{font-size:1rem;padding:11px 14px;border-radius:16px}
+  .fwt button i{width:30px;height:30px}
+  .foci > p{margin-bottom:14px}
+  .foci ul,.news,.board,.qlinks{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;margin-inline:calc(-1 * var(--gl)) calc(-1 * var(--gr));padding:2px var(--gr) 6px var(--gl);scroll-padding-inline:var(--gl)}
+  .foci ul::-webkit-scrollbar,.news::-webkit-scrollbar,.board::-webkit-scrollbar,.qlinks::-webkit-scrollbar{display:none}
+  .foci li{flex:0 0 64vw;scroll-snap-align:start}
+  .foci li:last-child{grid-column:auto}
+  /* Takvim */
+  #wheel{max-width:270px}
+  .dial{gap:16px}
+  .ev-list button{grid-template-columns:84px 1fr;padding:10px 12px}
+  /* Üyelik */
+  .journey{gap:16px}
+  .step-panel{min-height:0;border-radius:22px;padding:20px 18px;gap:14px}
+  .step-panel h3{font-size:1.45rem}
+  .step-panel.swap,.board.fade{animation-name:swapY}
+  /* Yönetim: kurul kartları yatay kayar */
+  .term-row{margin-bottom:20px}
+  .board .person{flex:0 0 40vw;scroll-snap-align:start;gap:8px}
+  .avatar{border-radius:18px}
+  .committees{margin-top:28px;gap:6px}
+  .committees ul.cm{display:grid;grid-template-columns:none;grid-template-rows:repeat(3,auto);grid-auto-flow:column;grid-auto-columns:76vw;column-gap:20px;overflow-x:auto;scroll-snap-type:x mandatory;overscroll-behavior-x:contain;scrollbar-width:none;margin-inline:calc(-1 * var(--gl)) calc(-1 * var(--gr));padding-inline:var(--gl) var(--gr);scroll-padding-inline:var(--gl)}
+  .committees ul.cm::-webkit-scrollbar{display:none}
+  .committees li{padding:10px 0;scroll-snap-align:start}
+  .mini{width:44px;height:44px}
+  /* Haberler: yatay kart şeridi */
+  .news .post{flex:0 0 80vw;scroll-snap-align:start}
+  .post.wide .art{min-height:0;aspect-ratio:16/9;font-size:1.8rem}
+  .post .inner{padding:16px 18px}
+  .post h3{font-size:1.1rem}
+  /* Rotary ailesi */
+  .fam{padding-bottom:8px;gap:0}
+  .fam a,.info-row a{padding-block:11px}
+  .lang-sw a{min-height:44px;min-width:44px}
+  .qlinks{margin-top:20px}
+  .qlinks a{flex:0 0 72vw;scroll-snap-align:start;padding:16px 18px}
+  /* Belgeler + SSS + iletişim */
+  .support{gap:16px}
+  .support > div{gap:12px}
+  .sup-b{border-radius:22px;padding:6px 18px!important}
+  .docs li:last-child a{border-bottom:0}
+  .docs li a{min-height:48px;align-items:center;padding:10px 0}
+  .faq summary{padding:16px 40px 16px 0;font-size:1.03rem}
+  .faq summary::after{top:8px}
+  .faq details p{padding-bottom:16px}
+  .contact{gap:28px}
+  .contact-info{gap:16px}
+  form.cf{border-radius:22px;padding:20px 16px;gap:12px}
+  form.cf .btn{justify-self:stretch;justify-content:center}
+  form.cf textarea{min-height:110px}
+  /* Footer: kompakt */
+  footer.site{padding-top:36px;padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+  .foot{gap:20px 16px}
+  .foot .lg{width:170px}
+  .foot p{margin-top:8px}
+  .foot h4{margin-bottom:2px}
+  .foot li a{padding-block:10px}
+  .foot-bottom{margin-top:24px}
+  /* Alt çağrı çubuğu: başvuru + üye girişi */
+  .fab,.fab-login{bottom:calc(12px + env(safe-area-inset-bottom,0px));min-height:50px;display:inline-flex;align-items:center;justify-content:center;font-size:.95rem}
+  .fab{left:calc(12px + env(safe-area-inset-left,0px));right:calc(134px + env(safe-area-inset-right,0px));padding:12px 16px}
+  .fab-login{position:fixed;right:calc(12px + env(safe-area-inset-right,0px));z-index:69;width:114px;padding:12px 10px;border-radius:999px;background:#fff;color:var(--cran-deep);border:1.5px solid var(--blush-2);font-weight:700;text-decoration:none;box-shadow:0 12px 30px -12px rgba(120,0,50,.45);transform:translateY(140%);transition:transform .35s cubic-bezier(.2,.8,.2,1)}
+  .fab.show + .fab-login{transform:none}
+}
+@keyframes swapY{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (max-width:900px){.step-panel.swap{animation-name:swapY}}
+@media (max-width:360px){
+  .since{margin-right:58px;font-size:.76rem}
+  .hero-wheel{width:46px}
+  .fab{right:calc(122px + env(safe-area-inset-right,0px));font-size:.88rem}
+  .fab-login{width:102px;font-size:.88rem}
+}
 </style>
 
 <div class="progress" id="progress" aria-hidden="true"></div>
@@ -919,6 +1059,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 </footer>
 
 <a class="fab" id="fab" href="#basvuru">Misafir üye başvurusu</a>
+<a class="fab-login" href="https://anitteperotaract.org/uye/">Üye girişi</a>
 <div class="toast" id="toast" hidden></div>
 
 <script>

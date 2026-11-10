@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611102056";
-import { can, hasRole, ROLE_LABELS } from "./roles.js?v=202611102056";
+import { createStore, trDate } from "./store.js?v=202611102111";
+import { can, hasRole, ROLE_LABELS } from "./roles.js?v=202611102111";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -13,6 +13,17 @@ const pct = x => `%${Math.round(x * 100)}`;
 const MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 
 let store, me;
+// Panelden yapılan her yeni kayıt kulüp Gmail'ine de bildirilir (ana sayfadaki başvuru formuyla aynı servis: FormSubmit).
+const CLUB_INBOX = "anitteperotaract1996@gmail.com";
+async function notifyClubOfSignup(d) {
+  if (store.mode === "demo") return;
+  const body = `Üye panelinden yeni bir hesap açıldı ve başkan onayı bekliyor.\n\nAd soyad: ${d.full_name}\nTelefon: ${d.phone}\nE-posta: ${d.email}\nTarih: ${new Date().toLocaleString("tr-TR")}\n\nOnaylamak için: https://anitteperotaract.org/uye/#uyeler (Onay bekleyen hesaplar)`;
+  try {
+    const r = await fetch(`https://formsubmit.co/ajax/${CLUB_INBOX}`, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ _subject: `Üyelik başvurusu (panel): ${d.full_name}`, _template: "table", _captcha: "false", _replyto: d.email, "Ad soyad": d.full_name, "Telefon": d.phone, "E-posta": d.email, "Mesaj": body }) });
+    if (!r.ok) throw new Error(r.status);
+  } catch (e) { console.warn("Kayıt bildirimi gönderilemedi", e); }
+}
 // Görünüm önizleme (yalnızca site sahibi görür): başka bir görevlinin panelini onun gözünden gösterir; değişiklik yapılamaz.
 let realMe = null, realStore = null, preview = null;
 const isRealOwner = () => !!(realMe || me)?.is_owner;
@@ -203,6 +214,7 @@ function authView(tab = "giris", error = "") {
     if (!d.full_name || !d.phone || !d.email || !d.password) return authView("kayit", "Tüm alanları doldurun.");
     try {
       me = await store.signUp(d);
+      await notifyClubOfSignup(d);
       // Supabase'de e-posta doğrulaması açıksa oturum açılmaz; kullanıcıyı boş giriş ekranına sessizce atma.
       if (!me) return authView("giris", "Hesabın oluşturuldu. E-postana gelen doğrulama bağlantısına tıkla, sonra giriş yap.");
       render();
@@ -941,7 +953,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611102056");
+  const { mountComposer } = await import("./composer.js?v=202611102111");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 

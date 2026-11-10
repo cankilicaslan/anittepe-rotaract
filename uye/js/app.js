@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611101937";
-import { can, hasRole, ROLE_LABELS } from "./roles.js?v=202611101937";
+import { createStore, trDate } from "./store.js?v=202611101955";
+import { can, hasRole, ROLE_LABELS } from "./roles.js?v=202611101955";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -23,8 +23,12 @@ const fail = e => toast(esc(e?.message || e), "bad");
 
 /* ------------------------------ Açılış ------------------------------ */
 async function boot() {
-  // Davet e-postasındaki bağlantıyla gelen yeni üye önce şifresini belirlesin (adres satırı Supabase tarafından temizlenmeden önce bakılır).
-  const invited = /(^|[#&])type=invite(&|$)/.test(location.hash);
+  // Davet ya da şifre belirleme/yenileme e-postasındaki bağlantıyla gelen kişi yalnızca şifre ekranını görür
+  // (adres satırı Supabase tarafından temizlenmeden önce bakılır).
+  const h = location.hash;
+  const pwLink = /(^|[#&])type=(invite|recovery)(&|$)/.test(h);
+  const linkError = /(^|[#&])error_code=([^&]+)/.exec(h)?.[2] || (/(^|[#&])error=/.test(h) ? "error" : "");
+  if (pwLink) pwMode = true;
   try {
     store = await createStore();
     me = await store.me();
@@ -34,11 +38,24 @@ async function boot() {
   }
   store.onRecovery(() => setPasswordView());
   window.addEventListener("hashchange", render);
-  if (invited && me) { history.replaceState(null, "", location.pathname + location.search); return setPasswordView(); }
+  if (linkError) { history.replaceState(null, "", location.pathname + location.search); return linkErrorView(linkError); }
+  if (pwLink && me) { history.replaceState(null, "", location.pathname + location.search); return setPasswordView(); }
+  pwMode = false;
   render();
+}
+// Şifre belirleme ekranı açıkken panelin başka bir ekranı çizilmez.
+let pwMode = false;
+function linkErrorView(code) {
+  pwMode = false;
+  const expired = /expired/.test(code);
+  app.innerHTML = `<div class="pending card"><img src="../assets/logo-cranberry.webp" alt="Rotaract Ankara Anıttepe" style="width:200px"><h1>${expired ? "Bağlantının süresi dolmuş" : "Bağlantı geçersiz"}</h1>
+  <p>${expired ? "Şifre bağlantıları güvenlik için kısa süre geçerlidir." : "Bu bağlantı daha önce kullanılmış ya da hatalı olabilir."} Yeni bir bağlantı isteyebilirsin.</p>
+  <div class="row" style="justify-content:center"><button class="btn" id="newlink">Yeni bağlantı iste</button></div></div>`;
+  document.getElementById("newlink").onclick = () => forgotView();
 }
 
 function render() {
+  if (pwMode) return;
   if (!me) return authView();
   if (me.status === "pending") return pendingView();
   if (me.status === "passive") return pendingView(true);
@@ -172,6 +189,7 @@ function forgotView(prefill = "", msg = "", isErr = false) {
   };
 }
 function setPasswordView(msg = "") {
+  pwMode = true;
   app.innerHTML = `<div class="pending card"><img src="../assets/logo-cranberry.webp" alt="Rotaract Ankara Anıttepe" style="width:200px"><h1>Yeni şifreni belirle</h1>
   <form id="f-newpw" style="display:grid;gap:14px;text-align:left;max-width:380px;margin:0 auto">${msg ? `<div class="err" role="alert">${esc(msg)}</div>` : ""}
     <label class="f">Yeni şifre <small>En az 8 karakter</small><input type="password" name="pw" autocomplete="new-password" minlength="8" required></label>
@@ -180,7 +198,14 @@ function setPasswordView(msg = "") {
   document.getElementById("f-newpw").onsubmit = async e => {
     e.preventDefault(); const f = e.target;
     if (f.pw.value !== f.pw2.value) return setPasswordView("İki şifre aynı değil.");
-    try { await store.updatePassword(f.pw.value); me = await store.me(); history.replaceState(null, "", location.pathname + "#profil"); toast("Şifren kaydedildi."); render(); }
+    try {
+      await store.updatePassword(f.pw.value); me = await store.me();
+      // Profil açılmaz; yalnızca onay gösterilir. Kişi isterse panele geçer.
+      app.innerHTML = `<div class="pending card"><img src="../assets/logo-cranberry.webp" alt="Rotaract Ankara Anıttepe" style="width:200px"><h1>Şifren kaydedildi</h1>
+        <p>Artık e-posta adresin ve yeni şifrenle giriş yapabilirsin.</p>
+        <div class="row" style="justify-content:center"><button class="btn" id="topanel">Panele git</button></div></div>`;
+      document.getElementById("topanel").onclick = () => { pwMode = false; history.replaceState(null, "", location.pathname + "#profil"); render(); };
+    }
     catch (er) { setPasswordView(er.message); }
   };
 }
@@ -869,7 +894,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611101937");
+  const { mountComposer } = await import("./composer.js?v=202611101955");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 

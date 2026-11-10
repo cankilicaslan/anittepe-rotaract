@@ -340,3 +340,10 @@ dialog form{max-height:min(86vh,760px);overflow:auto}
 .person.has-acct .acct.on{background:var(--ok)}
 .acct-legend .acct{background:#CDBFC6;border-color:#CDBFC6}
 .acct-legend .acct.on{background:var(--ok);border-color:var(--ok)}
+
+/* WhatsApp sayfaları */
+.btn.wa{background:#1F8A4C;border-color:#1F8A4C;color:#fff}
+.btn.wa:hover{background:#18733F}
+.btn.wa.ghost{background:transparent;color:#1F8A4C}
+.wa-text{width:100%;font:inherit;font-size:.92rem;line-height:1.5;white-space:pre-wrap}
+.wa-grid{align-items:start}

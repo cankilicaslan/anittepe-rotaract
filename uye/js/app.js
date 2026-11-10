@@ -164,7 +164,9 @@ const PAGES = [
   { grp: "Yönetim" },
   { id: "duyurular", label: "Duyurular", panel: "duyuru" },
   { id: "yoklama", label: "Yoklama", panel: "yoklama" },
+  { id: "wa-toplanti", label: "Toplantı duyurusu (WhatsApp)", show: () => can(me, "wa-toplanti", "edit") },
   { id: "aidat", label: "Aidat", panel: "aidat" },
+  { id: "wa-aidat", label: "Aidat hatırlatma (WhatsApp)", show: () => can(me, "wa-aidat", "edit") },
   { id: "kasa", label: "Kulüp kasası", panel: "kasa" },
   { id: "projeler", label: "Hizmet projeleri", panel: "projeler" },
   { id: "instagram", label: "Instagram paylaşımı", panel: "instagram" }
@@ -212,7 +214,7 @@ function shell() {
   const rs = document.getElementById("reset");
   if (rs) rs.onclick = () => { if (confirm("Örnek veriler ilk haline dönsün mü? Bu tarayıcıdaki demo değişiklikleri silinir.")) { store.resetDemo(); location.hash = ""; location.reload(); } };
   const view = document.getElementById("view");
-  const fn = { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram }[id];
+  const fn = { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram, "wa-toplanti": viewWaMeeting, "wa-aidat": viewWaDues }[id];
   fn(view).catch(e => { view.innerHTML = `<div class="err">${esc(e.message)}</div>`; });
   labelTables(view);
   new MutationObserver(() => labelTables(view)).observe(view, { childList: true, subtree: true });
@@ -1049,12 +1051,11 @@ async function viewAnnounce(v) {
     <input type="hidden" name="kind" value="${esc(pre.kind)}">
     <div class="row" style="margin-top:16px">
       <button type="button" class="btn" id="s-mail">E-posta ile gönder</button>
-      <button type="button" class="btn" id="s-sms">SMS gönder</button>
-      <button type="button" class="btn" id="s-wa">WhatsApp'ta paylaş</button>      <div class="spacer"></div>
+      <button type="button" class="btn" id="s-sms">SMS gönder</button>      <div class="spacer"></div>
       <button type="button" class="btn ghost sm" id="c-mail">E-postaları kopyala</button>
       <button type="button" class="btn ghost sm" id="c-tel">Numaraları kopyala</button>
     </div>
-    <p class="muted" style="font-size:.84rem;margin:10px 0 0">${store.mode === "supabase" ? "E-posta, kulüp Gmail hesabından her üyeye ayrı ayrı otomatik gider; alıcılar birbirinin adresini görmez." : "E-postada alıcılar gizli (BCC) eklenir, birbirlerinin adresini görmezler."} SMS, telefondan açıldığında mesaj uygulamanda toplu mesaj olarak hazırlanır. "WhatsApp'ta paylaş" metni WhatsApp'ta açar; kulüp grubunu seçip gönderirsin (alıcı seçimi WhatsApp'ta yapılır).</p>
+    <p class="muted" style="font-size:.84rem;margin:10px 0 0">${store.mode === "supabase" ? "E-posta, kulüp Gmail hesabından her üyeye ayrı ayrı otomatik gider; alıcılar birbirinin adresini görmez." : "E-postada alıcılar gizli (BCC) eklenir, birbirlerinin adresini görmezler."} SMS, telefondan açıldığında mesaj uygulamanda toplu mesaj olarak hazırlanır.</p>
   </fieldset></form>
   <div class="card"><h2>Gönderilen duyurular</h2>${log.length ? `<div class="tbl-wrap"><table><thead><tr><th>Tarih</th><th>Konu</th><th>Kanal</th><th class="num">Alıcı</th></tr></thead><tbody>${log.map(a => `<tr><td>${trDate(a.created_at.slice(0, 10))}</td><td>${esc(a.subject)}</td><td>${(a.channels || []).map(c => `<span class="tag">${c === "email" ? "E-posta" : "SMS"}</span>`).join(" ")}</td><td class="num">${(a.recipient_ids || []).length}</td></tr>`).join("")}</tbody></table></div>` : '<p class="muted">Henüz duyuru gönderilmedi.</p>'}</div>`;
   if (ro) return;
@@ -1102,15 +1103,149 @@ async function viewAnnounce(v) {
     location.href = isIOS() ? `sms:/open?addresses=${nums.join(",")}&body=${body}` : `sms:${nums.join(",")}?body=${body}`;
     await log1(["sms"], "cihaz"); toast(`Mesaj uygulaman ${nums.length} alıcıyla açıldı. Gönder'e bastığında SMS gider.`);
   };
-  // WhatsApp: telefonda uygulamayı, bilgisayarda WhatsApp Web/masaüstünü metin hazır açar; grup orada seçilir.
-  document.getElementById("s-wa").onclick = () => {
-    if (!f.reportValidity()) return;
-    const text = `*${f.subject.value.trim()}*\n\n${f.body.value.trim()}`;
-    window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank", "noopener");
-    toast("WhatsApp açıldı. Kulüp grubunu seçip gönder.");
-  };
   document.getElementById("c-mail").onclick =() => copy(sel().map(m => m.email).filter(Boolean).join(", "), "E-posta adresleri");
   document.getElementById("c-tel").onclick = () => copy(sel().map(m => smsNumber(m.phone)).filter(Boolean).join(", "), "Telefon numaraları");
+}
+
+/* ------------------------- WhatsApp: ortak yardımcılar ------------------------- */
+const waNumber = p => smsNumber(p).replace("+", "");            // wa.me 90XXXXXXXXXX biçimi ister
+const waOpen = (text, phone = "") => window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, "_blank", "noopener");
+const lsGet = (k, d = "") => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+const copyText = async (txt, what = "Metin") => { try { await navigator.clipboard.writeText(txt); toast(`${what} panoya kopyalandı.`); } catch { prompt("Kopyalayın:", txt); } };
+// İmza: gönderen o görevin sahibiyse görev adı, değilse (ör. başkan) kendi unvanı yazılır.
+const signature = (role, label) => `${me.full_name}\n${hasRole(me, role) ? label : me.title || label} · Ankara Anıttepe Rotaract`;
+
+/* ---------------- Sekreter: WhatsApp toplantı duyurusu ---------------- */
+async function viewWaMeeting(v) {
+  const [term, meetings] = await Promise.all([store.getTerm(), store.listMeetings()]);
+  if (!meetings.length) { v.innerHTML = header("Toplantı duyurusu", "WhatsApp") + `<div class="card"><p class="muted" style="margin:0">Bu dönem için henüz toplantı tanımlanmamış.</p></div>`; return; }
+  const next = meetings.find(m => m.date >= today()) || meetings.at(-1);
+  v.innerHTML = header("Toplantı duyurusu", "Seçtiğin toplantı için WhatsApp grubuna atılacak duyuru metnini hazırlar.") + `
+  <div class="grid g2 wa-grid">
+    <form class="card" id="f-wam">
+      <h2>Toplantı bilgileri</h2>
+      <label class="f">Toplantı<select name="mid">${meetings.map(m => `<option value="${m.id}" ${m.id === next.id ? "selected" : ""}>${m.term_no}. toplantı · ${trDate(m.date)}${m.date < today() ? " · yapıldı" : ""}</option>`).join("")}</select></label>
+      <div class="grid g2" style="margin-top:12px">
+        <label class="f">Saat<input type="text" name="time" value="${esc(lsGet("ar-wa-time", "19.30"))}"></label>
+        <label class="f">Yer<input type="text" name="place" value="${esc(lsGet("ar-wa-place", "Hybrid Hub"))}"></label>
+      </div>
+      <label class="f" style="margin-top:12px">Gündem <small>Her maddeyi ayrı satıra yaz</small><textarea name="agenda" rows="4"></textarea></label>
+      <label class="f" style="margin-top:12px">Konuk / konuşmacı <small>isteğe bağlı</small><input type="text" name="guest"></label>
+      <label class="f" style="margin-top:12px">Ek not <small>isteğe bağlı</small><input type="text" name="extra" placeholder="ör. Toplantı sonrası ocakbaşı var"></label>
+      <label class="check" style="margin-top:12px"><input type="checkbox" name="rsvp" checked> Gelemeyeceklerden haber vermelerini iste</label>
+    </form>
+    <div class="card">
+      <h2>WhatsApp mesajı</h2>
+      <p class="muted" style="margin-top:-6px;font-size:.86rem">Soldaki bilgileri değiştirdikçe metin yenilenir. İstersen buradan da düzenleyebilirsin.</p>
+      <textarea id="wa-text" rows="16" class="wa-text" aria-label="WhatsApp mesajı"></textarea>
+      <div class="row" style="margin-top:12px">
+        <button type="button" class="btn wa" id="wa-send">WhatsApp grubunda paylaş</button>
+        <button type="button" class="btn ghost" id="wa-copy">Metni kopyala</button>
+      </div>
+      <p class="muted" style="font-size:.84rem;margin:10px 0 0">WhatsApp metin hazır açılır; kulüp grubunu seçip gönderirsin.</p>
+    </div>
+  </div>`;
+  const f = document.getElementById("f-wam"), out = document.getElementById("wa-text");
+  let edited = false;
+  const build = () => {
+    const m = meetings.find(x => x.id === f.mid.value);
+    const agenda = f.agenda.value.split("\n").map(s => s.trim()).filter(Boolean);
+    return [
+      `*${m.term_no}. Toplantımız*`, "",
+      "Merhaba arkadaşlar,", "",
+      `Dönemimizin ${m.term_no}., kulübümüzün ${m.club_no}. toplantısında buluşuyoruz.`, "",
+      `📅 ${longDate(m.date)}, ${f.time.value.trim()}`,
+      `📍 ${f.place.value.trim()}`,
+      ...(agenda.length ? ["", "*Gündem*", ...agenda.map(a => `• ${a}`)] : []),
+      ...(f.guest.value.trim() ? ["", `Konuğumuz: ${f.guest.value.trim()}`] : []),
+      ...(f.extra.value.trim() ? ["", f.extra.value.trim()] : []),
+      ...(f.rsvp.checked ? ["", "Gelemeyecek olanlar lütfen bana haber versin."] : []),
+      "", signature("sekreter", "Sekreter")
+    ].join("\n");
+  };
+  const fill = () => {
+    const m = meetings.find(x => x.id === f.mid.value);
+    if (!f.agenda.dataset.touched) f.agenda.value = m?.note || "";
+    if (!edited) out.value = build();
+  };
+  f.agenda.oninput = () => { f.agenda.dataset.touched = "1"; };
+  f.mid.onchange = () => { delete f.agenda.dataset.touched; edited = false; fill(); };
+  f.addEventListener("input", () => { edited = false; out.value = build(); lsSet("ar-wa-time", f.time.value); lsSet("ar-wa-place", f.place.value); });
+  out.oninput = () => { edited = true; };
+  fill();
+  document.getElementById("wa-send").onclick = () => { waOpen(out.value); toast("WhatsApp açıldı. Kulüp grubunu seçip gönder."); };
+  document.getElementById("wa-copy").onclick = () => copyText(out.value, "Duyuru metni");
+}
+
+/* ---------------- Sayman: WhatsApp aidat / ödeme hatırlatma ---------------- */
+async function viewWaDues(v) {
+  const [members, charges, dues] = await Promise.all([store.listMembers(), store.listCharges(), store.listDues()]);
+  const active = members.filter(m => m.status === "active");
+  // Yalnızca vadesi geçmiş ya da 15 gün içinde dolacak aidatlar hatırlatılır (ileriki ayların aidatı borç sayılmaz).
+  const soon = (() => { const d = new Date(); d.setDate(d.getDate() + 15); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
+  const dueNow = id => { const d = debtOf(id, charges, dues); const open = d.open.filter(c => c.due.due_date <= soon); return { ...d, open, total: open.reduce((s, c) => s + +c.amount, 0) }; };
+  const debtors = active.map(m => ({ m, d: dueNow(m.id) })).filter(x => x.d.total > 0)
+    .sort((a, b) => b.d.total - a.d.total || a.m.full_name.localeCompare(b.m.full_name, "tr"));
+  const openDues = dues.filter(d => charges.some(c => c.due_id === d.id && !c.paid_at)).sort((a, b) => a.due_date.localeCompare(b.due_date));
+  const defDue = openDues.find(d => d.due_date >= today()) || openDues.at(-1) || dues.at(-1);
+  const DEF_PERSONAL = "Merhaba {ad},\n\nKulüp aidatı hatırlatması: ödenmemiş {kalemler} için toplam borcun {borc}.\n\n{odeme}\n\nÖdediysen bu mesajı dikkate alma, teşekkürler.\n\n{imza}";
+  const sent = new Set();
+  v.innerHTML = header("Aidat hatırlatma", "Aidat ve ödeme hatırlatmalarını WhatsApp'tan gruba ya da kişiye özel gönder.") + `
+  <div class="card">
+    <h2>Ödeme bilgisi</h2>
+    <label class="f">IBAN ve ödeme açıklaması <small>Mesajlara eklenir; yalnızca bu tarayıcıda saklanır</small><textarea id="pay" rows="3" placeholder="IBAN: TR.. .... .... ....\nAlıcı: ...\nAçıklamaya adını ve ayı yaz.">${esc(lsGet("ar-wa-pay"))}</textarea></label>
+  </div>
+  <div class="grid g2 wa-grid">
+    <div class="card">
+      <h2>Gruba genel hatırlatma</h2>
+      ${dues.length ? `<label class="f">Aidat<select id="gdue">${dues.map(d => `<option value="${d.id}" ${d.id === defDue?.id ? "selected" : ""}>${esc(d.label)} · ${TL(d.amount)} · son gün ${trDate(d.due_date)}</option>`).join("")}</select></label>
+      <textarea id="gtext" rows="11" class="wa-text" style="margin-top:12px" aria-label="Grup mesajı"></textarea>
+      <div class="row" style="margin-top:12px"><button type="button" class="btn wa" id="gsend">WhatsApp grubunda paylaş</button><button type="button" class="btn ghost" id="gcopy">Metni kopyala</button></div>
+      <p class="muted" style="font-size:.84rem;margin:10px 0 0">Grup mesajında kimsenin adı ya da borcu yazmaz.</p>` : `<p class="muted" style="margin:0">Henüz aidat oluşturulmadı.</p>`}
+    </div>
+    <div class="card">
+      <h2>Kişiye özel mesaj şablonu</h2>
+      <p class="muted" style="margin-top:-6px;font-size:.86rem">Kullanılabilir alanlar: {ad}, {borc}, {kalemler}, {odeme}, {imza}</p>
+      <textarea id="ptpl" rows="9" class="wa-text" aria-label="Kişiye özel mesaj şablonu">${esc(lsGet("ar-wa-ptpl", DEF_PERSONAL))}</textarea>
+      <div class="row" style="margin-top:8px"><button type="button" class="btn ghost sm" id="preset">Varsayılan şablona dön</button></div>
+    </div>
+  </div>
+  <div class="card"><h2>Hatırlatılacak üyeler <span class="muted" style="font-weight:600">${debtors.length} kişi · toplam ${TL(debtors.reduce((s, x) => s + x.d.total, 0))}</span></h2>
+    ${debtors.length ? `<p class="muted" style="margin-top:-6px;font-size:.86rem">Vadesi geçmiş ya da 15 gün içinde dolacak ödenmemiş aidatlar.</p><div class="tbl-wrap"><table><thead><tr><th>Üye</th><th>Ödenmemiş</th><th class="num">Borç</th><th>Telefon</th><th></th></tr></thead><tbody>
+    ${debtors.map(({ m, d }) => `<tr><td>${person(m)}</td><td>${d.open.map(c => `<span class="tag ${c.due.due_date < today() ? "bad" : ""}">${esc(c.due.label)}</span>`).join(" ")}</td><td class="num"><b>${TL(d.total)}</b></td>
+      <td>${waNumber(m.phone) ? esc(m.phone) : '<span class="tag warn">Telefon yok</span>'}</td>
+      <td><button type="button" class="btn wa sm" data-wa="${m.id}" ${waNumber(m.phone) ? "" : "disabled"}>WhatsApp'tan hatırlat</button></td></tr>`).join("")}
+    </tbody></table></div>` : `<p class="muted" style="margin:0">Herkesin aidatı ödenmiş. 🎉</p>`}
+  </div>`;
+  const pay = document.getElementById("pay"), ptpl = document.getElementById("ptpl");
+  pay.oninput = () => { lsSet("ar-wa-pay", pay.value); gfill(); };
+  ptpl.oninput = () => lsSet("ar-wa-ptpl", ptpl.value);
+  document.getElementById("preset").onclick = () => { ptpl.value = DEF_PERSONAL; lsSet("ar-wa-ptpl", DEF_PERSONAL); };
+  const gsel = document.getElementById("gdue"), gtext = document.getElementById("gtext");
+  function gfill() {
+    if (!gsel) return;
+    const d = dues.find(x => x.id === gsel.value);
+    gtext.value = [`*${d.label} hatırlatması*`, "", "Merhaba arkadaşlar,", "", `${d.label} (${TL(d.amount)}) için son ödeme tarihi ${longDate(d.due_date)}.`, ...(pay.value.trim() ? ["", pay.value.trim()] : []), "", "Ödemesini yapanlara teşekkürler 🙏", "", signature("sayman", "Sayman")].join("\n");
+  }
+  if (gsel) {
+    gsel.onchange = gfill; gfill();
+    document.getElementById("gsend").onclick = () => { waOpen(gtext.value); toast("WhatsApp açıldı. Kulüp grubunu seçip gönder."); };
+    document.getElementById("gcopy").onclick = () => copyText(gtext.value, "Hatırlatma metni");
+  }
+  v.querySelectorAll("[data-wa]").forEach(b => b.onclick = () => {
+    const { m, d } = debtors.find(x => x.m.id === b.dataset.wa);
+    const text = ptpl.value
+      .replaceAll("{ad}", m.full_name.split(" ")[0])
+      .replaceAll("{borc}", TL(d.total))
+      .replaceAll("{kalemler}", d.open.map(c => `${c.due.label} (${TL(c.amount)})`).join(", "))
+      .replaceAll("{odeme}", pay.value.trim())
+      .replaceAll("{imza}", signature("sayman", "Sayman"))
+      .replace(/\n{3,}/g, "\n\n");
+    waOpen(text, waNumber(m.phone));
+    sent.add(m.id); b.textContent = "Tekrar gönder"; b.classList.add("ghost");
+    toast(`${esc(m.full_name)} için WhatsApp açıldı. Gönder'e bas.`);
+  });
 }
 
 boot();

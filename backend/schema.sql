@@ -916,3 +916,18 @@ alter table public.applications enable row level security;
 drop policy if exists applications_select on public.applications;
 create policy applications_select on public.applications for select to authenticated
   using (public.has_role('sekreter') or public.can_view_all());
+
+-- =====================================================================
+-- v9: Asbaşkan rolü — tüm yönetim panellerini görür, hiçbirini düzenleyemez
+-- =====================================================================
+alter table public.profiles drop constraint if exists profiles_roles_chk;
+alter table public.profiles add constraint profiles_roles_chk
+  check (roles <@ array['baskan','asbaskan','sayman','sekreter','pr','hizmet']::text[]);
+
+-- Okuma yetkisi: başkan/sahip, geçmiş dönem başkanları ve asbaşkan (yazma yetkileri değişmez)
+create or replace function public.can_view_all()
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.is_admin() or exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.status = 'active' and (p.past_president or 'asbaskan' = any(p.roles)));
+$$;

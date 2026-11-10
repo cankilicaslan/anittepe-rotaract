@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611102115";
-import { can, hasRole, ROLE_LABELS } from "./roles.js?v=202611102115";
+import { createStore, trDate } from "./store.js?v=202611102144";
+import { can, hasRole, ROLE_LABELS } from "./roles.js?v=202611102144";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -31,7 +31,7 @@ Onaylamak için üye panelinde Üye listesi > Onay bekleyen hesaplar bölümüne
 // Görünüm önizleme (yalnızca site sahibi görür): başka bir görevlinin panelini onun gözünden gösterir; değişiklik yapılamaz.
 let realMe = null, realStore = null, preview = null;
 const isRealOwner = () => !!(realMe || me)?.is_owner;
-const PREVIEW_ROLES = [["baskan", "Başkan"], ["sekreter", "Sekreter"], ["sayman", "Sayman"], ["pr", "Halkla İlişkiler (HİTK)"], ["hizmet", "Hizmet Projeleri"], ["gdb", "Geçmiş dönem başkanı"], ["uye", "Normal üye"]];
+const PREVIEW_ROLES = [["baskan", "Başkan"], ["asbaskan", "Asbaşkan"], ["sekreter", "Sekreter"], ["sayman", "Sayman"], ["pr", "Halkla İlişkiler (HİTK)"], ["hizmet", "Hizmet Projeleri"], ["gdb", "Geçmiş dönem başkanı"], ["uye", "Normal üye"]];
 function readOnlyStore(st) {
   const block = async () => { throw new Error("Önizleme modunda değişiklik yapılamaz."); };
   return new Proxy(st, { get(t, k) {
@@ -364,7 +364,7 @@ function labelTables(root) {
   });
 }
 const header = (title, sub = "", actions = "") => `<div class="page-h"><div><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ""}</div><div class="spacer"></div>${actions}</div>`;
-const roBanner = panel => can(me, panel, "edit") ? "" : `<div class="banner info">Bu bölümü geçmiş dönem başkanı olarak yalnızca görüntüleyebilirsin.</div>`;
+const roBanner = panel => can(me, panel, "edit") ? "" : `<div class="banner info">Bu bölümü yalnızca görüntüleyebilirsin; değişiklikleri görevli üye yapar.</div>`;
 const refresh = () => shell();
 
 /* --------------------------- Yardımcı hesaplar --------------------------- */
@@ -957,7 +957,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611102115");
+  const { mountComposer } = await import("./composer.js?v=202611102144");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 

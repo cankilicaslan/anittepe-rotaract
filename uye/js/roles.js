@@ -1,5 +1,5 @@
 // Kim neyi görür, kim neyi düzenler.
-export const ROLE_LABELS = { baskan: "Başkan", sayman: "Sayman", sekreter: "Sekreter", pr: "Halkla İlişkiler ve Tanıtım", hizmet: "Hizmet Projeleri" };
+export const ROLE_LABELS = { baskan: "Başkan", asbaskan: "Asbaşkan", sayman: "Sayman", sekreter: "Sekreter", pr: "Halkla İlişkiler ve Tanıtım", hizmet: "Hizmet Projeleri" };
 const OWNER = { aidat: ["sayman"], kasa: ["sayman"], yoklama: ["sekreter"], instagram: ["pr"], projeler: ["hizmet"], duyuru: ["sekreter", "pr"], "wa-toplanti": ["sekreter"], "wa-aidat": ["sayman"], "arsiv-yonetim": ["sekreter", "pr"], "uyeler-yonetim": ["baskan"] };
 
 const GDB_VIEW = ["yoklama", "aidat", "kasa", "projeler"];
@@ -15,5 +15,7 @@ export function can(p, panel, mode = "view") {
   if ((OWNER[panel] || []).some(r => hasRole(p, r))) return true;
   // Geçmiş dönem başkanları (GDB) yalnızca bu panelleri görüntüleyebilir (düzenleyemez).
   if (mode === "view" && p.past_president && GDB_VIEW.includes(panel)) return true;
+  // Asbaşkan tüm yönetim panellerini görür ama yalnızca görüntüleme modunda (üye özellikleri herkes gibi açık).
+  if (mode === "view" && hasRole(p, "asbaskan")) return true;
   return false;
 }

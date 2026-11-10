@@ -1,0 +1,307 @@
+// Veri katmanı. Aynı arayüzün iki uygulaması var:
+//  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
+//  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
+import { CONFIG } from "./config.js";
+import { can, hasRole } from "./roles.js";
+
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
+// Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
+const localISO = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const today = () => localISO(new Date());
+const addDays = (iso, n) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + n); return localISO(d); };
+const TYPE_TR = { toplanti: "toplantı", ocakbasi: "ocakbaşı", proje: "proje", etkinlik: "etkinlik" };
+const MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+export const trDate = iso => { if (!iso) return ""; const d = new Date(iso + "T12:00:00"); return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`; };
+
+// Yapay zekâ bağlı değilken kullanılan şablon. Gerçek modda Edge Function (Claude) yazar.
+export function templateCaption({ type, term_no, club_no, ocakbasi_no, summary, date }) {
+  const s = (summary || "").trim();
+  const when = date ? trDate(date) : "";
+  const tags = "#Rotaract #AnıttepeRotaract #Bölge2430 #RotaractAnkara";
+  if (type === "toplanti") {
+    return `Dönemimizin ${term_no || "?"}. ve kulübümüzün ${club_no || "?"}. toplantısını${when ? " " + when + " tarihinde" : ""} gerçekleştirdik.\n\n${s || "Bu toplantıda kulüp gündemimizi konuştuk."}\n\nBir sonraki toplantıda seni de aramızda görmek isteriz. Toplantılarımız iki haftada bir perşembe 19.30'da.\n\n${tags}`;
+  }
+  if (type === "ocakbasi") {
+    return `Dönemin ${ocakbasi_no || "?"}. ocakbaşında bir araya geldik.\n\n${s || "Sohbet, dostluk ve bol kahkaha."}\n\nDostluğun en güzel hali, aynı masada.\n\n${tags} #Ocakbaşı`;
+  }
+  return `${s || (type === "proje" ? "Yeni projemizi hayata geçirdik." : "Etkinliğimizde bir araya geldik.")}\n\nEmeği geçen herkese teşekkür ederiz. Bir sonraki ${TYPE_TR[type] || "buluşma"}da sen de yanımızda ol.\n\n${tags}`;
+}
+
+async function sha(s) {
+  const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("ar-panel:" + s));
+  return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("");
+}
+
+/* ------------------------------ DEMO ------------------------------ */
+const KEY = "ar-panel-demo-v1";
+const SEED_PEOPLE = [
+  ["Simay Oğuzkurt", "Başkan", ["baskan"], false, "simay-oguzkurt"],
+  ["Selva Tuluy", "Asbaşkan", [], false, "selva-tuluy"],
+  ["Oğulcan Görgülü", "Sekreter", ["sekreter"], false, "ogulcan-gorgulu"],
+  ["Umut Ekin Akkuş", "Sayman", ["sayman"], false, "umut-ekin-akkus"],
+  ["Can Kılıçaslan", "Yönetim Kurulu Üyesi", [], true, "can-kilicaslan"],
+  ["Begüm Gözüpek", "Geçmiş Dönem Başkanı", [], true, "begum-gozupek"],
+  ["Melishan Özkan Ağca", "Hizmet Projeleri Komitesi Başkanı", ["hizmet"], false, "melishan-ozkan-agca"],
+  ["Muhammed Alperen Çelik", "Halkla İlişkiler ve Tanıtım Komitesi Başkanı", ["pr"], false, "muhammed-alperen-celik"],
+  ["Ezgi Erdoğan", "Kulüp Hizmetleri Komitesi Başkanı", [], false, "ezgi-erdogan"],
+  ["Gizem Hanoğlu", "Meslek Hizmetleri Komitesi Başkanı", [], false, "gizem-hanoglu"],
+  ["Zehra Cansu Taşanlar", "Afet Komitesi Başkanı", [], false, "zehra-cansu-tasanlar"],
+  ["Metehan Can Çırak", "Üye", [], false, "metehan-can-cirak"]
+];
+const DEMO_PASSWORD = "rotaract2430";
+
+function seed() {
+  const term = { id: uid(), name: "2026-27", start_date: "2026-07-02", meeting_count: 24, club_meeting_offset: 599, opening_balance: 5000, is_current: true };
+  const profiles = SEED_PEOPLE.map(([full_name, title, roles, past, slug]) => ({
+    id: uid(), full_name, title, roles, past_president: past, status: "active",
+    email: slug.split("-")[0] + "@demo.anitteperotaract", phone: "", photo_url: `../assets/uyeler/${slug}.jpg`,
+    birth_date: null, profession: "", joined_at: "2025-10-01", created_at: new Date().toISOString()
+  }));
+  const meetings = Array.from({ length: 24 }, (_, i) => ({ id: uid(), term_id: term.id, term_no: i + 1, club_no: 600 + i, date: addDays(term.start_date, 14 * i), note: "" }));
+  // Örnek yoklama: geçmiş toplantılar için belirlenimci, gerçekçi bir dağılım.
+  const attendance = [];
+  let r = 7;
+  const rnd = () => (r = (r * 9301 + 49297) % 233280) / 233280;
+  meetings.filter(m => m.date < today()).forEach(m => profiles.forEach(p => {
+    const x = rnd(); attendance.push({ meeting_id: m.id, member_id: p.id, status: x < 0.74 ? "geldi" : x < 0.88 ? "mazeretli" : "gelmedi", note: "" });
+  }));
+  const dues = [], charges = [];
+  [["2026-09", "Eylül 2026 aidatı", "2026-09-15"], ["2026-10", "Ekim 2026 aidatı", "2026-10-15"], ["2026-11", "Kasım 2026 aidatı", "2026-11-15"]].forEach(([period, label, due_date], k) => {
+    const d = { id: uid(), term_id: term.id, label, period, amount: 250, due_date, created_at: new Date().toISOString() };
+    dues.push(d);
+    profiles.forEach((p, i) => charges.push({ id: uid(), due_id: d.id, member_id: p.id, amount: 250, paid_at: (k < 2 && (i + k) % 5 !== 0) ? addDays(due_date, -3) : null }));
+  });
+  const transactions = [
+    { id: uid(), term_id: term.id, date: "2026-07-10", kind: "gider", category: "Etkinlik", description: "Döneme Merhaba Partisi salon kirası", amount: 3500 },
+    { id: uid(), term_id: term.id, date: "2026-07-10", kind: "gelir", category: "Etkinlik", description: "Döneme Merhaba Partisi bilet gelirleri", amount: 6200 },
+    { id: uid(), term_id: term.id, date: "2026-10-24", kind: "gider", category: "Proje", description: "Dünya Polio Günü stant malzemeleri", amount: 850 }
+  ];
+  const projects = [
+    { id: uid(), title: "Dünya Polio Günü standı", kind: "hizmet", date: "2026-10-24", time: "12:00", location: "Kızılay", description: "Polio farkındalığı için bilgilendirme standı.", plan: "Broşür baskısı, stant izni, iki vardiya gönüllü.", owner: "Melishan Özkan Ağca", status: "tamamlandi", public: true, created_at: new Date().toISOString() },
+    { id: uid(), title: "Kitap toplama kampanyası", kind: "hizmet", date: "2026-12-05", time: "14:00", location: "Hybrid Hub", description: "Köy okulu kütüphanesi için kitap toplama.", plan: "1) Okulla iletişim 2) Toplama kutuları 3) Teslim günü organizasyonu", owner: "Melishan Özkan Ağca", status: "planlandi", public: true, created_at: new Date().toISOString() }
+  ];
+  return { profiles, passwords: {}, term, meetings, attendance, dues, charges, transactions, projects, posts: [], session: null };
+}
+
+function demoStore() {
+  let S;
+  try { S = JSON.parse(localStorage.getItem(KEY) || "null"); } catch { S = null; }
+  if (!S) S = seed();
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { throw new Error("Tarayıcı depolaması dolu. Daha küçük bir fotoğraf deneyin."); } };
+  save();
+  const me = () => S.profiles.find(p => p.id === S.session) || null;
+  const need = (panel, mode = "edit") => { if (!can(me(), panel, mode)) throw new Error("Bu işlem için yetkiniz yok."); };
+  const clone = x => JSON.parse(JSON.stringify(x));
+
+  return {
+    mode: "demo",
+    async demoAccounts() { return S.profiles.map(p => ({ email: p.email, label: p.full_name, title: p.title })); },
+    demoPassword: DEMO_PASSWORD,
+    resetDemo() { localStorage.removeItem(KEY); },
+    async signUp({ full_name, phone, email, password }) {
+      email = (email || "").trim().toLowerCase();
+      if (!full_name || !email || !password) throw new Error("Ad, e-posta ve şifre zorunlu.");
+      if (password.length < 8) throw new Error("Şifre en az 8 karakter olmalı.");
+      if (S.profiles.some(p => p.email === email)) throw new Error("Bu e-posta ile zaten bir hesap var.");
+      const p = { id: uid(), full_name, phone, email, photo_url: "", title: "Üye", roles: [], past_president: false, status: "pending", birth_date: null, profession: "", joined_at: today(), created_at: new Date().toISOString() };
+      S.profiles.push(p); S.passwords[email] = await sha(password); S.session = p.id; save(); return clone(p);
+    },
+    async signIn(email, password) {
+      email = (email || "").trim().toLowerCase();
+      const p = S.profiles.find(x => x.email === email);
+      const ok = p && (S.passwords[email] ? S.passwords[email] === await sha(password) : password === DEMO_PASSWORD);
+      if (!ok) throw new Error("E-posta ya da şifre hatalı.");
+      S.session = p.id; save(); return clone(p);
+    },
+    async signOut() { S.session = null; save(); },
+    async me() { return me() ? clone(me()) : null; },
+
+    async listMembers() { return clone(S.profiles); },
+    async updateMember(id, patch) {
+      const m = me(), p = S.profiles.find(x => x.id === id);
+      if (!p) throw new Error("Üye bulunamadı.");
+      const admin = hasRole(m, "baskan");
+      if (!admin && m?.id !== id) throw new Error("Bu işlem için yetkiniz yok.");
+      const allowed = admin ? Object.keys(patch) : ["full_name", "phone", "photo_url", "birth_date", "profession"];
+      allowed.forEach(k => { if (k in patch) p[k] = patch[k]; });
+      save(); return clone(p);
+    },
+    async approveMember(id) { return this.updateMember(id, { status: "active" }); },
+    async uploadPhoto(id, file) {
+      const url = await squareDataUrl(file, 360);
+      await this.updateMember(id, { photo_url: url }); return url;
+    },
+
+    async getTerm() { return clone(S.term); },
+    async updateTerm(patch) {
+      if (!(can(me(), "kasa", "edit") || can(me(), "yoklama", "edit"))) throw new Error("Bu işlem için yetkiniz yok.");
+      Object.assign(S.term, patch); save(); return clone(S.term);
+    },
+    async listMeetings() { return clone(S.meetings).sort((a, b) => a.term_no - b.term_no); },
+    async updateMeeting(id, patch) { need("yoklama"); Object.assign(S.meetings.find(m => m.id === id), patch); save(); },
+    async listAttendance() {
+      const m = me();
+      return clone(can(m, "yoklama") ? S.attendance : S.attendance.filter(a => a.member_id === m?.id));
+    },
+    async setAttendance(meeting_id, member_id, status, note = "") {
+      need("yoklama");
+      S.attendance = S.attendance.filter(a => !(a.meeting_id === meeting_id && a.member_id === member_id));
+      if (status) S.attendance.push({ meeting_id, member_id, status, note, updated_at: new Date().toISOString() });
+      save();
+    },
+
+    async listDues() { return clone(S.dues); },
+    async createDue({ label, period, amount, due_date, member_ids }) {
+      need("aidat");
+      const d = { id: uid(), term_id: S.term.id, label, period, amount: +amount, due_date, created_at: new Date().toISOString() };
+      S.dues.push(d);
+      member_ids.forEach(mid => S.charges.push({ id: uid(), due_id: d.id, member_id: mid, amount: +amount, paid_at: null }));
+      save(); return clone(d);
+    },
+    async deleteDue(id) { need("aidat"); S.dues = S.dues.filter(d => d.id !== id); S.charges = S.charges.filter(c => c.due_id !== id); save(); },
+    async listCharges() { const m = me(); return clone(can(m, "aidat") ? S.charges : S.charges.filter(c => c.member_id === m?.id)); },
+    async setChargePaid(id, paid_at) { need("aidat"); S.charges.find(c => c.id === id).paid_at = paid_at; save(); },
+
+    async listTransactions() { need("kasa", "view"); return clone(S.transactions); },
+    async addTransaction(t) { need("kasa"); const x = { id: uid(), term_id: S.term.id, ...t, amount: +t.amount }; S.transactions.push(x); save(); return clone(x); },
+    async deleteTransaction(id) { need("kasa"); S.transactions = S.transactions.filter(t => t.id !== id); save(); },
+
+    async listProjects() { need("projeler", "view"); return clone(S.projects); },
+    async saveProject(p) {
+      need("projeler");
+      if (p.id) Object.assign(S.projects.find(x => x.id === p.id), p);
+      else { p = { ...p, id: uid(), created_at: new Date().toISOString() }; S.projects.push(p); }
+      save(); return clone(p);
+    },
+    async deleteProject(id) { need("projeler"); S.projects = S.projects.filter(p => p.id !== id); save(); },
+
+    async listPosts() { need("instagram", "view"); return clone(S.posts); },
+    async savePost(p) {
+      need("instagram");
+      const x = { id: uid(), created_by: S.session, created_at: new Date().toISOString(), ...p, image_url: "" };
+      S.posts.push(x); save(); return clone(x);
+    },
+    async generateCaption(input) { need("instagram"); return { caption: templateCaption(input), source: "sablon" }; },
+    async publishInstagram() { need("instagram"); return { ok: false, demo: true }; }
+  };
+}
+
+/* ---------------------------- SUPABASE ---------------------------- */
+async function supabaseStore() {
+  const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm");
+  const sb = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+  const ok = ({ data, error }) => { if (error) throw new Error(trError(error.message)); return data; };
+  let cachedTerm = null;
+  const term = async () => cachedTerm || (cachedTerm = ok(await sb.from("terms").select("*").eq("is_current", true).single()));
+  const fn = async (name, body) => {
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch(`${CONFIG.SUPABASE_URL}/functions/v1/${name}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}`, apikey: CONFIG.SUPABASE_ANON_KEY },
+      body: JSON.stringify(body)
+    });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(j.error || "Sunucu isteği başarısız oldu.");
+    return j;
+  };
+  const meId = async () => (await sb.auth.getUser()).data.user?.id;
+
+  return {
+    mode: "supabase",
+    async signUp({ full_name, phone, email, password }) {
+      ok(await sb.auth.signUp({ email, password, options: { data: { full_name, phone }, emailRedirectTo: location.href.split("#")[0] } }));
+      return this.me();
+    },
+    async signIn(email, password) { ok(await sb.auth.signInWithPassword({ email, password })); return this.me(); },
+    async signOut() { await sb.auth.signOut(); },
+    async me() {
+      const id = await meId(); if (!id) return null;
+      const { data } = await sb.from("profiles").select("*").eq("id", id).maybeSingle();
+      return data || { id, full_name: "", status: "pending", roles: [] };
+    },
+    async listMembers() { return ok(await sb.from("profiles").select("*").order("full_name")); },
+    async updateMember(id, patch) { return ok(await sb.from("profiles").update(patch).eq("id", id).select().single()); },
+    async approveMember(id) { return this.updateMember(id, { status: "active" }); },
+    async uploadPhoto(id, file) {
+      const blob = await squareBlob(file, 480);
+      const path = `${id}/${Date.now()}.jpg`;
+      ok(await sb.storage.from("avatars").upload(path, blob, { contentType: "image/jpeg", upsert: true }));
+      const url = sb.storage.from("avatars").getPublicUrl(path).data.publicUrl;
+      await this.updateMember(id, { photo_url: url }); return url;
+    },
+    async getTerm() { return term(); },
+    async updateTerm(patch) { const t = await term(); cachedTerm = ok(await sb.from("terms").update(patch).eq("id", t.id).select().single()); return cachedTerm; },
+    async listMeetings() { const t = await term(); return ok(await sb.from("meetings").select("*").eq("term_id", t.id).order("term_no")); },
+    async updateMeeting(id, patch) { ok(await sb.from("meetings").update(patch).eq("id", id)); },
+    async listAttendance() {
+      // Yalnızca güncel dönem: aksi halde birkaç dönem sonra PostgREST'in 1000 satır sınırına takılıp istatistikler sessizce bozulur.
+      const t = await term();
+      return ok(await sb.from("attendance").select("meeting_id,member_id,status,note,meetings!inner(term_id)").eq("meetings.term_id", t.id));
+    },
+    async setAttendance(meeting_id, member_id, status, note = "") {
+      if (!status) ok(await sb.from("attendance").delete().match({ meeting_id, member_id }));
+      else ok(await sb.from("attendance").upsert({ meeting_id, member_id, status, note, updated_at: new Date().toISOString() }));
+    },
+    async listDues() { return ok(await sb.from("dues").select("*").order("due_date")); },
+    async createDue({ label, period, amount, due_date, member_ids }) {
+      const t = await term();
+      const d = ok(await sb.from("dues").insert({ term_id: t.id, label, period, amount, due_date }).select().single());
+      if (member_ids.length) {
+        const r = await sb.from("charges").insert(member_ids.map(member_id => ({ due_id: d.id, member_id, amount })));
+        if (r.error) { await sb.from("dues").delete().eq("id", d.id); ok(r); }
+      }
+      return d;
+    },
+    async deleteDue(id) { ok(await sb.from("dues").delete().eq("id", id)); },
+    async listCharges() { return ok(await sb.from("charges").select("*")); },
+    async setChargePaid(id, paid_at) { ok(await sb.from("charges").update({ paid_at }).eq("id", id)); },
+    async listTransactions() { const t = await term(); return ok(await sb.from("transactions").select("*").eq("term_id", t.id).order("date")); },
+    async addTransaction(t) { const tm = await term(); return ok(await sb.from("transactions").insert({ ...t, term_id: tm.id }).select().single()); },
+    async deleteTransaction(id) { ok(await sb.from("transactions").delete().eq("id", id)); },
+    async listProjects() { return ok(await sb.from("projects").select("*").order("date")); },
+    async saveProject(p) {
+      const { id, ...rest } = p;
+      return id ? ok(await sb.from("projects").update(rest).eq("id", id).select().single())
+                : ok(await sb.from("projects").insert(rest).select().single());
+    },
+    async deleteProject(id) { ok(await sb.from("projects").delete().eq("id", id)); },
+    async listPosts() { return ok(await sb.from("posts").select("*").order("created_at", { ascending: false })); },
+    async savePost(p) { return ok(await sb.from("posts").insert({ ...p, created_by: await meId() }).select().single()); },
+    async generateCaption(input) {
+      try { return await fn("caption", input); }
+      catch (e) { return { caption: templateCaption(input), source: "sablon", error: e.message }; }
+    },
+    async publishInstagram({ blob, caption, post_id }) {
+      const image_base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1]); r.onerror = rej; r.readAsDataURL(blob); });
+      const j = await fn("instagram-publish", { image_base64, caption, post_id });
+      return { ok: true, ...j };
+    }
+  };
+}
+
+function trError(m) {
+  if (/Invalid login credentials/i.test(m)) return "E-posta ya da şifre hatalı.";
+  if (/Email not confirmed/i.test(m)) return "E-posta adresinizi doğrulamanız gerekiyor. Gelen kutunuza bakın.";
+  if (/already registered/i.test(m)) return "Bu e-posta ile zaten bir hesap var.";
+  if (/row-level security|permission denied/i.test(m)) return "Bu işlem için yetkiniz yok.";
+  if (/multiple \(or no\) rows|contain 0 rows/i.test(m)) return "Kayıt bulunamadı ya da bu işlem için yetkiniz yok.";
+  if (/Password should be/i.test(m)) return "Şifre en az 8 karakter olmalı.";
+  return m;
+}
+
+/* Fotoğrafı kare kırpıp küçült. */
+function loadImg(file) {
+  return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("Fotoğraf okunamadı.")); i.src = URL.createObjectURL(file); });
+}
+async function squareCanvas(file, size) {
+  const img = await loadImg(file); const s = Math.min(img.naturalWidth, img.naturalHeight);
+  const c = document.createElement("canvas"); c.width = c.height = size;
+  c.getContext("2d").drawImage(img, (img.naturalWidth - s) / 2, Math.max(0, (img.naturalHeight - s) / 3), s, s, 0, 0, size, size);
+  return c;
+}
+async function squareDataUrl(file, size) { return (await squareCanvas(file, size)).toDataURL("image/jpeg", 0.82); }
+async function squareBlob(file, size) { const c = await squareCanvas(file, size); return new Promise(r => c.toBlob(r, "image/jpeg", 0.86)); }
+
+export async function createStore() {
+  return CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY ? supabaseStore() : demoStore();
+}

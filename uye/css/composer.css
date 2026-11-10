@@ -1,0 +1,344 @@
+/* Instagram gönderi hazırlayıcı — composer.js ile birlikte kullanılır.
+   Renk değişkenleri panel.css'ten gelir; yoksa aşağıdaki yedekler kullanılır. */
+
+.cmp {
+  --_cran: var(--cran, #D41367);
+  --_deep: var(--cran-deep, #A30C4D);
+  --_soft: var(--cran-soft, #FCE6EF);
+  --_ink: var(--ink, #1E1420);
+  --_muted: var(--muted, #6E5F72);
+  --_line: var(--line, #E9DCE3);
+  --_bg2: var(--bg-2, #FAF6F8);
+  --_surface: var(--surface, var(--bg, #FFFFFF));
+  --_radius: 14px;
+  color: var(--_ink);
+  min-width: 0;
+}
+
+.cmp *,
+.cmp *::before,
+.cmp *::after { box-sizing: border-box; }
+
+.cmp [hidden] { display: none !important; }
+
+/* ---------- yerleşim ---------- */
+.cmp-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+  grid-template-areas:
+    "photo preview"
+    "controls preview";
+  grid-template-rows: auto 1fr;
+  gap: 20px 32px;
+  align-items: start;
+}
+.cmp-photo { grid-area: photo; min-width: 0; }
+.cmp-controls { grid-area: controls; min-width: 0; display: grid; gap: 20px; }
+.cmp-preview {
+  grid-area: preview;
+  position: sticky;
+  top: 16px;
+  width: 100%;
+  max-width: 420px;
+  justify-self: end;
+}
+
+@container cmp (max-width: 780px) {
+  .cmp-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "photo" "preview" "controls";
+    grid-template-rows: auto;
+  }
+  .cmp-preview { position: static; justify-self: center; }
+}
+
+/* ---------- fotoğraf alanı ---------- */
+.cmp-file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+.cmp-dropzone {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 96px;
+  padding: 16px 18px;
+  border: 2px dashed color-mix(in srgb, var(--_cran) 45%, transparent);
+  border-radius: var(--_radius);
+  background: var(--_soft);
+  cursor: pointer;
+  transition: border-color .15s, background-color .15s, box-shadow .15s;
+}
+.cmp-dropzone:hover { border-color: var(--_cran); }
+.cmp-dropzone.is-over {
+  border-style: solid;
+  border-color: var(--_cran);
+  background: color-mix(in srgb, var(--_soft) 70%, var(--_cran) 12%);
+}
+.cmp-dropzone.has-photo { border-style: solid; background: var(--_surface); border-color: var(--_line); }
+
+.cmp-dz-thumb {
+  flex: 0 0 auto;
+  width: 64px;
+  height: 80px;
+  border-radius: 10px;
+  background: #fff center / cover no-repeat;
+  box-shadow: inset 0 0 0 1px var(--_line);
+  position: relative;
+}
+.cmp-dropzone:not(.has-photo) .cmp-dz-thumb::before,
+.cmp-dropzone:not(.has-photo) .cmp-dz-thumb::after {
+  content: "";
+  position: absolute;
+  left: 50%; top: 50%;
+  background: var(--_cran);
+  border-radius: 2px;
+  transform: translate(-50%, -50%);
+}
+.cmp-dropzone:not(.has-photo) .cmp-dz-thumb::before { width: 22px; height: 3px; }
+.cmp-dropzone:not(.has-photo) .cmp-dz-thumb::after { width: 3px; height: 22px; }
+
+.cmp-dz-text { display: grid; gap: 4px; min-width: 0; }
+.cmp-dz-title { font-weight: 700; color: var(--_deep); }
+.cmp-dz-sub { font-size: .875rem; color: var(--_muted); overflow-wrap: anywhere; }
+
+.cmp-photo-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: 10px;
+}
+.cmp-zoom { display: flex; align-items: center; gap: 10px; font-size: .875rem; color: var(--_muted); flex: 1 1 200px; }
+.cmp-zoom input { flex: 1; min-width: 0; accent-color: var(--_cran); }
+.cmp-zoom input:disabled { opacity: .45; }
+.cmp-photo-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.cmp-hint { margin: 8px 0 0; font-size: .8125rem; color: var(--_muted); }
+
+/* ---------- segment kontrol ---------- */
+.cmp-type { display: grid; gap: 16px; }
+.cmp-seg {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--_bg2);
+  border: 1px solid var(--_line);
+}
+.cmp-seg-btn {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--_ink);
+  font: inherit;
+  font-weight: 600;
+  font-size: .9375rem;
+  padding: 10px 6px;
+  min-height: 42px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background-color .15s, color .15s;
+}
+.cmp-seg-btn:hover { background: color-mix(in srgb, var(--_cran) 8%, transparent); }
+.cmp-seg-btn[aria-pressed="true"] {
+  background: var(--_cran);
+  color: #fff;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--_cran) 35%, transparent);
+}
+@media (max-width: 400px) {
+  .cmp-seg-btn { font-size: .8125rem; padding-inline: 2px; }
+}
+
+/* ---------- alanlar ---------- */
+.cmp-group { display: grid; gap: 14px; }
+.cmp-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; }
+.cmp-field { display: grid; gap: 6px; min-width: 0; align-content: start; }
+.cmp-field label,
+.cmp-caption-head label { font-weight: 600; font-size: .9375rem; }
+.cmp-field-date { max-width: 240px; }
+
+.cmp input[type="number"],
+.cmp input[type="date"],
+.cmp textarea {
+  width: 100%;
+  max-width: 100%;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--_ink);
+  background: var(--_surface);
+  border: 1px solid var(--_line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.cmp textarea { resize: vertical; line-height: 1.5; min-height: 96px; }
+.cmp input:hover,
+.cmp textarea:hover { border-color: color-mix(in srgb, var(--_cran) 40%, var(--_line)); }
+.cmp input:focus,
+.cmp textarea:focus { border-color: var(--_cran); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--_cran) 22%, transparent); }
+
+.cmp-link {
+  justify-self: start;
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  font: inherit;
+  font-size: .8125rem;
+  color: var(--_deep);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ---------- açıklama ---------- */
+.cmp-caption { display: grid; gap: 8px; }
+.cmp-caption-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.cmp-count { font-size: .8125rem; color: var(--_muted); font-variant-numeric: tabular-nums; }
+.cmp-caption textarea { min-height: 180px; }
+.cmp-caption-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.cmp-note {
+  margin: 0;
+  font-size: .8125rem;
+  color: var(--_deep);
+  background: var(--_soft);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+.cmp-spark { color: var(--_cran); }
+
+/* ---------- düğmeler ---------- */
+.cmp-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-weight: 700;
+  font-size: .9375rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color .15s, border-color .15s, color .15s, transform .05s;
+}
+.cmp-btn:active:not(:disabled) { transform: translateY(1px); }
+.cmp-btn:disabled { opacity: .5; cursor: not-allowed; }
+.cmp-btn-primary { background: var(--_cran); color: #fff; }
+.cmp-btn-primary:hover:not(:disabled) { background: var(--_deep); }
+.cmp-btn-soft { background: var(--_soft); color: var(--_deep); border-color: color-mix(in srgb, var(--_cran) 25%, transparent); }
+.cmp-btn-soft:hover:not(:disabled) { border-color: var(--_cran); }
+.cmp-btn-ghost { background: var(--_surface); color: var(--_ink); border-color: var(--_line); }
+.cmp-btn-ghost:hover:not(:disabled) { border-color: var(--_cran); color: var(--_deep); }
+.cmp-btn-sm { min-height: 36px; padding: 6px 14px; font-size: .875rem; font-weight: 600; }
+.cmp-btn[aria-busy="true"] { cursor: progress; }
+
+.cmp-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.cmp-actions .cmp-btn-primary { flex: 1 1 220px; }
+
+.cmp-readonly {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--_bg2);
+  border: 1px solid var(--_line);
+  color: var(--_muted);
+  font-size: .875rem;
+}
+
+/* ---------- sonuç kutusu ---------- */
+.cmp-result {
+  padding: 18px 20px;
+  border-radius: var(--_radius);
+  border: 1px solid var(--_line);
+  background: var(--_surface);
+  box-shadow: 0 8px 28px rgba(30, 20, 32, .08);
+}
+.cmp-result-demo { border-color: color-mix(in srgb, var(--_cran) 35%, var(--_line)); background: linear-gradient(var(--_soft), var(--_surface) 70%); }
+.cmp-result-ok { border-color: #9BD3B4; background: #F1FAF4; }
+.cmp-result h4 { margin: 0 0 6px; font-size: 1.0625rem; color: var(--_deep); }
+.cmp-result-ok h4 { color: #1E6B43; }
+.cmp-result p { margin: 0 0 14px; line-height: 1.5; }
+.cmp-result a { color: var(--_deep); font-weight: 600; }
+.cmp-result-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* ---------- önizleme ---------- */
+.cmp-preview-frame {
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(30, 20, 32, .06), 0 12px 32px rgba(30, 20, 32, .12);
+  line-height: 0;
+}
+.cmp-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1080 / 1350;
+  touch-action: none;
+}
+.cmp-canvas.over-photo { cursor: pointer; }
+.cmp-canvas.can-drag.over-photo { cursor: grab; }
+.cmp-canvas.is-dragging { cursor: grabbing; }
+.cmp-preview.is-over .cmp-preview-frame { box-shadow: 0 0 0 3px var(--_cran), 0 12px 32px rgba(30, 20, 32, .12); }
+.cmp-preview-cap { margin: 10px 0 0; text-align: center; font-size: .8125rem; color: var(--_muted); }
+
+/* ---------- geçmiş ---------- */
+.cmp-history { margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--_line); }
+.cmp-h { margin: 0 0 14px; font-size: 1.125rem; }
+.cmp-empty { color: var(--_muted); margin: 0; }
+.cmp-history-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.cmp-hitem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 6px 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--_line);
+  border-radius: 12px;
+  background: var(--_surface);
+}
+.cmp-htype {
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--_soft);
+  color: var(--_deep);
+}
+.cmp-hnum { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmp-hdate { font-size: .875rem; color: var(--_muted); white-space: nowrap; }
+.cmp-hstatus { font-size: .75rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+.cmp-hstatus.s-paylasildi { background: #E3F4EA; color: #1E6B43; }
+.cmp-hstatus.s-taslak { background: var(--_bg2); color: var(--_muted); border: 1px solid var(--_line); }
+.cmp-hstatus.s-hata { background: #FDE7E7; color: #A12626; }
+.cmp-hcap { grid-column: 1 / -1; font-size: .875rem; }
+.cmp-hcap summary { cursor: pointer; color: var(--_deep); font-weight: 600; width: max-content; }
+.cmp-hcap p { margin: 8px 0 0; white-space: pre-wrap; color: var(--_muted); overflow-wrap: anywhere; }
+
+@media (max-width: 560px) {
+  .cmp-hitem { grid-template-columns: auto minmax(0, 1fr); }
+  .cmp-hdate { grid-column: 1 / 2; }
+  .cmp-hstatus { justify-self: end; }
+}
+
+/* ---------- odak ---------- */
+.cmp :is(button, [role="button"], a, summary, canvas, input[type="range"], .cmp-result):focus-visible {
+  outline: 3px solid var(--_cran);
+  outline-offset: 2px;
+}
+.cmp .cmp-canvas:focus-visible { outline: none; }
+.cmp-preview-frame:has(.cmp-canvas:focus-visible) { box-shadow: 0 0 0 3px var(--_cran), 0 12px 32px rgba(30, 20, 32, .12); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cmp * { transition: none !important; }
+}
+
+/* Yerleşim, panelin genişliğine göre (kenar çubuğu dahil) değişsin. */
+.cmp { container: cmp / inline-size; }

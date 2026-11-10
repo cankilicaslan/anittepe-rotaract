@@ -1040,11 +1040,12 @@ async function viewAnnounce(v) {
     <input type="hidden" name="kind" value="${esc(pre.kind)}">
     <div class="row" style="margin-top:16px">
       <button type="button" class="btn" id="s-mail">E-posta ile gönder</button>
-      <button type="button" class="btn" id="s-sms">SMS gönder</button>      <div class="spacer"></div>
+      <button type="button" class="btn" id="s-sms">SMS gönder</button>
+      <button type="button" class="btn" id="s-wa">WhatsApp'ta paylaş</button>      <div class="spacer"></div>
       <button type="button" class="btn ghost sm" id="c-mail">E-postaları kopyala</button>
       <button type="button" class="btn ghost sm" id="c-tel">Numaraları kopyala</button>
     </div>
-    <p class="muted" style="font-size:.84rem;margin:10px 0 0">${store.mode === "supabase" ? "E-posta, kulüp Gmail hesabından her üyeye ayrı ayrı otomatik gider; alıcılar birbirinin adresini görmez." : "E-postada alıcılar gizli (BCC) eklenir, birbirlerinin adresini görmezler."} SMS, telefondan açıldığında mesaj uygulamanda toplu mesaj olarak hazırlanır.</p>
+    <p class="muted" style="font-size:.84rem;margin:10px 0 0">${store.mode === "supabase" ? "E-posta, kulüp Gmail hesabından her üyeye ayrı ayrı otomatik gider; alıcılar birbirinin adresini görmez." : "E-postada alıcılar gizli (BCC) eklenir, birbirlerinin adresini görmezler."} SMS, telefondan açıldığında mesaj uygulamanda toplu mesaj olarak hazırlanır. "WhatsApp'ta paylaş" metni WhatsApp'ta açar; kulüp grubunu seçip gönderirsin (alıcı seçimi WhatsApp'ta yapılır).</p>
   </fieldset></form>
   <div class="card"><h2>Gönderilen duyurular</h2>${log.length ? `<div class="tbl-wrap"><table><thead><tr><th>Tarih</th><th>Konu</th><th>Kanal</th><th class="num">Alıcı</th></tr></thead><tbody>${log.map(a => `<tr><td>${trDate(a.created_at.slice(0, 10))}</td><td>${esc(a.subject)}</td><td>${(a.channels || []).map(c => `<span class="tag">${c === "email" ? "E-posta" : "SMS"}</span>`).join(" ")}</td><td class="num">${(a.recipient_ids || []).length}</td></tr>`).join("")}</tbody></table></div>` : '<p class="muted">Henüz duyuru gönderilmedi.</p>'}</div>`;
   if (ro) return;
@@ -1092,7 +1093,14 @@ async function viewAnnounce(v) {
     location.href = isIOS() ? `sms:/open?addresses=${nums.join(",")}&body=${body}` : `sms:${nums.join(",")}?body=${body}`;
     await log1(["sms"], "cihaz"); toast(`Mesaj uygulaman ${nums.length} alıcıyla açıldı. Gönder'e bastığında SMS gider.`);
   };
-  document.getElementById("c-mail").onclick = () => copy(sel().map(m => m.email).filter(Boolean).join(", "), "E-posta adresleri");
+  // WhatsApp: telefonda uygulamayı, bilgisayarda WhatsApp Web/masaüstünü metin hazır açar; grup orada seçilir.
+  document.getElementById("s-wa").onclick = () => {
+    if (!f.reportValidity()) return;
+    const text = `*${f.subject.value.trim()}*\n\n${f.body.value.trim()}`;
+    window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank", "noopener");
+    toast("WhatsApp açıldı. Kulüp grubunu seçip gönder.");
+  };
+  document.getElementById("c-mail").onclick =() => copy(sel().map(m => m.email).filter(Boolean).join(", "), "E-posta adresleri");
   document.getElementById("c-tel").onclick = () => copy(sel().map(m => smsNumber(m.phone)).filter(Boolean).join(", "), "Telefon numaraları");
 }
 

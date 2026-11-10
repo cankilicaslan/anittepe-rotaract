@@ -145,7 +145,10 @@ function demoStore() {
     },
     async signOut() { S.session = null; save(); },
     async resetPassword() { throw new Error("Demo modunda şifre sıfırlama yok. Demo hesaplarına giriş ekranındaki isimlere tıklayarak girebilirsin."); },
-    async updatePassword() { throw new Error("Demo modunda şifre değiştirilemez."); },
+    async updatePassword(password) {
+      if ((password || "").length < 8) throw new Error("Şifre en az 8 karakter olmalı.");
+      const m = me(); if (!m) throw new Error("Önce giriş yap."); S.passwords[m.email] = await sha(password); save();
+    },
     onRecovery() {},
     async me() { return me() ? clone(me()) : null; },
 

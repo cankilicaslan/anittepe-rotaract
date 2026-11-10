@@ -208,7 +208,8 @@ const PAGES = [
   { id: "wa-aidat", label: "Aidat hatırlatma (WhatsApp)", show: () => can(me, "wa-aidat", "edit") },
   { id: "kasa", label: "Kulüp kasası", panel: "kasa" },
   { id: "projeler", label: "Hizmet projeleri", panel: "projeler" },
-  { id: "instagram", label: "Instagram paylaşımı", panel: "instagram" }
+  // Instagram: yalnızca paylaşım yapabilenler (başkan ve Halkla İlişkiler / HİTK) görür ve açar.
+  { id: "instagram", label: "Instagram paylaşımı", show: () => can(me, "instagram", "edit") }
 ];
 const visible = p => p.panel ? can(me, p.panel, "view") : p.show?.();
 
@@ -341,7 +342,27 @@ async function viewProfile(v) {
       <label class="f">Görev <small>Başkan atar</small><input type="text" value="${esc(me.title || "Üye")}" disabled></label>
     </div>
     <div class="row" style="margin-top:14px"><button class="btn" type="submit">Kaydet</button></div>
+  </form>
+  <form class="card" id="f-pw" style="margin-top:16px" novalidate><h2>Şifre değiştir</h2>
+    <input type="email" name="username" value="${esc(me.email)}" autocomplete="username" hidden>
+    <div class="grid g2">
+      <label class="f">Yeni şifre <small>En az 8 karakter</small><input type="password" name="pw" autocomplete="new-password" minlength="8" required></label>
+      <label class="f">Yeni şifre (tekrar)<input type="password" name="pw2" autocomplete="new-password" minlength="8" required></label>
+    </div>
+    <p class="err" id="pw-err" role="alert" hidden style="margin:12px 0 0"></p>
+    <div class="row" style="margin-top:14px"><button class="btn" type="submit">Şifremi değiştir</button></div>
   </form>`;
+  document.getElementById("f-pw").onsubmit = async e => {
+    e.preventDefault(); const f = e.target, err = document.getElementById("pw-err");
+    const show = m => { err.textContent = m; err.hidden = !m; };
+    if (f.pw.value.length < 8) return show("Şifre en az 8 karakter olmalı.");
+    if (f.pw.value !== f.pw2.value) return show("İki şifre aynı değil.");
+    show("");
+    const b = f.querySelector("button"); b.disabled = true;
+    try { await store.updatePassword(f.pw.value); f.reset(); toast("Şifren değiştirildi. Bir sonraki girişte yeni şifreni kullan."); }
+    catch (er) { show(er.message); }
+    b.disabled = false;
+  };
   document.getElementById("photo").onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
     try { await store.uploadPhoto(me.id, f); me = await store.me(); toast("Profil fotoğrafın güncellendi."); refresh(); } catch (er) { fail(er); }

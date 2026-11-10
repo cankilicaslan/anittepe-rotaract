@@ -108,6 +108,7 @@ function demoStore() {
     }
     S.monthlyDues = true;
   }
+  if (!S.albums) { S.albums = []; S.albumPhotos = []; }
   if (!S.guests) {
     // Demo: 6. toplantıdan beri gelen bir misafir ve 9. toplantıda üye alınmış biri
     const g = { id: uid(), full_name: "Deniz Yılmaz (örnek misafir)", phone: "", email: "", note: "", created_at: new Date().toISOString() };
@@ -149,6 +150,39 @@ function demoStore() {
     async me() { return me() ? clone(me()) : null; },
 
     async listMembers() { return clone(S.profiles); },
+
+    // Fotoğraf arşivi (demo: küçük resimler bu tarayıcıda saklanır; tam boy da küçük resimdir)
+    async listAlbums() {
+      if (!me() || me().status !== "active") return [];
+      return clone(S.albums).map(a => ({ ...a, photo_count: S.albumPhotos.filter(p => p.album_id === a.id).length, cover_url: a.cover_path || null }));
+    },
+    async getAlbum(id) { const a = S.albums.find(x => x.id === id); return a ? clone(a) : null; },
+    async createAlbum({ type, name, date }) {
+      need("arsiv-yonetim");
+      if (!(name || "").trim() || !date) throw new Error("Etkinlik adı ve tarihi zorunlu.");
+      const a = { id: uid(), type, name: name.trim(), date, cover_path: null, created_by: me().id, created_at: new Date().toISOString() };
+      S.albums.push(a); save(); return clone(a);
+    },
+    async updateAlbum(id, patch) { need("arsiv-yonetim"); Object.assign(S.albums.find(a => a.id === id), patch); save(); },
+    async deleteAlbum(id) { need("arsiv-yonetim"); S.albums = S.albums.filter(a => a.id !== id); S.albumPhotos = S.albumPhotos.filter(p => p.album_id !== id); save(); },
+    async listPhotos(albumId) {
+      return clone(S.albumPhotos.filter(p => p.album_id === albumId)).map(p => ({ ...p, thumb_url: p.data, url: p.data, uploader: S.profiles.find(x => x.id === p.uploaded_by)?.full_name || "" }));
+    },
+    async uploadAlbumPhoto(albumId, file) {
+      if (me()?.status !== "active") throw new Error("Fotoğraf yüklemek için aktif üye olmalısın.");
+      const p = await preparePhoto(file);
+      const data = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(p.thumb); });
+      const row = { id: uid(), album_id: albumId, path: "", thumb_path: "", data, width: p.width, height: p.height, uploaded_by: me().id, created_at: new Date().toISOString() };
+      S.albumPhotos.push(row);
+      const a = S.albums.find(x => x.id === albumId); if (a && !a.cover_path) a.cover_path = data;
+      save(); return clone(row);
+    },
+    async deleteAlbumPhoto(photo) {
+      const m = me(); if (!(photo.uploaded_by === m?.id || can(m, "arsiv-yonetim", "edit"))) throw new Error("Bu fotoğrafı yalnızca yükleyen kişi ya da yöneticiler silebilir.");
+      S.albumPhotos = S.albumPhotos.filter(p => p.id !== photo.id);
+      const a = S.albums.find(x => x.id === photo.album_id); if (a && a.cover_path === photo.data) a.cover_path = S.albumPhotos.find(p => p.album_id === a.id)?.data || null;
+      save();
+    },
     // Demo: kendi şifresini belirleyenler + örnek olarak listenin ilk yarısı "şifre oluşturdu" sayılır.
     async listAccounts() {
       const m = me(); if (!(hasRole(m, "baskan") || m?.past_president || hasRole(m, "sekreter"))) return null;
@@ -324,6 +358,47 @@ async function supabaseStore() {
       return data || { id, full_name: "", status: "pending", roles: [] };
     },
     async listMembers() { return ok(await sb.from("profiles").select("*").order("full_name")); },
+
+    // Fotoğraf arşivi: "photos" özel deposu; görseller 1 saatlik imzalı adreslerle gösterilir.
+    async listAlbums() {
+      const rows = ok(await sb.from("albums").select("*, album_photos(count)").order("date", { ascending: false }));
+      const covers = rows.map(a => a.cover_path).filter(Boolean);
+      const urls = covers.length ? ok(await sb.storage.from("photos").createSignedUrls(covers, 3600)) : [];
+      const map = new Map(urls.map(u => [u.path, u.signedUrl]));
+      return rows.map(({ album_photos, ...a }) => ({ ...a, photo_count: album_photos?.[0]?.count ?? 0, cover_url: map.get(a.cover_path) || null }));
+    },
+    async getAlbum(id) { const { data } = await sb.from("albums").select("*").eq("id", id).maybeSingle(); return data; },
+    async createAlbum({ type, name, date }) {
+      if (!(name || "").trim() || !date) throw new Error("Etkinlik adı ve tarihi zorunlu.");
+      return ok(await sb.from("albums").insert({ type, name: name.trim(), date }).select().single());
+    },
+    async updateAlbum(id, patch) { ok(await sb.from("albums").update(patch).eq("id", id)); },
+    async deleteAlbum(id) {
+      const photos = ok(await sb.from("album_photos").select("path, thumb_path").eq("album_id", id));
+      const paths = photos.flatMap(p => [p.path, p.thumb_path]);
+      for (let i = 0; i < paths.length; i += 100) ok(await sb.storage.from("photos").remove(paths.slice(i, i + 100)));
+      ok(await sb.from("albums").delete().eq("id", id));
+    },
+    async listPhotos(albumId) {
+      const rows = ok(await sb.from("album_photos").select("*, profiles:uploaded_by(full_name)").eq("album_id", albumId).order("created_at"));
+      if (!rows.length) return [];
+      const all = rows.flatMap(p => [p.thumb_path, p.path]);
+      const map = new Map();
+      for (let i = 0; i < all.length; i += 200) ok(await sb.storage.from("photos").createSignedUrls(all.slice(i, i + 200), 3600)).forEach(u => map.set(u.path, u.signedUrl));
+      return rows.map(({ profiles, ...p }) => ({ ...p, thumb_url: map.get(p.thumb_path), url: map.get(p.path), uploader: profiles?.full_name || "" }));
+    },
+    async uploadAlbumPhoto(albumId, file) {
+      const p = await preparePhoto(file);
+      const id = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
+      const path = `${albumId}/${id}.jpg`, thumb_path = `${albumId}/thumb/${id}.jpg`;
+      ok(await sb.storage.from("photos").upload(path, p.full, { contentType: "image/jpeg" }));
+      ok(await sb.storage.from("photos").upload(thumb_path, p.thumb, { contentType: "image/jpeg" }));
+      return ok(await sb.from("album_photos").insert({ album_id: albumId, path, thumb_path, width: p.width, height: p.height, uploaded_by: await meId() }).select().single());
+    },
+    async deleteAlbumPhoto(photo) {
+      ok(await sb.from("album_photos").delete().eq("id", photo.id));
+      await sb.storage.from("photos").remove([photo.path, photo.thumb_path]);
+    },
     // Kim siteye şifresini oluşturmuş? (member_accounts SQL fonksiyonu; yetkisiz ya da kurulmamışsa null)
     async listAccounts() { const { data, error } = await sb.rpc("member_accounts"); return error || !data?.length ? null : data; },
     async updateMember(id, patch) {
@@ -442,6 +517,18 @@ async function squareCanvas(file, size) {
   const c = document.createElement("canvas"); c.width = c.height = size;
   c.getContext("2d").drawImage(img, (img.naturalWidth - s) / 2, Math.max(0, (img.naturalHeight - s) / 3), s, s, 0, 0, size, size);
   return c;
+}
+// Fotoğraf arşivi: en boy oranını koruyarak küçült (tam boy 2048 px, küçük resim 480 px), JPEG yap.
+async function fitCanvas(file, max) {
+  const img = await loadImg(file); URL.revokeObjectURL(img.src);
+  const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+  const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); return c;
+}
+const canvasBlob = (c, q) => new Promise((res, rej) => c.toBlob(b => b ? res(b) : rej(new Error("Fotoğraf işlenemedi.")), "image/jpeg", q));
+async function preparePhoto(file) {
+  const full = await fitCanvas(file, 2048), thumb = await fitCanvas(file, 480);
+  return { full: await canvasBlob(full, 0.85), thumb: await canvasBlob(thumb, 0.78), width: full.width, height: full.height };
 }
 async function squareDataUrl(file, size) { return (await squareCanvas(file, size)).toDataURL("image/jpeg", 0.82); }
 async function squareBlob(file, size) { const c = await squareCanvas(file, size); return new Promise(r => c.toBlob(r, "image/jpeg", 0.86)); }

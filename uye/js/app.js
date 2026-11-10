@@ -132,7 +132,7 @@ function authView(tab = "giris", error = "") {
   if (fg) fg.onclick = () => forgotView(lf.email.value);
   if (lf) lf.onsubmit = async e => {
     e.preventDefault(); const d = Object.fromEntries(new FormData(lf));
-    try { me = await store.signIn(d.email, d.password); location.hash = "#profil"; render(); } catch (er) { authView("giris", er.message); }
+    try { me = await store.signIn(d.email, d.password); if (!/^#(yukle|arsiv)[/]/.test(location.hash)) location.hash = "#profil"; render(); } catch (er) { authView("giris", er.message); }
   };
   const sf = document.getElementById("f-signup");
   if (sf) sf.onsubmit = async e => {
@@ -150,7 +150,7 @@ function authView(tab = "giris", error = "") {
     const order = ["Başkan", "Sayman", "Sekreter", "Halkla", "Hizmet", "Geçmiş", "Yönetim", "Üye"];
     const pick = order.map(o => list.find(a => a.title.startsWith(o))).filter(Boolean);
     box.innerHTML = pick.map(a => `<button class="chip" data-e="${esc(a.email)}"><b>${esc(a.label)}</b><span>${esc(a.title)}</span></button>`).join("");
-    box.querySelectorAll(".chip").forEach(c => c.onclick = async () => { me = await store.signIn(c.dataset.e, store.demoPassword); location.hash = "#profil"; render(); });
+    box.querySelectorAll(".chip").forEach(c => c.onclick = async () => { me = await store.signIn(c.dataset.e, store.demoPassword); if (!/^#(yukle|arsiv)[/]/.test(location.hash)) location.hash = "#profil"; render(); });
   });
 }
 
@@ -198,6 +198,8 @@ const PAGES = [
   { id: "takvim", label: "Takvim", show: () => true },
   { id: "uyeler", label: "Üye listesi", show: () => true },
   { id: "kulupler", label: "Diğer kulüplerin etkinlikleri", show: () => true },
+  { id: "arsiv", label: "Fotoğraf arşivi", show: () => true },
+  { id: "yukle", label: "Fotoğraf yükle", show: () => true, hidden: true },
   { grp: "Yönetim" },
   { id: "duyurular", label: "Duyurular", panel: "duyuru" },
   { id: "yoklama", label: "Yoklama", panel: "yoklama" },
@@ -211,15 +213,19 @@ const PAGES = [
 const visible = p => p.panel ? can(me, p.panel, "view") : p.show?.();
 
 let composerInst = null;
+// Adresin alt parçaları: #arsiv/toplanti/<albümId>, #yukle/<albümId>
+let route = [];
 function shell() {
   try { composerInst?.destroy?.(); } catch {} composerInst = null;
-  let id = (location.hash || "#profil").slice(1);
+  [route] = [(location.hash || "#profil").slice(1).split("/").map(decodeURIComponent)];
+  let id = route.shift();
   const page = PAGES.find(p => p.id === id);
-  if (!page || !visible(page)) id = "profil";
-  const nav = PAGES.filter(p => p.grp || visible(p));
+  if (!page || !visible(page)) { id = "profil"; route = []; }
+  const navId = id === "yukle" ? "arsiv" : id;
+  const nav = PAGES.filter(p => p.grp || (visible(p) && !p.hidden));
   const navHtml = nav.map((p, i) => p.grp
     ? (nav.slice(i + 1).some(x => !x.grp) ? `<div class="grp">${p.grp}</div>` : "")
-    : `<a href="#${p.id}" ${p.id === id ? 'aria-current="page"' : ""}>${p.label}${p.panel && !can(me, p.panel, "edit") ? '<span class="ro" title="Yalnızca görüntüleme">Görüntüle</span>' : ""}</a>`).join("");
+    : `<a href="#${p.id}" ${p.id === navId ? 'aria-current="page"' : ""}>${p.label}${p.panel && !can(me, p.panel, "edit") ? '<span class="ro" title="Yalnızca görüntüleme">Görüntüle</span>' : ""}</a>`).join("");
   app.innerHTML = `
   <div class="shell">
     <aside class="side" id="side">
@@ -251,7 +257,7 @@ function shell() {
   const rs = document.getElementById("reset");
   if (rs) rs.onclick = () => { if (confirm("Örnek veriler ilk haline dönsün mü? Bu tarayıcıdaki demo değişiklikleri silinir.")) { store.resetDemo(); location.hash = ""; location.reload(); } };
   const view = document.getElementById("view");
-  const fn = { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram, "wa-toplanti": viewWaMeeting, "wa-aidat": viewWaDues }[id];
+  const fn = { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram, arsiv: viewArchive, yukle: viewUpload, "wa-toplanti": viewWaMeeting, "wa-aidat": viewWaDues }[id];
   fn(view).catch(e => { view.innerHTML = `<div class="err">${esc(e.message)}</div>`; });
   labelTables(view);
   new MutationObserver(() => labelTables(view)).observe(view, { childList: true, subtree: true });
@@ -1283,6 +1289,164 @@ async function viewWaDues(v) {
     sent.add(m.id); b.textContent = "Tekrar gönder"; b.classList.add("ghost");
     toast(`${esc(m.full_name)} için WhatsApp açıldı. Gönder'e bas.`);
   });
+}
+
+/* ---------------------------- Fotoğraf arşivi ---------------------------- */
+const ALBUM_TYPES = { toplanti: ["Toplantılar", "Toplantı"], ocakbasi: ["Ocakbaşları", "Ocakbaşı"], proje: ["Projeler", "Proje"], etkinlik: ["Etkinlik ve organizasyonlar", "Etkinlik / organizasyon"], diger: ["Diğer", "Diğer"] };
+const uploadLink = id => `${location.origin}${location.pathname}${location.search}#yukle/${id}`;
+const albumHref = a => `#arsiv/${a.type}/${a.id}`;
+const canManageAlbums = () => can(me, "arsiv-yonetim", "edit");
+const crumbs = list => `<nav class="crumbs" aria-label="Konum">${list.map(([href, label], i) => i < list.length - 1 ? `<a href="${href}">${esc(label)}</a><span aria-hidden="true">›</span>` : `<span aria-current="page">${esc(label)}</span>`).join("")}</nav>`;
+const shareLinkBox = a => `<div class="linkbox">
+    <label class="f">Yükleme linki<input type="text" readonly value="${esc(uploadLink(a.id))}" id="ul-${a.id}"></label>
+    <div class="row"><button type="button" class="btn sm" data-copy="${a.id}">Linki kopyala</button><button type="button" class="btn wa sm" data-wash="${a.id}">WhatsApp'ta paylaş</button><a class="btn ghost sm" href="#yukle/${a.id}">Yükleme sayfasını aç</a></div>
+  </div>`;
+function bindShare(root, albums) {
+  root.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => copyText(uploadLink(b.dataset.copy), "Yükleme linki"));
+  root.querySelectorAll("[data-wash]").forEach(b => b.onclick = () => {
+    const a = albums.find(x => x.id === b.dataset.wash);
+    waOpen(`📸 *${a.name}* (${trDate(a.date)}) fotoğraflarını arşivimize yükleyelim!\n\nÜye hesabınla giriş yapıp telefonundan fotoğrafları seçmen yeterli:\n${uploadLink(a.id)}`);
+  });
+}
+
+async function viewArchive(v) {
+  const [type, albumId] = route;
+  if (albumId) return viewAlbum(v, albumId);
+  const albums = await store.listAlbums();
+  const manager = canManageAlbums();
+
+  if (type && ALBUM_TYPES[type]) {
+    const list = albums.filter(a => a.type === type).sort((a, b) => b.date.localeCompare(a.date));
+    v.innerHTML = crumbs([["#arsiv", "Fotoğraf arşivi"], ["", ALBUM_TYPES[type][0]]]) + header(ALBUM_TYPES[type][0], `${list.length} etkinlik · ${list.reduce((s, a) => s + a.photo_count, 0)} fotoğraf`) +
+      (list.length ? `<div class="album-grid">${list.map(a => `<a class="album-card" href="${albumHref(a)}">
+        <div class="cover">${a.cover_url ? `<img src="${esc(a.cover_url)}" alt="" loading="lazy">` : `<span class="empty">Henüz fotoğraf yok</span>`}</div>
+        <div class="meta"><b>${esc(a.name)}</b><span>${trDate(a.date)} · ${a.photo_count} fotoğraf</span></div></a>`).join("")}</div>`
+        : `<div class="card"><p class="muted" style="margin:0">Bu klasörde henüz etkinlik yok.${manager ? " Fotoğraf arşivi ana sayfasından yükleme linki oluşturabilirsin." : ""}</p></div>`);
+    return;
+  }
+
+  v.innerHTML = header("Fotoğraf arşivi", "Toplantı, ocakbaşı, proje ve etkinliklerde çekilen fotoğraflar.") +
+    (manager ? `<form class="card" id="f-album">
+      <h2>Yeni yükleme linki</h2>
+      <p class="muted" style="margin-top:-6px;font-size:.88rem">Etkinliği oluştur, linki paylaş. Üyeler giriş yapıp fotoğraflarını telefonlarından doğrudan yükler.</p>
+      <div class="grid g3">
+        <label class="f">Etkinlik türü<select name="type" required>${Object.entries(ALBUM_TYPES).map(([k, [, one]]) => `<option value="${k}">${one}</option>`).join("")}</select></label>
+        <label class="f">Etkinlik adı<input type="text" name="name" required placeholder="ör. Kitap toplama kampanyası"></label>
+        <label class="f">Tarih<input type="date" name="date" required value="${today()}"></label>
+      </div>
+      <div class="row" style="margin-top:14px"><button class="btn">Link oluştur</button></div>
+      <div id="newlink"></div>
+    </form>` : "") +
+    `<div class="folder-grid">${Object.entries(ALBUM_TYPES).map(([k, [label]]) => {
+      const list = albums.filter(a => a.type === k), cover = list.find(a => a.cover_url);
+      if (k === "diger" && !list.length) return "";
+      return `<a class="folder" href="#arsiv/${k}">
+        <div class="cover">${cover ? `<img src="${esc(cover.cover_url)}" alt="" loading="lazy">` : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>`}</div>
+        <div class="meta"><b>${label}</b><span>${list.length} etkinlik · ${list.reduce((s, a) => s + a.photo_count, 0)} fotoğraf</span></div></a>`;
+    }).join("")}</div>`;
+
+  const f = document.getElementById("f-album");
+  if (f) f.onsubmit = async e => {
+    e.preventDefault();
+    const btn = f.querySelector("button"); btn.disabled = true;
+    try {
+      const a = await store.createAlbum({ type: f.type.value, name: f.name.value, date: f.date.value });
+      document.getElementById("newlink").innerHTML = `<div class="banner info" style="margin-top:14px"><b>${esc(a.name)}</b> için yükleme linki hazır. Kulüp grubunda paylaşabilirsin.</div>` + shareLinkBox(a);
+      bindShare(f, [a]);
+      f.name.value = "";
+      toast("Yükleme linki oluşturuldu.");
+    } catch (er) { fail(er); }
+    btn.disabled = false;
+  };
+}
+
+async function viewAlbum(v, albumId) {
+  const album = await store.getAlbum(albumId);
+  if (!album) { v.innerHTML = crumbs([["#arsiv", "Fotoğraf arşivi"], ["", "Bulunamadı"]]) + `<div class="card"><p class="muted" style="margin:0">Bu albüm bulunamadı ya da silinmiş.</p></div>`; return; }
+  const photos = await store.listPhotos(albumId);
+  const manager = canManageAlbums();
+  const T = ALBUM_TYPES[album.type] || ALBUM_TYPES.diger;
+  v.innerHTML = crumbs([["#arsiv", "Fotoğraf arşivi"], [`#arsiv/${album.type}`, T[0]], ["", album.name]]) +
+    header(esc(album.name), `${T[1]} · ${trDate(album.date)} · ${photos.length} fotoğraf`, `<a class="btn" href="#yukle/${album.id}">Fotoğraf yükle</a>`) +
+    (manager ? `<details class="card"><summary style="cursor:pointer;font-weight:700">Yükleme linki ve albüm ayarları</summary>${shareLinkBox(album)}
+      <div class="row" style="margin-top:14px"><button type="button" class="btn danger sm" id="delalbum">Albümü ve tüm fotoğrafları sil</button></div></details>` : "") +
+    (photos.length ? `<div class="photo-grid">${photos.map((p, i) => `<button type="button" class="ph" data-i="${i}" aria-label="Fotoğraf ${i + 1}${p.uploader ? ", yükleyen " + esc(p.uploader) : ""}"><img src="${esc(p.thumb_url)}" alt="" loading="lazy"></button>`).join("")}</div>`
+      : `<div class="card"><p class="muted" style="margin:0">Bu albümde henüz fotoğraf yok. İlk yükleyen sen ol.</p></div>`) +
+    `<dialog id="lb" class="lightbox"></dialog>`;
+  bindShare(v, [album]);
+  const del = document.getElementById("delalbum");
+  if (del) del.onclick = async () => {
+    if (!confirm(`"${album.name}" albümü ve içindeki ${photos.length} fotoğraf kalıcı olarak silinsin mi? Bu geri alınamaz.`)) return;
+    try { await store.deleteAlbum(album.id); toast("Albüm silindi."); location.hash = `#arsiv/${album.type}`; } catch (e) { fail(e); }
+  };
+  const lb = document.getElementById("lb");
+  let cur = 0;
+  const show = i => {
+    cur = (i + photos.length) % photos.length; const p = photos[cur];
+    const mine = p.uploaded_by === me.id;
+    lb.innerHTML = `<div class="lb-top"><span>${cur + 1} / ${photos.length}${p.uploader ? " · " + esc(p.uploader) : ""}</span><div class="spacer"></div>
+      <a class="btn ghost sm" href="${esc(p.url)}" target="_blank" rel="noopener">Tam boy aç</a>
+      ${mine || manager ? `<button type="button" class="btn ghost sm" id="lb-del">Sil</button>` : ""}
+      <button type="button" class="btn ghost sm" id="lb-x" aria-label="Kapat">Kapat</button></div>
+      <div class="lb-body"><button type="button" class="lb-nav" id="lb-prev" aria-label="Önceki">‹</button><img src="${esc(p.url)}" alt="${esc(album.name)} fotoğrafı ${cur + 1}"><button type="button" class="lb-nav" id="lb-next" aria-label="Sonraki">›</button></div>`;
+    lb.querySelector("#lb-x").onclick = () => lb.close();
+    lb.querySelector("#lb-prev").onclick = () => show(cur - 1);
+    lb.querySelector("#lb-next").onclick = () => show(cur + 1);
+    const d = lb.querySelector("#lb-del");
+    if (d) d.onclick = async () => { if (!confirm("Bu fotoğraf silinsin mi?")) return; try { await store.deleteAlbumPhoto(p); lb.close(); toast("Fotoğraf silindi."); viewAlbum(v, albumId); } catch (e) { fail(e); } };
+    if (!lb.open) lb.showModal();
+  };
+  lb.addEventListener("keydown", e => { if (e.key === "ArrowLeft") show(cur - 1); if (e.key === "ArrowRight") show(cur + 1); });
+  let x0 = null;
+  lb.addEventListener("touchstart", e => { x0 = e.touches[0].clientX; }, { passive: true });
+  lb.addEventListener("touchend", e => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 50) show(cur + (dx < 0 ? 1 : -1)); x0 = null; });
+  v.querySelectorAll(".ph").forEach(b => b.onclick = () => show(+b.dataset.i));
+}
+
+async function viewUpload(v) {
+  const [albumId] = route;
+  const album = albumId ? await store.getAlbum(albumId) : null;
+  if (!album) { v.innerHTML = header("Fotoğraf yükle") + `<div class="card"><p class="muted" style="margin:0">Bu yükleme linki geçersiz ya da albüm silinmiş. Linki paylaşan kişiye sorabilirsin.</p><p style="margin:12px 0 0"><a href="#arsiv">Fotoğraf arşivine git</a></p></div>`; return; }
+  const T = ALBUM_TYPES[album.type] || ALBUM_TYPES.diger;
+  v.innerHTML = header("Fotoğraf yükle", `${T[1]} · ${esc(album.name)} · ${trDate(album.date)}`) + `
+  <div class="card upload-card">
+    <label class="drop" id="drop">
+      <input type="file" accept="image/*" multiple id="files" class="sr">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2M12 4v12M7 9l5-5 5 5"/></svg>
+      <b>Fotoğrafları seç</b>
+      <span>Telefonundan birden fazla fotoğrafı aynı anda seçebilirsin.</span>
+    </label>
+    <div id="up-status" class="up-status" aria-live="polite"></div>
+    <div class="photo-grid sm" id="up-grid"></div>
+    <div class="row" style="margin-top:14px"><a class="btn ghost" href="${albumHref(album)}">Albümü gör</a></div>
+  </div>`;
+  const input = document.getElementById("files"), status = document.getElementById("up-status"), grid = document.getElementById("up-grid"), drop = document.getElementById("drop");
+  let done = 0, failed = 0, total = 0, busy = 0;
+  const paint = () => { status.innerHTML = total ? `<div class="bar"><i style="width:${Math.round((done + failed) / total * 100)}%"></i></div><p>${done} / ${total} fotoğraf yüklendi${failed ? ` · <span style="color:var(--bad)">${failed} yüklenemedi</span>` : ""}${done + failed === total ? " · tamamlandı ✓" : "…"}</p>` : ""; };
+  const run = async files => {
+    const list = [...files].filter(f => f.type.startsWith("image/") || /\.(jpe?g|png|heic|heif|webp)$/i.test(f.name));
+    if (!list.length) return;
+    total += list.length; paint();
+    const queue = [...list];
+    const worker = async () => {
+      while (queue.length) {
+        const f = queue.shift(); busy++;
+        try {
+          await store.uploadAlbumPhoto(album.id, f);
+          done++;
+          const u = URL.createObjectURL(f); const im = document.createElement("img"); im.src = u; im.alt = ""; im.onload = () => URL.revokeObjectURL(u);
+          const c = document.createElement("div"); c.className = "ph"; c.appendChild(im); grid.prepend(c);
+        } catch (e) { failed++; console.error(e); if (failed === 1) toast(`Bir fotoğraf yüklenemedi: ${esc(e.message)}`, "bad"); }
+        busy--; paint();
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);
+    if (!busy && done + failed === total) toast(`${done} fotoğraf "${esc(album.name)}" albümüne eklendi.`);
+  };
+  input.onchange = () => { run(input.files); input.value = ""; };
+  drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+  drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+  drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); run(e.dataTransfer.files); });
 }
 
 boot();

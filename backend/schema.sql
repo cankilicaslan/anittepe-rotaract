@@ -733,3 +733,97 @@ select cron.schedule(
        body    := '{}'::jsonb
      ); $$
 );
+
+-- =====================================================================
+-- v6: Fotoğraf arşivi
+-- Başkan, sekreter ve Halkla İlişkiler (pr) yükleme linki (albüm) açar; aktif üyeler giriş yapıp
+-- fotoğraf yükler ve arşivi görür. Fotoğraflar "photos" adlı özel (herkese açık olmayan) depoda durur.
+-- =====================================================================
+create or replace function public.can_manage_albums()
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.is_admin() or public.has_role('sekreter') or public.has_role('pr');
+$$;
+grant execute on function public.can_manage_albums() to authenticated;
+
+create table if not exists public.albums (
+  id         uuid primary key default gen_random_uuid(),
+  type       text not null,
+  name       text not null,
+  date       date not null,
+  cover_path text,
+  created_by uuid references public.profiles(id) on delete set null default auth.uid(),
+  created_at timestamptz not null default now(),
+  constraint albums_type_chk check (type in ('toplanti','ocakbasi','proje','etkinlik','diger'))
+);
+create index if not exists albums_type_date_idx on public.albums (type, date desc);
+
+create table if not exists public.album_photos (
+  id          uuid primary key default gen_random_uuid(),
+  album_id    uuid not null references public.albums(id) on delete cascade,
+  path        text not null,
+  thumb_path  text not null,
+  width       int,
+  height      int,
+  uploaded_by uuid references public.profiles(id) on delete set null default auth.uid(),
+  created_at  timestamptz not null default now()
+);
+create index if not exists album_photos_album_idx on public.album_photos (album_id, created_at);
+
+-- İlk yüklenen fotoğraf albümün kapağı olur
+create or replace function public.album_set_cover()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  update public.albums set cover_path = new.thumb_path where id = new.album_id and cover_path is null;
+  return new;
+end;
+$$;
+drop trigger if exists album_photos_cover on public.album_photos;
+create trigger album_photos_cover after insert on public.album_photos
+  for each row execute function public.album_set_cover();
+
+-- Kapak fotoğrafı silinirse sıradakini kapak yap
+create or replace function public.album_fix_cover()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  update public.albums a set cover_path = (
+    select p.thumb_path from public.album_photos p where p.album_id = a.id order by p.created_at limit 1)
+  where a.id = old.album_id and a.cover_path = old.thumb_path;
+  return old;
+end;
+$$;
+drop trigger if exists album_photos_uncover on public.album_photos;
+create trigger album_photos_uncover after delete on public.album_photos
+  for each row execute function public.album_fix_cover();
+
+alter table public.albums       enable row level security;
+alter table public.album_photos enable row level security;
+
+drop policy if exists albums_select on public.albums;
+create policy albums_select on public.albums for select to authenticated using (public.is_active());
+drop policy if exists albums_write on public.albums;
+create policy albums_write on public.albums for all to authenticated
+  using (public.can_manage_albums()) with check (public.can_manage_albums());
+
+drop policy if exists album_photos_select on public.album_photos;
+create policy album_photos_select on public.album_photos for select to authenticated using (public.is_active());
+drop policy if exists album_photos_insert on public.album_photos;
+create policy album_photos_insert on public.album_photos for insert to authenticated
+  with check (public.is_active() and uploaded_by = auth.uid());
+drop policy if exists album_photos_delete on public.album_photos;
+create policy album_photos_delete on public.album_photos for delete to authenticated
+  using (uploaded_by = auth.uid() or public.can_manage_albums());
+
+-- Depo: özel, en fazla 10 MB, yalnızca JPEG (tarayıcı yüklemeden önce JPEG'e çevirir)
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('photos', 'photos', false, 10485760, array['image/jpeg'])
+on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "photos_read" on storage.objects;
+create policy "photos_read" on storage.objects for select to authenticated
+  using (bucket_id = 'photos' and public.is_active());
+drop policy if exists "photos_insert" on storage.objects;
+create policy "photos_insert" on storage.objects for insert to authenticated
+  with check (bucket_id = 'photos' and public.is_active());
+drop policy if exists "photos_delete" on storage.objects;
+create policy "photos_delete" on storage.objects for delete to authenticated
+  using (bucket_id = 'photos' and (owner = auth.uid() or public.can_manage_albums()));

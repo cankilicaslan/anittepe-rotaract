@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611102144";
-import { can, hasRole, ROLE_LABELS } from "./roles.js?v=202611102144";
+import { createStore, trDate } from "./store.js?v=202611102148";
+import { can, hasRole, ROLE_LABELS } from "./roles.js?v=202611102148";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -290,13 +290,13 @@ const PAGES = [
   { grp: "Yönetim" },
   { id: "duyurular", label: "Duyurular", panel: "duyuru" },
   { id: "yoklama", label: "Yoklama", panel: "yoklama" },
-  { id: "wa-toplanti", label: "Toplantı duyurusu (WhatsApp)", show: () => can(me, "wa-toplanti", "edit") },
+  { id: "wa-toplanti", label: "Toplantı duyurusu (WhatsApp)", panel: "wa-toplanti" },
   { id: "aidat", label: "Aidat", panel: "aidat" },
-  { id: "wa-aidat", label: "Aidat hatırlatma (WhatsApp)", show: () => can(me, "wa-aidat", "edit") },
+  { id: "wa-aidat", label: "Aidat hatırlatma (WhatsApp)", panel: "wa-aidat" },
   { id: "kasa", label: "Kulüp kasası", panel: "kasa" },
   { id: "projeler", label: "Hizmet projeleri", panel: "projeler" },
   // Instagram: yalnızca paylaşım yapabilenler (başkan ve Halkla İlişkiler / HİTK) görür ve açar.
-  { id: "instagram", label: "Instagram paylaşımı", show: () => can(me, "instagram", "edit") }
+  { id: "instagram", label: "Instagram paylaşımı", panel: "instagram" }
 ];
 const visible = p => p.panel ? can(me, p.panel, "view") : p.show?.();
 
@@ -957,7 +957,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611102144");
+  const { mountComposer } = await import("./composer.js?v=202611102148");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1269,6 +1269,8 @@ const lsGet = (k, d = "") => { try { return localStorage.getItem(k) ?? d; } catc
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 const copyText = async (txt, what = "Metin") => { try { await navigator.clipboard.writeText(txt); toast(`${what} panoya kopyalandı.`); } catch { prompt("Kopyalayın:", txt); } };
 // İmza: gönderen o görevin sahibiyse görev adı, değilse (ör. başkan) kendi unvanı yazılır.
+// Görüntüleme modu: sayfadaki tüm alan ve düğmeleri kapat (bağlantılar çalışmaya devam eder).
+const lockView = root => root.querySelectorAll("input, textarea, select, button").forEach(el => { if (el.tagName === "SELECT" || el.tagName === "BUTTON") el.disabled = true; else el.readOnly = true; });
 const signature = (role, label) => `${me.full_name}\n${hasRole(me, role) ? label : me.title || label} · Ankara Anıttepe Rotaract`;
 
 /* ---------------- Sekreter: WhatsApp toplantı duyurusu ---------------- */
@@ -1276,7 +1278,7 @@ async function viewWaMeeting(v) {
   const [term, meetings] = await Promise.all([store.getTerm(), store.listMeetings()]);
   if (!meetings.length) { v.innerHTML = header("Toplantı duyurusu", "WhatsApp") + `<div class="card"><p class="muted" style="margin:0">Bu dönem için henüz toplantı tanımlanmamış.</p></div>`; return; }
   const next = meetings.find(m => m.date >= today()) || meetings.at(-1);
-  v.innerHTML = header("Toplantı duyurusu", "Seçtiğin toplantı için WhatsApp grubuna atılacak duyuru metnini hazırlar.") + `
+  v.innerHTML = header("Toplantı duyurusu", "Seçtiğin toplantı için WhatsApp grubuna atılacak duyuru metnini hazırlar.") + roBanner("wa-toplanti") + `
   <div class="grid g2 wa-grid">
     <form class="card" id="f-wam">
       <h2>Toplantı bilgileri</h2>
@@ -1329,6 +1331,7 @@ async function viewWaMeeting(v) {
   f.addEventListener("input", () => { edited = false; out.value = build(); lsSet("ar-wa-time", f.time.value); lsSet("ar-wa-place", f.place.value); });
   out.oninput = () => { edited = true; };
   fill();
+  if (!can(me, "wa-toplanti", "edit")) { lockView(v); return; }
   document.getElementById("wa-send").onclick = () => { waOpen(out.value); toast("WhatsApp açıldı. Kulüp grubunu seçip gönder."); };
   document.getElementById("wa-copy").onclick = () => copyText(out.value, "Duyuru metni");
 }
@@ -1346,7 +1349,7 @@ async function viewWaDues(v) {
   const defDue = openDues.find(d => d.due_date >= today()) || openDues.at(-1) || dues.at(-1);
   const DEF_PERSONAL = "Merhaba {ad},\n\nKulüp aidatı hatırlatması: ödenmemiş {kalemler} için toplam borcun {borc}.\n\n{odeme}\n\nÖdediysen bu mesajı dikkate alma, teşekkürler.\n\n{imza}";
   const sent = new Set();
-  v.innerHTML = header("Aidat hatırlatma", "Aidat ve ödeme hatırlatmalarını WhatsApp'tan gruba ya da kişiye özel gönder.") + `
+  v.innerHTML = header("Aidat hatırlatma", "Aidat ve ödeme hatırlatmalarını WhatsApp'tan gruba ya da kişiye özel gönder.") + roBanner("wa-aidat") + `
   <div class="card">
     <h2>Ödeme bilgisi</h2>
     <label class="f">IBAN ve ödeme açıklaması <small>Mesajlara eklenir; yalnızca bu tarayıcıda saklanır</small><textarea id="pay" rows="3" placeholder="IBAN: TR.. .... .... ....\nAlıcı: ...\nAçıklamaya adını ve ayı yaz.">${esc(lsGet("ar-wa-pay"))}</textarea></label>
@@ -1374,6 +1377,7 @@ async function viewWaDues(v) {
     </tbody></table></div>` : `<p class="muted" style="margin:0">Herkesin aidatı ödenmiş. 🎉</p>`}
   </div>`;
   const pay = document.getElementById("pay"), ptpl = document.getElementById("ptpl");
+  const roWa = !can(me, "wa-aidat", "edit");
   pay.oninput = () => { lsSet("ar-wa-pay", pay.value); gfill(); };
   ptpl.oninput = () => lsSet("ar-wa-ptpl", ptpl.value);
   document.getElementById("preset").onclick = () => { ptpl.value = DEF_PERSONAL; lsSet("ar-wa-ptpl", DEF_PERSONAL); };
@@ -1388,6 +1392,7 @@ async function viewWaDues(v) {
     document.getElementById("gsend").onclick = () => { waOpen(gtext.value); toast("WhatsApp açıldı. Kulüp grubunu seçip gönder."); };
     document.getElementById("gcopy").onclick = () => copyText(gtext.value, "Hatırlatma metni");
   }
+  if (roWa) { lockView(v); return; }
   v.querySelectorAll("[data-wa]").forEach(b => b.onclick = () => {
     const { m, d } = debtors.find(x => x.m.id === b.dataset.wa);
     const text = ptpl.value

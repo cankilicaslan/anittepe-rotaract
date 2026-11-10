@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611101932";
-import { can, hasRole } from "./roles.js?v=202611101932";
+import { CONFIG } from "./config.js?v=202611101934";
+import { can, hasRole } from "./roles.js?v=202611101934";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -327,7 +327,11 @@ function demoStore() {
 /* ---------------------------- SUPABASE ---------------------------- */
 async function supabaseStore() {
   const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm");
-  const sb = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+  // Oturum yalnızca bu sekmede tutulur (sessionStorage): sekme kapatılınca üyelik oturumu da kapanır.
+  // Eskiden localStorage'da kalmış oturum anahtarları temizlenir.
+  try { Object.keys(localStorage).filter(k => /^sb-.*-auth-token/.test(k)).forEach(k => localStorage.removeItem(k)); } catch {}
+  let authStorage; try { sessionStorage.setItem("ar-t", "1"); sessionStorage.removeItem("ar-t"); authStorage = sessionStorage; } catch { authStorage = undefined; }
+  const sb = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, { auth: { storage: authStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
   const ok = ({ data, error }) => { if (error) throw new Error(trError(error.message)); return data; };
   let cachedTerm = null;
   const term = async () => cachedTerm || (cachedTerm = ok(await sb.from("terms").select("*").eq("is_current", true).single()));

@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611102233";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611102233";
+import { createStore, trDate } from "./store.js?v=202611102237";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611102237";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -984,7 +984,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611102233");
+  const { mountComposer } = await import("./composer.js?v=202611102237");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1648,46 +1648,95 @@ async function viewDonations(v) {
 }
 
 /* ----------------------------- Proje formları ----------------------------- */
-let pfFilter = "hepsi";
+let pfFilter = "hepsi", pfCom = "";
 async function viewProjectForms(v) {
   const ro = !can(me, "proje-form", "edit");
   const all = await store.listProjects();
-  const done = all.filter(p => p.date && p.date <= today() && p.status !== "iptal").sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  // Yapılan projeler: tarihi gelmiş ya da proje formu girilmiş olanlar
+  const done = all.filter(p => p.status !== "iptal" && (p.form_submitted_at || (p.date && p.date <= today())))
+    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   const withForm = done.filter(p => p.form_submitted_at);
-  const shown = done.filter(p => pfFilter === "hepsi" || (pfFilter === "girildi" ? p.form_submitted_at : !p.form_submitted_at));
+  const comOf = p => p.committee || "Belirtilmedi";
   const byCom = {};
-  done.forEach(p => { const k = p.committee || "Belirtilmedi"; byCom[k] ||= { done: 0, form: 0 }; byCom[k].done++; if (p.form_submitted_at) byCom[k].form++; });
-  v.innerHTML = header("Proje formları", "Yapılan projeler, hangi komiteden yapıldığı ve bölgeye proje formunun girildiği tarih.") + roBanner("proje-form") + `
+  done.forEach(p => { const k = comOf(p); byCom[k] ||= { done: 0, form: 0 }; byCom[k].done++; if (p.form_submitted_at) byCom[k].form++; });
+  const shown = done.filter(p => (!pfCom || comOf(p) === pfCom) && (pfFilter === "hepsi" || (pfFilter === "girildi" ? p.form_submitted_at : !p.form_submitted_at)));
+  const comOptions = [...COMMITTEES, ...(byCom["Belirtilmedi"] ? ["Belirtilmedi"] : [])];
+  v.innerHTML = header("Proje formları", "Yapılan projeler, hangi komiteden yapıldığı ve bölgeye proje formunun girildiği tarih.", ro ? "" : `<button class="btn" id="pf-add">Proje ekle</button>`) + roBanner("proje-form") + `
   <div class="stats">
     <div class="stat hl"><span>Yapılan proje</span><b>${done.length}</b></div>
     <div class="stat"><span>Proje formu girilen</span><b>${withForm.length}</b></div>
     <div class="stat"><span>Form bekleyen</span><b>${done.length - withForm.length}</b></div>
-    <div class="stat"><span>Komite sayısı</span><b>${Object.keys(byCom).filter(k => k !== "Belirtilmedi").length}</b></div>
+    <div class="stat"><span>Proje yapan komite</span><b>${Object.keys(byCom).filter(k => k !== "Belirtilmedi").length}</b></div>
   </div>
   <div class="card"><h2>Komitelere göre</h2>
-    ${Object.keys(byCom).length ? `<div class="tbl-wrap"><table><thead><tr><th>Komite</th><th class="num">Yapılan</th><th class="num">Form girilen</th><th>Oran</th></tr></thead><tbody>
-    ${Object.entries(byCom).sort((a, b) => b[1].done - a[1].done).map(([k, c]) => `<tr><td>${esc(k)}</td><td class="num">${c.done}</td><td class="num">${c.form}</td><td><div class="row" style="flex-wrap:nowrap"><div class="bar" style="flex:1"><i style="width:${c.form / c.done * 100}%"></i></div><b style="min-width:44px;text-align:right">${pct(c.form / c.done)}</b></div></td></tr>`).join("")}
-    </tbody></table></div>` : '<p class="muted" style="margin:0">Henüz yapılmış proje yok.</p>'}
+    <p class="muted" style="margin:-6px 0 10px;font-size:.88rem">Bir komiteye tıklayınca aşağıdaki liste o komiteye göre süzülür.</p>
+    ${Object.keys(byCom).length ? `<div class="tbl-wrap"><table><thead><tr><th>Komite</th><th class="num">Yapılan proje</th><th class="num">Proje formu girilen</th><th class="num">Form bekleyen</th><th>Oran</th></tr></thead><tbody>
+    ${Object.entries(byCom).sort((a, b) => b[1].done - a[1].done).map(([k, c]) => `<tr class="pf-com ${pfCom === k ? "sel" : ""}" data-com="${esc(k)}" tabindex="0" role="button" aria-pressed="${pfCom === k}"><td><b>${esc(k)}</b></td><td class="num">${c.done}</td><td class="num">${c.form}</td><td class="num">${c.done - c.form}</td><td><div class="row" style="flex-wrap:nowrap"><div class="bar" style="flex:1"><i style="width:${c.form / c.done * 100}%"></i></div><b style="min-width:44px;text-align:right">${pct(c.form / c.done)}</b></div></td></tr>`).join("")}
+    </tbody></table></div>` : `<p class="muted" style="margin:0">Henüz proje yok.${ro ? "" : ' "Proje ekle" ile ilkini gir.'}</p>`}
   </div>
-  <div class="card"><div class="row" style="margin-bottom:12px"><h2 style="margin:0">Yapılan projeler</h2><div class="spacer"></div>
-    <div class="seg" role="group" aria-label="Filtre">${[["hepsi", "Hepsi"], ["bekleyen", "Form bekleyen"], ["girildi", "Form girilen"]].map(([k, l]) => `<button type="button" data-pf="${k}" aria-pressed="${pfFilter === k}">${l}</button>`).join("")}</div></div>
-    <p class="muted" style="margin:-4px 0 12px;font-size:.88rem">Hizmet projeleri sayfasındaki tarihi gelmiş (yapılmış) projeler burada listelenir.</p>
-    ${shown.length ? `<div class="tbl-wrap"><table><thead><tr><th>Proje</th><th>Komite</th><th>Proje tarihi</th><th>Proje formu girildi</th></tr></thead><tbody>
+  <div class="card">
+    <div class="row" style="margin-bottom:12px;align-items:flex-end"><h2 style="margin:0">Projeler</h2><div class="spacer"></div>
+      <label class="f" style="min-width:220px">Komite<select id="pf-com"><option value="">Tüm komiteler</option>${comOptions.map(c => `<option ${pfCom === c ? "selected" : ""}>${esc(c)}</option>`).join("")}</select></label>
+      <div class="seg" role="group" aria-label="Proje formu durumu" style="margin-bottom:4px">${[["hepsi", "Hepsi"], ["girildi", "Form girilen"], ["bekleyen", "Form bekleyen"]].map(([k, l]) => `<button type="button" data-pf="${k}" aria-pressed="${pfFilter === k}">${l}</button>`).join("")}</div>
+    </div>
+    <p class="muted" style="margin:-4px 0 12px;font-size:.88rem">${shown.length} proje gösteriliyor${pfCom ? ` · ${esc(pfCom)}` : ""}. Hizmet projeleri sayfasında tarihi gelen projeler de buraya kendiliğinden düşer.</p>
+    ${shown.length ? `<div class="tbl-wrap"><table><thead><tr><th>Proje</th><th>Komite</th><th>Proje tarihi</th><th>Proje formu girildi</th>${ro ? "" : "<th></th>"}</tr></thead><tbody>
     ${shown.map(p => `<tr data-id="${p.id}">
       <td><b>${esc(p.title)}</b>${p.owner ? `<br><small class="muted">${esc(p.owner)}</small>` : ""}</td>
-      <td>${ro ? esc(p.committee || "–") : `<select data-c aria-label="Komite"><option value="">Seç…</option>${COMMITTEES.map(c => `<option ${p.committee === c ? "selected" : ""}>${c}</option>`).join("")}</select>`}</td>
+      <td>${p.committee ? esc(p.committee) : '<span class="muted">Belirtilmedi</span>'}</td>
       <td>${p.date ? trDate(p.date) : "–"}</td>
-      <td><label class="check" style="margin:0"><input type="checkbox" data-pfm ${p.form_submitted_at ? "checked" : ""} ${ro ? "disabled" : ""}> ${p.form_submitted_at ? (ro ? `<span>${trDate(p.form_submitted_at)}</span>` : "") : '<span class="muted">Girilmedi</span>'}</label>${p.form_submitted_at && !ro ? `<input type="date" data-pfd value="${p.form_submitted_at}" aria-label="Proje formunun girildiği tarih" style="margin-top:6px">` : ""}</td>
+      <td>${p.form_submitted_at ? `<span class="tag ok">${trDate(p.form_submitted_at)}</span>` : (ro ? '<span class="muted">Girilmedi</span>' : '<button type="button" class="btn ghost sm" data-today>Bugün girildi</button>')}</td>
+      ${ro ? "" : '<td><button type="button" class="btn ghost sm" data-edit>Düzenle</button></td>'}
     </tr>`).join("")}</tbody></table></div>` : '<p class="muted" style="margin:0">Bu filtrede proje yok.</p>'}
-  </div>`;
-  v.querySelectorAll("[data-pf]").forEach(b => b.onclick = () => { pfFilter = b.dataset.pf; viewProjectForms(v); });
-  if (ro) return;
-  const save = async (id, patch, msg) => { try { await store.updateProjectForm(id, patch); toast(msg); viewProjectForms(v); } catch (e) { fail(e); } };
-  v.querySelectorAll("tr[data-id]").forEach(tr => {
-    tr.querySelector("[data-c]").onchange = e => save(tr.dataset.id, { committee: e.target.value || null }, "Komite kaydedildi.");
-    const pfd = tr.querySelector("[data-pfd]"); if (pfd) pfd.onchange = () => pfd.value && save(tr.dataset.id, { form_submitted_at: pfd.value }, "Tarih kaydedildi.");
-    tr.querySelector("[data-pfm]").onchange = e => save(tr.dataset.id, { form_submitted_at: e.target.checked ? today() : null }, e.target.checked ? "Proje formu girildi olarak işaretlendi." : "İşaret kaldırıldı.");
+  </div>
+  <dialog id="dlg"></dialog>`;
+
+  const rerender = () => viewProjectForms(v);
+  v.querySelectorAll("[data-pf]").forEach(b => b.onclick = () => { pfFilter = b.dataset.pf; rerender(); });
+  document.getElementById("pf-com").onchange = e => { pfCom = e.target.value; rerender(); };
+  v.querySelectorAll("tr.pf-com").forEach(tr => {
+    const pick = () => { pfCom = pfCom === tr.dataset.com ? "" : tr.dataset.com; rerender(); };
+    tr.onclick = pick; tr.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } };
   });
+  if (ro) return;
+  document.getElementById("pf-add").onclick = () => projectFormDialog(null, rerender);
+  v.querySelectorAll("tr[data-id]").forEach(tr => {
+    const p = done.find(x => x.id === tr.dataset.id);
+    tr.querySelector("[data-edit]").onclick = () => projectFormDialog(p, rerender);
+    const t = tr.querySelector("[data-today]");
+    if (t) t.onclick = async () => { try { await store.updateProjectForm(p.id, { form_submitted_at: today() }); toast("Proje formu bugün girildi olarak kaydedildi."); rerender(); } catch (e) { fail(e); } };
+  });
+}
+// Proje ekle / düzenle: proje adı, komite, proje tarihi, proje formunun girildiği tarih
+function projectFormDialog(p, after) {
+  const isNew = !p;
+  p ||= { title: "", committee: pfCom && pfCom !== "Belirtilmedi" ? pfCom : "", date: today(), form_submitted_at: "" };
+  const dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<form method="dialog" id="f-pf">
+    <h2>${isNew ? "Proje ekle" : "Projeyi düzenle"}</h2>
+    <label class="f">Proje adı<input type="text" name="title" value="${esc(p.title)}" required></label>
+    <div class="grid g2">
+      <label class="f">Hangi komiteden<select name="committee" required><option value="">Seç…</option>${COMMITTEES.map(c => `<option ${p.committee === c ? "selected" : ""}>${c}</option>`).join("")}</select></label>
+      <label class="f">Proje hangi tarihte yapıldı<input type="date" name="date" value="${esc(p.date || "")}" required></label>
+      <label class="f">Proje formu hangi tarihte girildi <small>Girilmediyse boş bırak</small><input type="date" name="form_submitted_at" value="${esc(p.form_submitted_at || "")}"></label>
+    </div>
+    <p class="err" id="pf-err" role="alert" hidden></p>
+    <div class="row"><button class="btn" value="save">Kaydet</button><button class="btn ghost" value="cancel" formnovalidate>Vazgeç</button></div>
+  </form>`;
+  if (!dlg.open) dlg.showModal();
+  dlg.querySelector("form").onsubmit = async e => {
+    if (e.submitter?.value !== "save") return;
+    e.preventDefault();
+    const fd = new FormData(e.target), d = Object.fromEntries(fd);
+    const err = document.getElementById("pf-err");
+    if (!d.title.trim() || !d.committee || !d.date) { err.textContent = "Proje adı, komite ve proje tarihi zorunlu."; err.hidden = false; return; }
+    if (d.form_submitted_at && d.form_submitted_at < d.date) { err.textContent = "Proje formu, projeden önceki bir tarihte girilmiş olamaz."; err.hidden = false; return; }
+    const row = { title: d.title.trim(), committee: d.committee, date: d.date, form_submitted_at: d.form_submitted_at || null };
+    try {
+      if (isNew) await store.createProjectForm(row); else await store.updateProjectForm(p.id, row);
+      dlg.close(); toast(isNew ? "Proje eklendi." : "Proje güncellendi."); after();
+    } catch (er) { err.textContent = er.message; err.hidden = false; }
+  };
 }
 
 boot();

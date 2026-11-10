@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611102233";
-import { can, hasRole } from "./roles.js?v=202611102233";
+import { CONFIG } from "./config.js?v=202611102237";
+import { can, hasRole } from "./roles.js?v=202611102237";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -281,6 +281,7 @@ function demoStore() {
     async listDonations() { need("bagis", "view"); return clone(S.donations).sort((a, b) => b.date.localeCompare(a.date)); },
     async updateDonation(id, patch) { need("bagis"); Object.assign(S.donations.find(d => d.id === id), patch); save(); },
     async updateProjectForm(id, patch) { need("proje-form"); Object.assign(S.projects.find(p => p.id === id), patch); save(); },
+    async createProjectForm(d) { need("proje-form"); const p = { id: uid(), kind: "hizmet", status: "tamamlandi", public: false, owner: me().full_name, created_at: new Date().toISOString(), ...d }; S.projects.push(p); save(); return clone(p); },
 
     async listProjects() { if (!can(me(), "proje-form", "view")) need("projeler", "view"); return clone(S.projects); },
     async saveProject(p) {
@@ -479,6 +480,7 @@ async function supabaseStore() {
     async listDonations() { return ok(await sb.from("donations").select("*").order("date", { ascending: false })); },
     async updateDonation(id, patch) { ok(await sb.from("donations").update(patch).eq("id", id)); },
     async updateProjectForm(id, patch) { ok(await sb.from("projects").update(patch).eq("id", id)); },
+    async createProjectForm(d) { const meP = await this.me(); return ok(await sb.from("projects").insert({ kind: "hizmet", status: "tamamlandi", public: false, owner: meP?.full_name || null, ...d }).select().single()); },
     async listProjects() { return ok(await sb.from("projects").select("*").order("date")); },
     async saveProject(p) {
       const { id, ...rest } = p;

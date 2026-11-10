@@ -998,3 +998,10 @@ create policy projects_select on public.projects for select to authenticated
 drop policy if exists projects_update_sekreter on public.projects;
 create policy projects_update_sekreter on public.projects for update to authenticated
   using (public.has_role('sekreter')) with check (public.has_role('sekreter'));
+
+-- =====================================================================
+-- v12: Sekreter "Proje formları" sayfasından proje ekleyebilir
+-- =====================================================================
+drop policy if exists projects_insert_sekreter on public.projects;
+create policy projects_insert_sekreter on public.projects for insert to authenticated
+  with check (public.has_role('sekreter'));

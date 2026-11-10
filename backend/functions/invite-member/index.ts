@@ -16,7 +16,7 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const REDIRECT_TO = "https://www.anitteperotaract.org/uye/";
+const REDIRECT_TO = "https://anitteperotaract.org/uye/";
 
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",

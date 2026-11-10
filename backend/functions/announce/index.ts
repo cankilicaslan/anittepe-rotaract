@@ -108,7 +108,7 @@ function emailHtml(subject: string, body: string): string {
 <h2 style="font-size:18px;margin:0 0 16px;color:#d41367">${escapeHtml(subject)}</h2>
 ${paragraphs}
 <hr style="border:none;border-top:1px solid #ddd;margin:24px 0 12px">
-<p style="font-size:12px;color:#777;margin:0">Ankara Anıttepe Rotaract Kulübü · <a href="https://www.anitteperotaract.org/" style="color:#777">anitteperotaract.org</a></p>
+<p style="font-size:12px;color:#777;margin:0">Ankara Anıttepe Rotaract Kulübü · <a href="https://anitteperotaract.org/" style="color:#777">anitteperotaract.org</a></p>
 </body></html>`;
 }
 

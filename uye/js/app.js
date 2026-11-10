@@ -889,7 +889,7 @@ const SIGN = "\n\nAnkara Anıttepe Rotaract Kulübü";
 function announceTemplate(it) {
   const when = `${longDate(it.date)}${it.time ? " " + it.time : ""}`;
   if (it.type === "toplanti") return { kind: "toplanti", subject: `${when}: ${it.ref.term_no}. toplantımız`, body: `Merhaba,\n\nDönemimizin ${it.ref.term_no}., kulübümüzün ${it.ref.club_no}. toplantısı ${when}'da Hybrid Hub'da.${it.ref.note ? "\n\nGündem: " + it.ref.note : ""}\n\nGelemeyeceksen lütfen sekreterimize haber ver.` + SIGN };
-  if (it.type === "kulup") return { kind: "etkinlik", subject: `${it.title} · ${when}`, body: `Merhaba,\n\n${it.title} etkinliği ${when}${it.sub ? ", " + it.sub : ""}.${it.desc ? "\n\n" + it.desc : ""}\n\nKatılıp katılamayacağını üye panelindeki "Diğer kulüplerin etkinlikleri" sayfasından işaretleyebilirsin: https://www.anitteperotaract.org/uye/#kulupler` + SIGN };
+  if (it.type === "kulup") return { kind: "etkinlik", subject: `${it.title} · ${when}`, body: `Merhaba,\n\n${it.title} etkinliği ${when}${it.sub ? ", " + it.sub : ""}.${it.desc ? "\n\n" + it.desc : ""}\n\nKatılıp katılamayacağını üye panelindeki "Diğer kulüplerin etkinlikleri" sayfasından işaretleyebilirsin: https://anitteperotaract.org/uye/#kulupler` + SIGN };
   const label = CAL_TYPES[it.type] || "Etkinlik";
   return { kind: it.type === "hizmet" ? "proje" : "etkinlik", subject: `${label}: ${it.title} · ${when}`, body: `Merhaba,\n\n${it.title} ${when}${it.ref?.location ? ", " + it.ref.location : ""}.${it.desc ? "\n\n" + it.desc : ""}\n\nSeni de aramızda görmek isteriz.` + SIGN };
 }

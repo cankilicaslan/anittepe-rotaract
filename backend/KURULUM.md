@@ -4,7 +4,7 @@ Bu rehber, Anıttepe Rotaract üye panelini (`/uye/`) gerçek verilerle, gerçek
 
 Panel kurulum yapılmadan da açılır: bu durumda **demo modunda** çalışır, veriler yalnızca o tarayıcıda tutulur ve güvenli değildir. Gerçek kullanım için aşağıdaki adımlar gerekir.
 
-> **Site adresi:** Site artık **https://www.anitteperotaract.org/** adresinde yayında; panel **https://www.anitteperotaract.org/uye/** adresindedir. Rehberdeki tüm adresler buna göredir.
+> **Site adresi:** Site artık **https://anitteperotaract.org/** adresinde yayında; panel **https://anitteperotaract.org/uye/** adresindedir. Rehberdeki tüm adresler buna göredir.
 
 ## Ne kadar tutar?
 
@@ -44,8 +44,8 @@ Bu adım tabloları, erişim kurallarını, fotoğraf klasörlerini (`avatars`, 
    - Açık bırakırsanız yeni üyeler e-postalarındaki bağlantıya tıklayınca hesapları etkinleşir. Supabase'in ücretsiz e-posta servisi saatte çok az e-posta gönderebilir.
    - Kapatırsanız üyeler hemen giriş yapabilir. Zaten her yeni üye başkan onaylayana kadar "onay bekliyor" durumunda kalır, bu yüzden kapatmak güvenlidir ve önerilir.
 3. **Authentication > URL Configuration**:
-   - **Site URL**: `https://www.anitteperotaract.org/uye/`
-   - **Redirect URLs** kısmına da aynı adresi ekleyin: `https://www.anitteperotaract.org/uye/**`
+   - **Site URL**: `https://anitteperotaract.org/uye/`
+   - **Redirect URLs** kısmına da aynı adresi ekleyin: `https://anitteperotaract.org/uye/**`
 
 ## 4. Paneli Supabase'e bağlayın (config.js)
 

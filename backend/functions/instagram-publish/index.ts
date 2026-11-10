@@ -14,7 +14,8 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const GRAPH = "https://graph.facebook.com/v21.0";
+// Instagram Login (graph.instagram.com, Facebook sayfası gerekmez) varsayılan; Facebook Login kullanılıyorsa IG_GRAPH_HOST=graph.facebook.com
+const GRAPH = `https://${Deno.env.get("IG_GRAPH_HOST") || "graph.instagram.com"}/v21.0`;
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // Instagram JPEG sınırı 8 MB
 const MAX_CAPTION_CHARS = 2200;
 

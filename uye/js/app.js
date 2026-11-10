@@ -989,12 +989,12 @@ async function viewAnnounce(v) {
     <div class="row" style="margin-top:16px">
       <button type="button" class="btn" id="s-mail">E-posta ile gönder</button>
       <button type="button" class="btn" id="s-sms">SMS gönder</button>
-      ${store.mode === "supabase" ? `<button type="button" class="btn ghost" id="s-server">Sunucudan gönder (e-posta + SMS)</button>` : ""}
+      ${store.mode === "supabase" ? `<button type="button" class="btn ghost sm" id="s-mailapp">E-posta uygulamasında aç</button>` : ""}
       <div class="spacer"></div>
       <button type="button" class="btn ghost sm" id="c-mail">E-postaları kopyala</button>
       <button type="button" class="btn ghost sm" id="c-tel">Numaraları kopyala</button>
     </div>
-    <p class="muted" style="font-size:.84rem;margin:10px 0 0">E-postada alıcılar gizli (BCC) eklenir, birbirlerinin adresini görmezler. SMS, telefondan açıldığında mesaj uygulamanda toplu mesaj olarak hazırlanır.</p>
+    <p class="muted" style="font-size:.84rem;margin:10px 0 0">${store.mode === "supabase" ? "E-posta, kulüp Gmail hesabından her üyeye ayrı ayrı otomatik gider; alıcılar birbirinin adresini görmez." : "E-postada alıcılar gizli (BCC) eklenir, birbirlerinin adresini görmezler."} SMS, telefondan açıldığında mesaj uygulamanda toplu mesaj olarak hazırlanır.</p>
   </fieldset></form>
   <div class="card"><h2>Gönderilen duyurular</h2>${log.length ? `<div class="tbl-wrap"><table><thead><tr><th>Tarih</th><th>Konu</th><th>Kanal</th><th class="num">Alıcı</th></tr></thead><tbody>${log.map(a => `<tr><td>${trDate(a.created_at.slice(0, 10))}</td><td>${esc(a.subject)}</td><td>${(a.channels || []).map(c => `<span class="tag">${c === "email" ? "E-posta" : "SMS"}</span>`).join(" ")}</td><td class="num">${(a.recipient_ids || []).length}</td></tr>`).join("")}</tbody></table></div>` : '<p class="muted">Henüz duyuru gönderilmedi.</p>'}</div>`;
   if (ro) return;
@@ -1010,7 +1010,8 @@ async function viewAnnounce(v) {
   document.getElementById("r-none").onclick = () => { f.querySelectorAll("[name=to]").forEach(c => c.checked = false); upd(); };
   const log1 = (channels, sent_via, result) => store.saveAnnouncement({ kind: f.kind.value, subject: f.subject.value, body: f.body.value, channels, recipient_ids: sel().map(m => m.id), sent_via, result }).catch(() => {});
   const copy = async (txt, what) => { try { await navigator.clipboard.writeText(txt); toast(`${what} panoya kopyalandı.`); } catch { prompt("Kopyalayın:", txt); } };
-  document.getElementById("s-mail").onclick = async () => {
+  const mailBtn = document.getElementById("s-mail");
+  const openMailApp = async () => {
     if (!f.reportValidity()) return;
     const to = sel().map(m => m.email).filter(Boolean);
     if (!to.length) return toast("Seçili üyelerin hiçbirinin e-postası yok.", "bad");
@@ -1018,6 +1019,23 @@ async function viewAnnounce(v) {
     if (url.length > 1900) toast("Alıcı çok fazla olduğu için bazı e-posta uygulamaları kesebilir; gerekirse adresleri kopyalayıp yapıştır.");
     location.href = url; await log1(["email"], "cihaz"); toast(`E-posta uygulaman ${to.length} alıcıyla açıldı. Gönder'e bastığında duyuru gider.`);
   };
+  // Supabase modunda e-posta sunucudan (kulüp Gmail'i) otomatik gider; demo modunda e-posta uygulaması açılır.
+  mailBtn.onclick = store.mode !== "supabase" ? openMailApp : async () => {
+    if (!f.reportValidity()) return;
+    const to = sel().filter(m => m.email);
+    if (!to.length) return toast("Seçili üyelerin hiçbirinin e-postası yok.", "bad");
+    if (!confirm(`"${f.subject.value}" duyurusu ${to.length} üyeye e-posta ile gönderilsin mi?`)) return;
+    mailBtn.disabled = true; mailBtn.textContent = "Gönderiliyor…";
+    try {
+      const r = await store.sendAnnouncement({ kind: f.kind.value, subject: f.subject.value, body: f.body.value, recipient_ids: to.map(m => m.id), channels: ["email"] });
+      if (r.skipped?.email) throw new Error(r.skipped.email);
+      const failed = r.email?.failed ?? 0;
+      toast(`E-posta gönderildi: ${r.email?.sent ?? 0} kişi.${failed ? ` ${failed} kişiye gidemedi. ${(r.errors || []).join(" ")}` : ""}`, failed ? "bad" : undefined);
+      viewAnnounce(v);
+    } catch (e) { fail(e); mailBtn.disabled = false; mailBtn.textContent = "E-posta ile gönder"; }
+  };
+  const appBtn = document.getElementById("s-mailapp");
+  if (appBtn) appBtn.onclick = openMailApp;
   document.getElementById("s-sms").onclick = async () => {
     if (!f.reportValidity()) return;
     const nums = sel().map(m => smsNumber(m.phone)).filter(Boolean);
@@ -1026,16 +1044,6 @@ async function viewAnnounce(v) {
     if (!isPhone()) { await copy(nums.join(", "), `${nums.length} telefon numarası`); toast("SMS telefonda açılır. Bu sayfayı telefondan açıp tekrar dene; numaralar şimdilik panoya kopyalandı."); return; }
     location.href = isIOS() ? `sms:/open?addresses=${nums.join(",")}&body=${body}` : `sms:${nums.join(",")}?body=${body}`;
     await log1(["sms"], "cihaz"); toast(`Mesaj uygulaman ${nums.length} alıcıyla açıldı. Gönder'e bastığında SMS gider.`);
-  };
-  const srv = document.getElementById("s-server");
-  if (srv) srv.onclick = async () => {
-    if (!f.reportValidity()) return;
-    srv.disabled = true; srv.textContent = "Gönderiliyor…";
-    try {
-      const r = await store.sendAnnouncement({ subject: f.subject.value, body: f.body.value, recipient_ids: sel().map(m => m.id), channels: ["email", "sms"] });
-      toast(`Gönderildi: ${r.email?.sent ?? 0} e-posta, ${r.sms?.sent ?? 0} SMS.${(r.email?.failed || r.sms?.failed) ? " Bazıları gönderilemedi." : ""}`);
-      viewAnnounce(v);
-    } catch (e) { fail(e); srv.disabled = false; srv.textContent = "Sunucudan gönder (e-posta + SMS)"; }
   };
   document.getElementById("c-mail").onclick = () => copy(sel().map(m => m.email).filter(Boolean).join(", "), "E-posta adresleri");
   document.getElementById("c-tel").onclick = () => copy(sel().map(m => smsNumber(m.phone)).filter(Boolean).join(", "), "Telefon numaraları");

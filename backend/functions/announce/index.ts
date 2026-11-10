@@ -18,7 +18,8 @@
 //         4xx/5xx { ok: false, error: "<Türkçe mesaj>" }
 //
 // Secret'lar:
-//   E-posta: RESEND_API_KEY, RESEND_FROM (ör. "Anıttepe Rotaract <duyuru@anitteperotaract.org>"),
+//   E-posta (önerilen): GMAIL_APP_PASSWORD (kulüp Gmail'inin uygulama şifresi), GMAIL_USER (isteğe bağlı)
+//   E-posta (alternatif): RESEND_API_KEY, RESEND_FROM (ör. "Anıttepe Rotaract <duyuru@anitteperotaract.org>"),
 //            RESEND_REPLY_TO (isteğe bağlı)
 //   SMS:     SMS_PROVIDER = "netgsm" | "twilio"
 //            netgsm: NETGSM_USER, NETGSM_PASS, NETGSM_HEADER
@@ -278,9 +279,57 @@ function smsConfig(): { provider: "netgsm" | "twilio" } | { skip: string } {
   return { skip: `SMS gönderilmedi: SMS_PROVIDER değeri "${provider}" tanınmadı ("netgsm" veya "twilio" olmalı).` };
 }
 
+// ---------------------------------------------------------------------
+// E-posta: kulübün Gmail hesabı (SMTP, port 465). Her alıcıya ayrı e-posta gider.
+// Secret'lar: GMAIL_APP_PASSWORD (zorunlu), GMAIL_USER (varsayılan kulüp adresi), MAIL_FROM_NAME (isteğe bağlı)
+// ---------------------------------------------------------------------
+const CLUB_GMAIL = "anitteperotaract1996@gmail.com";
+
+async function sendGmail(
+  list: { name: string; email: string }[],
+  subject: string,
+  body: string,
+  errors: string[],
+): Promise<ChannelResult> {
+  const { default: nodemailer } = await import("npm:nodemailer@6.9.16");
+  const user = Deno.env.get("GMAIL_USER") || CLUB_GMAIL;
+  const transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
+    auth: { user, pass: (Deno.env.get("GMAIL_APP_PASSWORD") ?? "").replace(/\s+/g, "") },
+  });
+  const from = `"${Deno.env.get("MAIL_FROM_NAME") || "Anıttepe Rotaract"}" <${user}>`;
+  const html = emailHtml(subject, body);
+  const result: ChannelResult = { sent: 0, failed: 0 };
+  const seen = new Set<string>();
+  for (const r of list) {
+    try {
+      await transporter.sendMail({ from, to: r.email, replyTo: user, subject, text: body, html });
+      result.sent++;
+    } catch (e) {
+      result.failed++;
+      const code = (e as { responseCode?: number }).responseCode;
+      console.error("Gmail gönderim hatası", r.email, code, String(e));
+      const msg = code === 535
+        ? "E-posta gönderilemedi: Gmail uygulama şifresi (GMAIL_APP_PASSWORD) kabul edilmedi."
+        : `E-posta gönderilemedi (Gmail${code ? " " + code : ""}).`;
+      if (!seen.has(msg)) { seen.add(msg); errors.push(msg); }
+      if (code === 535) { result.failed += list.length - (result.sent + result.failed); break; }
+    }
+  }
+  transporter.close();
+  return result;
+}
+
+function emailProvider(): "gmail" | "resend" | null {
+  if (Deno.env.get("GMAIL_APP_PASSWORD")) return "gmail";
+  if (Deno.env.get("RESEND_API_KEY") && Deno.env.get("RESEND_FROM")) return "resend";
+  return null;
+}
+
 function emailConfigSkip(): string | null {
-  const missing = ["RESEND_API_KEY", "RESEND_FROM"].filter((k) => !Deno.env.get(k));
-  return missing.length ? `E-posta gönderilmedi: e-posta servisi ayarlanmamış (${missing.join(", ")} secret'ı yok).` : null;
+  return emailProvider() ? null : "E-posta gönderilmedi: e-posta servisi ayarlanmamış (GMAIL_APP_PASSWORD secret'ı yok).";
 }
 
 Deno.serve(async (req: Request) => {
@@ -348,7 +397,10 @@ Deno.serve(async (req: Request) => {
       }
       const skip = emailConfigSkip();
       if (skip) skipped.email = skip;
-      else if (emailList.length) Object.assign(emailRes, await sendEmails(emailList, subject, body, errors));
+      else if (emailList.length) {
+        const send = emailProvider() === "gmail" ? sendGmail : sendEmails;
+        Object.assign(emailRes, await send(emailList, subject, body, errors));
+      }
     }
 
     // ---- SMS ----

@@ -311,7 +311,15 @@ async function viewProfile(v) {
 async function viewMembers(v) {
   const admin = hasRole(me, "baskan");
   const seeDebt = can(me, "aidat", "view");
-  const [members, charges, dues] = await Promise.all([store.listMembers(), seeDebt ? store.listCharges() : [], seeDebt ? store.listDues() : []]);
+  const [members, charges, dues, accounts] = await Promise.all([store.listMembers(), seeDebt ? store.listCharges() : [], seeDebt ? store.listDues() : [], store.listAccounts()]);
+  // Hesap belirteci: şifresini oluşturmuş mu? (yalnızca yetkili kişiler görür; veri yoksa hiç gösterilmez)
+  const acc = accounts ? new Map(accounts.map(a => [a.id, a])) : null;
+  const acctDot = m => {
+    if (!acc) return "";
+    const a = acc.get(m.id), on = !!a?.has_password;
+    const t = on ? `Siteye şifresini oluşturdu${a.last_sign_in_at ? " · son giriş " + trDate(a.last_sign_in_at.slice(0, 10)) : ""}` : "Henüz şifresini oluşturmadı";
+    return `<span class="acct ${on ? "on" : ""}" title="${t}" role="img" aria-label="${t}"></span>`;
+  };
   const pending = members.filter(m => m.status === "pending");
   const STATUS = { active: ["Aktif", "ok"], pending: ["Onay bekliyor", "warn"], passive: ["Pasif", ""] };
   const rows = q => members.filter(m => m.status !== "pending" || admin)
@@ -320,7 +328,7 @@ async function viewMembers(v) {
     .map(m => {
       const d = seeDebt ? debtOf(m.id, charges, dues) : null;
       return `<tr>
-        <td>${person(m)}</td>
+        <td>${acc ? person(m).replace(`<div class="person">`, `<div class="person has-acct">` + acctDot(m)) : person(m)}</td>
         <td>${m.phone ? `<a href="tel:${esc(m.phone.replace(/\s/g, ""))}">${esc(m.phone)}</a>` : '<span class="muted">Eklenmedi</span>'}</td>
         <td>${m.email ? `<a href="mailto:${esc(m.email)}">${esc(m.email)}</a>` : ""}</td>
         <td>${m.birth_date ? trDate(m.birth_date) : '<span class="muted">Eklenmedi</span>'}</td>
@@ -335,6 +343,7 @@ async function viewMembers(v) {
   v.innerHTML = header("Üye listesi", `${members.filter(m => m.status === "active").length} aktif üye`, `<div class="row"><input type="search" id="q" placeholder="İsim, görev, telefon ara" style="max-width:260px" aria-label="Üye ara">${admin ? `<button class="btn" id="addm">Yeni üye ekle</button><label class="btn ghost" style="cursor:pointer">Excel'den bilgileri al<input type="file" id="xls" accept=".xlsx,.xls,.csv" class="sr"></label>` : ""}</div>`) +
     (admin ? `<p class="muted" style="margin:-8px 0 16px;font-size:.86rem">Excel'den alma yalnızca listedeki mevcut üyelerin telefon, e-posta, doğum tarihi, meslek, Instagram ve kan grubu bilgilerini günceller; yeni kişi eklemez. Dosya bu tarayıcıda okunur, hiçbir yere yüklenmez.</p>` : "") +
     (admin && pending.length ? `<div class="card" style="margin-bottom:16px"><h2>Onay bekleyen hesaplar</h2>${pending.map(m => `<div class="pay-row">${person(m)}<span class="muted">${esc(m.email)} · ${esc(m.phone)}</span><button class="btn sm" data-approve="${m.id}">Onayla</button><button class="btn danger sm" data-reject="${m.id}">Pasife al</button></div>`).join("")}</div>` : "") +
+    (acc ? `<p class="muted acct-legend"><span class="acct on"></span>Siteye şifresini oluşturdu <span class="acct"></span>Henüz oluşturmadı · ${members.filter(m => acc.get(m.id)?.has_password).length}/${members.length} kişi</p>` : "") +
     `<div class="tbl-wrap"><table><thead><tr><th>Üye</th><th>Telefon</th><th>E-posta</th><th>Doğum tarihi</th><th>Meslek / okul</th><th>Instagram</th><th>Üyelik</th><th>Durum</th>${seeDebt ? '<th class="num">Aidat borcu</th>' : ""}${admin ? "<th></th>" : ""}</tr></thead><tbody id="tb">${rows("")}</tbody></table></div>
     <dialog id="dlg"></dialog>`;
   const tb = document.getElementById("tb");

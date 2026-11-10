@@ -149,6 +149,11 @@ function demoStore() {
     async me() { return me() ? clone(me()) : null; },
 
     async listMembers() { return clone(S.profiles); },
+    // Demo: kendi şifresini belirleyenler + örnek olarak listenin ilk yarısı "şifre oluşturdu" sayılır.
+    async listAccounts() {
+      const m = me(); if (!(hasRole(m, "baskan") || m?.past_president || hasRole(m, "sekreter"))) return null;
+      return S.profiles.map((p, i) => ({ id: p.id, has_password: !!S.passwords[p.email] || i % 2 === 0, last_sign_in_at: null }));
+    },
     async updateMember(id, patch) {
       const m = me(), p = S.profiles.find(x => x.id === id);
       if (!p) throw new Error("Üye bulunamadı.");
@@ -319,6 +324,8 @@ async function supabaseStore() {
       return data || { id, full_name: "", status: "pending", roles: [] };
     },
     async listMembers() { return ok(await sb.from("profiles").select("*").order("full_name")); },
+    // Kim siteye şifresini oluşturmuş? (member_accounts SQL fonksiyonu; yetkisiz ya da kurulmamışsa null)
+    async listAccounts() { const { data, error } = await sb.rpc("member_accounts"); return error || !data?.length ? null : data; },
     async updateMember(id, patch) {
       const { blood_type, ...rest } = patch;
       if (blood_type !== undefined) ok(await sb.from("profile_private").upsert({ member_id: id, blood_type }));

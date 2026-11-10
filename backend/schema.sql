@@ -692,3 +692,18 @@ drop policy if exists guest_attendance_write on public.guest_attendance;
 create policy guest_attendance_write on public.guest_attendance for all to authenticated
   using (public.has_role('sekreter') or public.is_admin())
   with check (public.has_role('sekreter') or public.is_admin());
+
+-- =====================================================================
+-- v4: Üye listesinde "siteye şifresini oluşturdu mu" belirteci
+-- auth.users tarayıcıdan okunamaz; bu fonksiyon yalnızca evet/hayır ve son giriş tarihini verir.
+-- Başkan, geçmiş dönem başkanları ve sekreter görür; diğerlerine boş döner.
+-- =====================================================================
+create or replace function public.member_accounts()
+returns table (id uuid, has_password boolean, last_sign_in_at timestamptz)
+language sql stable security definer set search_path = public, auth as $$
+  select u.id, coalesce(u.encrypted_password, '') <> '', u.last_sign_in_at
+  from auth.users u
+  where public.can_view_all() or public.has_role('sekreter');
+$$;
+revoke all on function public.member_accounts() from public, anon;
+grant execute on function public.member_accounts() to authenticated;

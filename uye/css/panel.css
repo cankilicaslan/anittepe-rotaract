@@ -328,3 +328,15 @@ dialog form{max-height:min(86vh,760px);overflow:auto}
 @media (pointer:coarse){.cell{width:34px;height:32px}}
 
 @media (max-width:860px){table.stack td{justify-content:flex-end;flex-wrap:wrap;column-gap:6px}table.stack td::before{margin-right:auto}table.stack td:first-child{justify-content:flex-start}}
+
+/* Üye listesi: siteye şifre oluşturma belirteci */
+.acct{display:inline-block;width:8px;height:8px;border-radius:50%;border:1.5px solid #CDBFC6;background:transparent;margin-left:6px;vertical-align:middle;flex:none}
+.acct.on{border-color:var(--ok);background:var(--ok)}
+.acct-legend{margin:-8px 0 12px;font-size:.82rem;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.acct-legend .acct{margin:0 4px 0 10px}
+.acct-legend .acct:first-child{margin-left:0}
+.person.has-acct{position:relative}
+.person.has-acct .acct{position:absolute;left:29px;top:50%;margin-top:7px !important;width:12px;height:12px;margin:0;border:2px solid #fff;background:#CDBFC6;box-shadow:0 0 0 1px rgba(0,0,0,.06)}
+.person.has-acct .acct.on{background:var(--ok)}
+.acct-legend .acct{background:#CDBFC6;border-color:#CDBFC6}
+.acct-legend .acct.on{background:var(--ok);border-color:var(--ok)}

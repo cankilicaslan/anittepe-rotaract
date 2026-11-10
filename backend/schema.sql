@@ -623,3 +623,72 @@ create policy announcements_insert on public.announcements for insert to authent
 drop policy if exists projects_select_members on public.projects;
 create policy projects_select_members on public.projects for select to authenticated
   using (public.is_active());
+
+-- =====================================================================
+-- v3: misafir yoklaması, üyenin yoklamada başladığı toplantı, yetki etiketlerini gizleme
+-- (Supabase SQL Editor'da bir kez çalıştırın; tekrar çalıştırmak zararsızdır.)
+-- =====================================================================
+alter table public.profiles add column if not exists hide_roles boolean not null default false;
+alter table public.profiles add column if not exists start_meeting_id uuid references public.meetings(id) on delete set null;
+
+create or replace function public.protect_profile_fields()
+returns trigger language plpgsql set search_path = public as $$
+begin
+  if public.is_admin() then
+    return new;
+  end if;
+  if auth.uid() is null and current_user not in ('anon', 'authenticated') then
+    return new;  -- SQL Editor (postgres) veya service_role
+  end if;
+  new.title            := old.title;
+  new.roles            := old.roles;
+  new.status           := old.status;
+  new.past_president   := old.past_president;
+  new.email            := old.email;
+  new.id               := old.id;
+  new.created_at       := old.created_at;
+  new.joined_at        := old.joined_at;
+  new.hide_roles       := old.hide_roles;
+  new.start_meeting_id := old.start_meeting_id;
+  return new;
+end;
+$$;
+
+create table if not exists public.guests (
+  id         uuid primary key default gen_random_uuid(),
+  full_name  text not null,
+  phone      text,
+  email      text,
+  note       text,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.guest_attendance (
+  meeting_id uuid not null references public.meetings(id) on delete cascade,
+  guest_id   uuid not null references public.guests(id) on delete cascade,
+  status     text not null,
+  note       text,
+  updated_at timestamptz not null default now(),
+  primary key (meeting_id, guest_id),
+  constraint guest_attendance_status_chk check (status in ('geldi','gelmedi','mazeretli'))
+);
+create index if not exists guest_attendance_guest_idx on public.guest_attendance (guest_id);
+
+alter table public.guests           enable row level security;
+alter table public.guest_attendance enable row level security;
+
+drop policy if exists guests_select on public.guests;
+create policy guests_select on public.guests for select to authenticated
+  using (public.has_role('sekreter') or public.can_view_all());
+drop policy if exists guests_write on public.guests;
+create policy guests_write on public.guests for all to authenticated
+  using (public.has_role('sekreter') or public.is_admin())
+  with check (public.has_role('sekreter') or public.is_admin());
+
+drop policy if exists guest_attendance_select on public.guest_attendance;
+create policy guest_attendance_select on public.guest_attendance for select to authenticated
+  using (public.has_role('sekreter') or public.can_view_all());
+drop policy if exists guest_attendance_write on public.guest_attendance;
+create policy guest_attendance_write on public.guest_attendance for all to authenticated
+  using (public.has_role('sekreter') or public.is_admin())
+  with check (public.has_role('sekreter') or public.is_admin());

@@ -108,6 +108,14 @@ function demoStore() {
     }
     S.monthlyDues = true;
   }
+  if (!S.guests) {
+    // Demo: 6. toplantıdan beri gelen bir misafir ve 9. toplantıda üye alınmış biri
+    const g = { id: uid(), full_name: "Deniz Yılmaz (örnek misafir)", phone: "", email: "", note: "", created_at: new Date().toISOString() };
+    S.guests = [g]; S.guestAtt = [];
+    S.meetings.filter(m => m.term_no >= 6 && m.date < today()).forEach((m, i) => S.guestAtt.push({ meeting_id: m.id, guest_id: g.id, status: i % 4 === 3 ? "gelmedi" : "geldi", note: "" }));
+    const late = S.profiles.find(p => p.full_name === "Metehan Can Çırak"), m9 = S.meetings.find(m => m.term_no === 9);
+    if (late && m9) { late.start_meeting_id = m9.id; S.attendance = S.attendance.filter(a => !(a.member_id === late.id && S.meetings.find(m => m.id === a.meeting_id)?.term_no < 9)); }
+  }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { throw new Error("Tarayıcı depolaması dolu. Daha küçük bir fotoğraf deneyin."); } };
   save();
   const me = () => S.profiles.find(p => p.id === S.session) || null;
@@ -187,6 +195,23 @@ function demoStore() {
       need("yoklama");
       S.attendance = S.attendance.filter(a => !(a.meeting_id === meeting_id && a.member_id === member_id));
       if (status) S.attendance.push({ meeting_id, member_id, status, note, updated_at: new Date().toISOString() });
+      save();
+    },
+    async listGuests() { return can(me(), "yoklama") ? clone(S.guests) : []; },
+    async saveGuest(g) {
+      need("yoklama");
+      if (!(g.full_name || "").trim()) throw new Error("Misafirin adını yaz.");
+      const ex = g.id && S.guests.find(x => x.id === g.id);
+      if (ex) { Object.assign(ex, g); save(); return clone(ex); }
+      const n = { id: uid(), full_name: g.full_name.trim(), phone: g.phone || "", email: g.email || "", note: g.note || "", created_at: new Date().toISOString() };
+      S.guests.push(n); save(); return clone(n);
+    },
+    async deleteGuest(id) { need("yoklama"); S.guests = S.guests.filter(g => g.id !== id); S.guestAtt = S.guestAtt.filter(a => a.guest_id !== id); save(); },
+    async listGuestAttendance() { return can(me(), "yoklama") ? clone(S.guestAtt) : []; },
+    async setGuestAttendance(meeting_id, guest_id, status) {
+      need("yoklama");
+      S.guestAtt = S.guestAtt.filter(a => !(a.meeting_id === meeting_id && a.guest_id === guest_id));
+      if (status) S.guestAtt.push({ meeting_id, guest_id, status, note: "", updated_at: new Date().toISOString() });
       save();
     },
 
@@ -320,6 +345,21 @@ async function supabaseStore() {
       if (!status) ok(await sb.from("attendance").delete().match({ meeting_id, member_id }));
       else ok(await sb.from("attendance").upsert({ meeting_id, member_id, status, note, updated_at: new Date().toISOString() }));
     },
+    async listGuests() { return ok(await sb.from("guests").select("*").order("full_name")); },
+    async saveGuest(g) {
+      if (!(g.full_name || "").trim()) throw new Error("Misafirin adını yaz.");
+      const row = { full_name: g.full_name.trim(), phone: g.phone || null, email: g.email || null, note: g.note || null };
+      return g.id ? ok(await sb.from("guests").update(row).eq("id", g.id).select().single()) : ok(await sb.from("guests").insert(row).select().single());
+    },
+    async deleteGuest(id) { ok(await sb.from("guests").delete().eq("id", id)); },
+    async listGuestAttendance() {
+      const t = await term();
+      return ok(await sb.from("guest_attendance").select("meeting_id,guest_id,status,note,meetings!inner(term_id)").eq("meetings.term_id", t.id));
+    },
+    async setGuestAttendance(meeting_id, guest_id, status) {
+      if (!status) ok(await sb.from("guest_attendance").delete().match({ meeting_id, guest_id }));
+      else ok(await sb.from("guest_attendance").upsert({ meeting_id, guest_id, status, updated_at: new Date().toISOString() }));
+    },
     async listDues() { return ok(await sb.from("dues").select("*").order("due_date")); },
     async createDue({ label, period, amount, due_date, member_ids }) {
       const t = await term();
@@ -400,5 +440,7 @@ async function squareDataUrl(file, size) { return (await squareCanvas(file, size
 async function squareBlob(file, size) { const c = await squareCanvas(file, size); return new Promise(r => c.toBlob(r, "image/jpeg", 0.86)); }
 
 export async function createStore() {
-  return CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY ? supabaseStore() : demoStore();
+  // ?demo ile açılırsa canlı veriye dokunmadan örnek verilerle çalışır.
+  const demo = new URLSearchParams(location.search).has("demo");
+  return !demo && CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY ? supabaseStore() : demoStore();
 }

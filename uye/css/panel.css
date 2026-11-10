@@ -140,6 +140,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 .cell.gelmedi{background:var(--bad-soft);color:var(--bad)}
 .cell.mazeretli{background:var(--warn-soft);color:var(--warn)}
 .cell:disabled{cursor:default}
+.cell.pre{display:inline-grid;place-items:center;cursor:default;background:transparent;color:#CDBFC6;font-weight:600}
 .future{opacity:.45}
 .bar{height:8px;border-radius:999px;background:#F3E8EE;overflow:hidden;min-width:80px}
 .bar i{display:block;height:100%;background:var(--cran);border-radius:999px}

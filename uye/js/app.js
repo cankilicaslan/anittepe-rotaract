@@ -231,8 +231,19 @@ const roBanner = panel => can(me, panel, "edit") ? "" : `<div class="banner info
 const refresh = () => shell();
 
 /* --------------------------- Yardımcı hesaplar --------------------------- */
-function attendanceStats(memberId, meetings, att) {
-  const held = meetings.filter(m => m.date <= today());
+// Üyenin yoklamada sayılmaya başladığı toplantı no'su (bu dönemde değilse dönem başı = 1).
+const memberStartNo = (m, meetings) => meetings.find(x => x.id === m?.start_meeting_id)?.term_no || 1;
+// Misafirin ilk geldiği toplantı no'su (hiç gelmediyse ilk kaydı; kaydı yoksa null).
+const guestStartNo = (gid, meetings, gatt) => {
+  const no = id => meetings.find(m => m.id === id)?.term_no;
+  const mine = gatt.filter(a => a.member_id === gid).map(a => ({ s: a.status, n: no(a.meeting_id) })).filter(x => x.n);
+  const came = mine.filter(x => x.s === "geldi").map(x => x.n);
+  const list = came.length ? came : mine.map(x => x.n);
+  return list.length ? Math.min(...list) : null;
+};
+// Oran, kişinin başladığı toplantıdan (startNo) itibaren yapılan toplantılara göre hesaplanır.
+function attendanceStats(memberId, meetings, att, startNo = 1) {
+  const held = meetings.filter(m => m.date <= today() && m.term_no >= startNo);
   const ids = new Set(held.map(m => m.id));
   const mine = att.filter(a => a.member_id === memberId && ids.has(a.meeting_id));
   const c = { geldi: 0, gelmedi: 0, mazeretli: 0 };
@@ -249,9 +260,9 @@ function debtOf(memberId, charges, dues) {
 /* ------------------------------ Profil ------------------------------ */
 async function viewProfile(v) {
   const [meetings, att, charges, dues, priv] = await Promise.all([store.listMeetings(), store.listAttendance(), store.listCharges(), store.listDues(), store.getPrivate(me.id)]);
-  const st = attendanceStats(me.id, meetings, att);
+  const st = attendanceStats(me.id, meetings, att, memberStartNo(me, meetings));
   const debt = debtOf(me.id, charges, dues);
-  const roles = (me.roles || []).map(r => `<span class="tag cran">${ROLE_LABELS[r]}</span>`).join(" ") + (me.past_president ? ` <span class="tag">Geçmiş dönem başkanı</span>` : "");
+  const roles = (me.hide_roles ? [] : me.roles || []).map(r => `<span class="tag cran">${ROLE_LABELS[r]}</span>`).join(" ") + (me.past_president ? ` <span class="tag">Geçmiş dönem başkanı</span>` : "");
   v.innerHTML = header("Profilim") + `
   <div class="card"><div class="profile-head">
     <div class="photo-btn">${avatar(me, "lg")}<label>Değiştir<input type="file" accept="image/*" id="photo" class="sr"></label></div>
@@ -316,7 +327,7 @@ async function viewMembers(v) {
         <td>${esc(m.profession) || '<span class="muted">Eklenmedi</span>'}</td>
         <td>${m.instagram ? `<a href="https://instagram.com/${esc(m.instagram.replace(/^@/, ""))}" target="_blank" rel="noopener">@${esc(m.instagram.replace(/^@/, ""))}</a>` : '<span class="muted">Eklenmedi</span>'}</td>
         <td>${trDate(m.joined_at)}</td>
-        <td><span class="tag ${STATUS[m.status]?.[1] || ""}">${STATUS[m.status]?.[0] || esc(m.status)}</span>${(m.roles || []).map(r => ` <span class="tag cran">${ROLE_LABELS[r]}</span>`).join("")}${m.past_president ? ' <span class="tag">GDB</span>' : ""}</td>
+        <td><span class="tag ${STATUS[m.status]?.[1] || ""}">${STATUS[m.status]?.[0] || esc(m.status)}</span>${(m.hide_roles ? [] : m.roles || []).map(r => ` <span class="tag cran">${ROLE_LABELS[r]}</span>`).join("")}${m.past_president ? ' <span class="tag">GDB</span>' : ""}</td>
         ${seeDebt ? `<td class="num">${d.total ? `<b>${TL(d.total)}</b>${d.overdue.length ? ' <span class="tag bad">Gecikmiş</span>' : ""}` : '<span class="tag ok">Yok</span>'}</td>` : ""}
         ${admin ? `<td><button class="btn ghost sm" data-edit="${m.id}">Düzenle</button></td>` : ""}
       </tr>`;
@@ -341,7 +352,7 @@ async function viewMembers(v) {
 async function editMember(m) {
   const isNew = !m;
   m ||= { full_name: "", title: "Üye", phone: "", email: "", status: "active", joined_at: today(), roles: [], past_president: false };
-  const priv = isNew ? {} : await store.getPrivate(m.id);
+  const [priv, meetings] = await Promise.all([isNew ? {} : store.getPrivate(m.id), store.listMeetings().catch(() => [])]);
   const dlg = document.getElementById("dlg");
   dlg.innerHTML = `<form method="dialog" id="f-em">
     <h2>${isNew ? "Yeni üye ekle" : esc(m.full_name)}</h2>
@@ -357,11 +368,13 @@ async function editMember(m) {
       <label class="f">Kan grubu<input type="text" name="blood_type" value="${esc(priv.blood_type || "")}" placeholder="ör. A Rh+"></label>
       <label class="f">Durum<select name="status">${[["active", "Aktif"], ["pending", "Onay bekliyor"], ["passive", "Pasif"]].map(([k, l]) => `<option value="${k}" ${m.status === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
       <label class="f">Üyelik tarihi<input type="date" name="joined_at" value="${esc(m.joined_at || "")}"></label>
+      <label class="f">Yoklamada başladığı toplantı <small>Üye alındığı toplantı; devam oranı buradan itibaren hesaplanır</small><select name="start_meeting_id"><option value="">Dönem başından</option>${meetings.map(x => `<option value="${x.id}" ${m.start_meeting_id === x.id ? "selected" : ""}>${x.term_no}. toplantı · ${trDate(x.date)}</option>`).join("")}</select></label>
     </div>
     <datalist id="titles">${["Başkan", "Asbaşkan", "Sekreter", "Sayman", "Yönetim Kurulu Üyesi", "Geçmiş Dönem Başkanı", "Hizmet Projeleri Komitesi Başkanı", "Halkla İlişkiler ve Tanıtım Komitesi Başkanı", "Üye"].map(t => `<option value="${t}">`).join("")}</datalist>
     <fieldset><legend style="font-weight:700;margin-bottom:6px">Panel yetkileri</legend><div class="grid g2">
       ${Object.entries(ROLE_LABELS).map(([k, l]) => `<label class="check"><input type="checkbox" name="role" value="${k}" ${(m.roles || []).includes(k) ? "checked" : ""}> ${l}</label>`).join("")}
       <label class="check"><input type="checkbox" name="past_president" ${m.past_president ? "checked" : ""}> Geçmiş dönem başkanı (tüm panelleri görür)</label>
+      <label class="check"><input type="checkbox" name="hide_roles" ${m.hide_roles ? "checked" : ""}> Yetkileri görev olarak gösterme (yalnızca unvan ve GDB görünür)</label>
     </div></fieldset>
     <div class="row"><button class="btn" value="save">Kaydet</button><button class="btn ghost" value="cancel" formnovalidate>Vazgeç</button></div>
   </form>`;
@@ -369,12 +382,12 @@ async function editMember(m) {
   dlg.querySelector("form").onsubmit = async e => {
     if (e.submitter?.value !== "save") return;
     const fd = new FormData(e.target);
-    const patch = { full_name: fd.get("full_name"), title: fd.get("title"), phone: fd.get("phone"), email: fd.get("email"), birth_date: fd.get("birth_date") || null, profession: fd.get("profession"), instagram: fd.get("instagram"), blood_type: fd.get("blood_type"), status: fd.get("status"), joined_at: fd.get("joined_at") || null, roles: fd.getAll("role"), past_president: fd.has("past_president") };
+    const patch = { full_name: fd.get("full_name"), title: fd.get("title"), phone: fd.get("phone"), email: fd.get("email"), birth_date: fd.get("birth_date") || null, profession: fd.get("profession"), instagram: fd.get("instagram"), blood_type: fd.get("blood_type"), status: fd.get("status"), joined_at: fd.get("joined_at") || null, roles: fd.getAll("role"), past_president: fd.has("past_president"), hide_roles: fd.has("hide_roles"), start_meeting_id: fd.get("start_meeting_id") || null };
     try {
       if (isNew) {
-        const { roles, past_president, status, ...base } = patch;
+        const { roles, past_president, status, hide_roles, start_meeting_id, ...base } = patch;
         const created = await store.addMember(base);
-        if (created?.id && (roles.length || past_president || status !== "active")) await store.updateMember(created.id, { roles, past_president, status });
+        if (created?.id && (roles.length || past_president || status !== "active" || hide_roles || start_meeting_id)) await store.updateMember(created.id, { roles, past_president, status, hide_roles, start_meeting_id });
         toast(`${esc(patch.full_name)} üye listesine eklendi.`);
       } else { await store.updateMember(m.id, patch); if (m.id === me.id) me = await store.me(); toast("Üye bilgileri kaydedildi."); }
       refresh();
@@ -434,26 +447,45 @@ async function importMembers(file, members) {
 let selMeeting = null;
 async function viewAttendance(v) {
   const ro = !can(me, "yoklama", "edit");
-  const [term, meetings, att, all] = await Promise.all([store.getTerm(), store.listMeetings(), store.listAttendance(), store.listMembers()]);
+  const [term, meetings, att, all, guests, gattRaw] = await Promise.all([store.getTerm(), store.listMeetings(), store.listAttendance(), store.listMembers(), store.listGuests(), store.listGuestAttendance()]);
   const members = all.filter(m => m.status === "active").sort((a, b) => a.full_name.localeCompare(b.full_name, "tr"));
   if (!meetings.length) { v.innerHTML = header("Yoklama", `${esc(term.name)} dönemi`) + `<div class="card"><p class="muted" style="margin:0">Bu dönem için henüz toplantı tanımlanmamış.</p></div>`; return; }
   const held = meetings.filter(m => m.date <= today());
   if (!selMeeting || !meetings.find(m => m.id === selMeeting)) selMeeting = (held.at(-1) || meetings[0])?.id;
   const cur = meetings.find(m => m.id === selMeeting);
   const amap = new Map(att.map(a => [a.meeting_id + "|" + a.member_id, a]));
-  const stats = members.map(m => ({ m, s: attendanceStats(m.id, meetings, att) }));
+  // Misafir kayıtları üye kayıtlarıyla aynı biçime getirilir (member_id = misafir id'si).
+  const gatt = gattRaw.map(a => ({ ...a, member_id: a.guest_id }));
+  const gmap = new Map(gatt.map(a => [a.meeting_id + "|" + a.member_id, a]));
+  const guestList = guests.map(g => ({ ...g, title: "Misafir" })).sort((a, b) => a.full_name.localeCompare(b.full_name, "tr"));
+  const startOf = new Map([...members.map(m => [m.id, memberStartNo(m, meetings)]), ...guestList.map(g => [g.id, guestStartNo(g.id, meetings, gatt)])]);
+  const stats = members.map(m => ({ m, s: attendanceStats(m.id, meetings, att, startOf.get(m.id)) }));
+  const gstats = guestList.map(g => ({ m: g, start: startOf.get(g.id), s: startOf.get(g.id) ? attendanceStats(g.id, meetings, gatt, startOf.get(g.id)) : null }));
   const avg = stats.length ? stats.reduce((x, y) => x + y.s.oran, 0) / stats.length : 0;
-  const curMarks = members.map(m => amap.get(cur.id + "|" + m.id)?.status);
+  // Bu toplantıda üye olmayanlar (daha sonraki bir toplantıda üye alınanlar) listede görünmez.
+  const curMembers = members.filter(m => startOf.get(m.id) <= cur.term_no);
+  const curMarks = curMembers.map(m => amap.get(cur.id + "|" + m.id)?.status);
   const cnt = k => curMarks.filter(x => x === k).length;
+  const guestCame = guestList.filter(g => gmap.get(cur.id + "|" + g.id)?.status === "geldi").length;
   const SEG = [["geldi", "Geldi"], ["gelmedi", "Gelmedi"], ["mazeretli", "Mazeretli"]];
   const SHORT = { geldi: "✓", gelmedi: "✕", mazeretli: "M" };
+  const segRow = (p, s, kind) => `<div class="att-row">${person(p)}<div class="seg" role="group" aria-label="${esc(p.full_name)} yoklama">${SEG.map(([k, l]) => `<button type="button" data-${kind}="${p.id}" data-v="${k}" aria-pressed="${s === k}" ${ro ? "disabled" : ""}>${l}</button>`).join("")}</div></div>`;
+  const statRow = (p, s, extra) => `<tr><td>${person(p)}</td><td>${extra}</td><td class="num">${s.geldi}</td><td class="num">${s.gelmedi}</td><td class="num">${s.mazeretli}</td><td class="num">${s.isaretsiz}</td>
+      <td><div class="row" style="flex-wrap:nowrap"><div class="bar" style="flex:1"><i style="width:${s.oran * 100}%"></i></div><b style="min-width:44px;text-align:right">${pct(s.oran)}</b></div></td><td class="num">${pct(s.oranMazeretHaric)}</td></tr>`;
+  const startTxt = no => no > 1 ? `${no}. toplantıdan` : "Dönem başından";
+  const matrixRow = (p, map, kind) => { const st = startOf.get(p.id); return `<tr><td>${esc(p.full_name)}</td>${meetings.map(m => {
+    const fut = m.date > today() ? "future" : "";
+    if (kind === "cp" && m.term_no < st) return `<td class="${fut}"><span class="cell pre" title="Henüz üye değildi">–</span></td>`;
+    const s = map.get(m.id + "|" + p.id)?.status;
+    return `<td class="${fut}"><button class="cell ${s || ""}" data-cm="${m.id}" data-${kind}="${p.id}" ${ro ? "disabled" : ""} aria-label="${esc(p.full_name)}, ${m.term_no}. toplantı: ${s || "işaretsiz"}">${s ? SHORT[s] : "·"}</button></td>`;
+  }).join("")}</tr>`; };
 
   v.innerHTML = header("Yoklama", `${esc(term.name)} dönemi · ${term.meeting_count} toplantı · toplantılar iki haftada bir perşembe 19.30`) + roBanner("yoklama") + `
   <div class="stats">
     <div class="stat hl"><span>Yapılan toplantı</span><b>${held.length} / ${term.meeting_count}</b></div>
     <div class="stat"><span>Kulübün toplantı sayısı</span><b>${held.at(-1)?.club_no ?? "–"}</b></div>
     <div class="stat"><span>Ortalama devam</span><b>${pct(avg)}</b></div>
-    <div class="stat"><span>Aktif üye</span><b>${members.length}</b></div>
+    <div class="stat"><span>Aktif üye · misafir</span><b>${members.length} · ${guestList.length}</b></div>
   </div>
   <div class="card">
     <div class="row" style="margin-bottom:14px">
@@ -467,44 +499,64 @@ async function viewAttendance(v) {
       </fieldset>
     </div>
     <div class="row" style="margin-bottom:12px">
-      <span class="tag ok">Geldi ${cnt("geldi")}</span><span class="tag bad">Gelmedi ${cnt("gelmedi")}</span><span class="tag warn">Mazeretli ${cnt("mazeretli")}</span><span class="tag">İşaretsiz ${curMarks.filter(x => !x).length}</span>
+      <span class="tag ok">Geldi ${cnt("geldi")}</span><span class="tag bad">Gelmedi ${cnt("gelmedi")}</span><span class="tag warn">Mazeretli ${cnt("mazeretli")}</span><span class="tag">İşaretsiz ${curMarks.filter(x => !x).length}</span><span class="tag cran">Misafir ${guestCame}</span>
       <div class="spacer"></div>
-      ${ro ? "" : `<button class="btn ghost sm" id="allin">İşaretsizleri "geldi" yap</button>`}
+      ${ro ? "" : `<button class="btn ghost sm" id="allin">İşaretsiz üyeleri "geldi" yap</button>`}
     </div>
-    <div class="att-list">${members.map(m => {
-      const s = amap.get(cur.id + "|" + m.id)?.status;
-      return `<div class="att-row">${person(m)}<div class="seg" role="group" aria-label="${esc(m.full_name)} yoklama">${SEG.map(([k, l]) => `<button type="button" data-m="${m.id}" data-v="${k}" aria-pressed="${s === k}" ${ro ? "disabled" : ""}>${l}</button>`).join("")}</div></div>`;
-    }).join("")}</div>
+    <div class="att-list">${curMembers.map(m => segRow(m, amap.get(cur.id + "|" + m.id)?.status, "m")).join("")}</div>
+    <h3 style="margin:20px 0 8px">Misafirler</h3>
+    ${guestList.length ? `<div class="att-list">${guestList.map(g => segRow(g, gmap.get(cur.id + "|" + g.id)?.status, "g")).join("")}</div>` : `<p class="muted" style="margin:0 0 8px">Henüz misafir eklenmedi.</p>`}
+    ${ro ? "" : `<form class="row" id="f-guest" style="margin-top:12px;align-items:flex-end">
+      <label class="f" style="flex:1;min-width:200px">Yeni misafir<input type="text" name="full_name" placeholder="Ad soyad" required></label>
+      <label class="f" style="min-width:160px">Telefon <small>isteğe bağlı</small><input type="tel" name="phone" placeholder="05xx xxx xx xx"></label>
+      <button class="btn sm" style="margin-bottom:4px">Ekle ve "geldi" işaretle</button>
+    </form>`}
   </div>
   <div class="card"><h2>Üyelerin devam durumu</h2>
-    <p class="muted" style="margin-top:-6px">Oran, bugüne kadar yapılan ${held.length} toplantıya göre hesaplanır.</p>
-    <div class="tbl-wrap"><table><thead><tr><th>Üye</th><th class="num">Geldi</th><th class="num">Gelmedi</th><th class="num">Mazeretli</th><th class="num">İşaretsiz</th><th>Devam oranı</th><th class="num">Mazeret hariç</th></tr></thead><tbody>
-    ${stats.sort((a, b) => b.s.oran - a.s.oran).map(({ m, s }) => `<tr><td>${person(m)}</td><td class="num">${s.geldi}</td><td class="num">${s.gelmedi}</td><td class="num">${s.mazeretli}</td><td class="num">${s.isaretsiz}</td>
-      <td><div class="row" style="flex-wrap:nowrap"><div class="bar" style="flex:1"><i style="width:${s.oran * 100}%"></i></div><b style="min-width:44px;text-align:right">${pct(s.oran)}</b></div></td><td class="num">${pct(s.oranMazeretHaric)}</td></tr>`).join("")}
+    <p class="muted" style="margin-top:-6px">Oran, üyenin yoklamada başladığı (üye alındığı) toplantıdan bugüne kadar yapılan toplantılara göre hesaplanır. Başlangıç toplantısı Üye listesinde üyeyi düzenleyerek değiştirilir.</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Üye</th><th>Başlangıç</th><th class="num">Geldi</th><th class="num">Gelmedi</th><th class="num">Mazeretli</th><th class="num">İşaretsiz</th><th>Devam oranı</th><th class="num">Mazeret hariç</th></tr></thead><tbody>
+    ${stats.sort((a, b) => b.s.oran - a.s.oran).map(({ m, s }) => statRow(m, s, startTxt(startOf.get(m.id)))).join("")}
     </tbody></table></div>
   </div>
+  <div class="card"><h2>Misafirlerin devam durumu</h2>
+    <p class="muted" style="margin-top:-6px">Oran, misafirin ilk geldiği toplantıdan itibaren hesaplanır.</p>
+    ${gstats.length ? `<div class="tbl-wrap"><table><thead><tr><th>Misafir</th><th>İlk geldiği</th><th class="num">Geldi</th><th class="num">Gelmedi</th><th class="num">Mazeretli</th><th class="num">İşaretsiz</th><th>Devam oranı</th><th class="num">Mazeret hariç</th></tr></thead><tbody>
+    ${gstats.filter(x => x.s).sort((a, b) => b.s.oran - a.s.oran).map(({ m, s, start }) => statRow(m, s, `${start}. toplantı${ro ? "" : ` <button type="button" class="btn ghost sm" data-gdel="${m.id}" aria-label="${esc(m.full_name)} misafirini sil">Sil</button>`}`)).join("")}
+    ${gstats.filter(x => !x.s).map(({ m }) => `<tr><td>${person(m)}</td><td colspan="7" class="muted">Henüz yoklama kaydı yok${ro ? "" : ` <button type="button" class="btn ghost sm" data-gdel="${m.id}">Sil</button>`}</td></tr>`).join("")}
+    </tbody></table></div>` : `<p class="muted" style="margin:0">Henüz misafir yok. Yukarıdaki yoklamadan misafir ekleyebilirsin.</p>`}
+  </div>
   <details class="card"><summary style="cursor:pointer;font-weight:700">Dönemin tamamı (${term.meeting_count} toplantı tablosu)</summary>
-    <div class="legend" style="margin:12px 0"><span><span class="cell geldi">✓</span>Geldi</span><span><span class="cell gelmedi">✕</span>Gelmedi</span><span><span class="cell mazeretli">M</span>Mazeretli</span><span><span class="cell">·</span>İşaretsiz</span>${ro ? "" : "<span>Hücreye tıklayınca durum değişir.</span>"}</div>
+    <div class="legend" style="margin:12px 0"><span><span class="cell geldi">✓</span>Geldi</span><span><span class="cell gelmedi">✕</span>Gelmedi</span><span><span class="cell mazeretli">M</span>Mazeretli</span><span><span class="cell">·</span>İşaretsiz</span><span><span class="cell pre">–</span>Henüz üye değil</span>${ro ? "" : "<span>Hücreye tıklayınca durum değişir.</span>"}</div>
     <div class="tbl-wrap"><table class="matrix"><thead><tr><th>Üye</th>${meetings.map(m => `<th class="${m.date > today() ? "future" : ""}" title="${trDate(m.date)}">${m.term_no}</th>`).join("")}</tr></thead><tbody>
-    ${members.map(p => `<tr><td>${esc(p.full_name)}</td>${meetings.map(m => { const s = amap.get(m.id + "|" + p.id)?.status; return `<td class="${m.date > today() ? "future" : ""}"><button class="cell ${s || ""}" data-cm="${m.id}" data-cp="${p.id}" ${ro ? "disabled" : ""} aria-label="${esc(p.full_name)}, ${m.term_no}. toplantı: ${s || "işaretsiz"}">${s ? SHORT[s] : "·"}</button></td>`; }).join("")}</tr>`).join("")}
+    ${members.map(p => matrixRow(p, amap, "cp")).join("")}
+    ${guestList.length ? `<tr><th colspan="${meetings.length + 1}" style="text-align:left;padding-top:14px">Misafirler</th></tr>${guestList.map(g => matrixRow(g, gmap, "cg")).join("")}` : ""}
     </tbody></table></div>
   </details>`;
 
   document.getElementById("msel").onchange = e => { selMeeting = e.target.value; refreshKeep(v, viewAttendance); };
   if (ro) return;
-  document.getElementById("msave").onclick = async () => { try { await store.updateMeeting(cur.id, { date: document.getElementById("mdate").value, note: document.getElementById("mnote").value }); toast("Toplantı bilgisi kaydedildi."); refreshKeep(v, viewAttendance); } catch (e) { fail(e); } };
-  v.querySelectorAll(".seg button").forEach(b => b.onclick = async () => {
-    const was = b.getAttribute("aria-pressed") === "true";
-    try { await store.setAttendance(cur.id, b.dataset.m, was ? null : b.dataset.v); refreshKeep(v, viewAttendance); } catch (e) { fail(e); }
+  const run = async (fn, keep = false) => { try { await fn(); refreshKeep(v, viewAttendance, keep); } catch (e) { fail(e); } };
+  document.getElementById("msave").onclick = () => run(async () => { await store.updateMeeting(cur.id, { date: document.getElementById("mdate").value, note: document.getElementById("mnote").value }); toast("Toplantı bilgisi kaydedildi."); });
+  v.querySelectorAll(".seg button").forEach(b => b.onclick = () => {
+    const was = b.getAttribute("aria-pressed") === "true", val = was ? null : b.dataset.v;
+    run(() => b.dataset.g ? store.setGuestAttendance(cur.id, b.dataset.g, val) : store.setAttendance(cur.id, b.dataset.m, val));
   });
-  document.getElementById("allin").onclick = async () => {
-    try { for (const m of members) if (!amap.get(cur.id + "|" + m.id)) await store.setAttendance(cur.id, m.id, "geldi"); refreshKeep(v, viewAttendance); } catch (e) { fail(e); }
+  document.getElementById("allin").onclick = () => run(async () => { for (const m of curMembers) if (!amap.get(cur.id + "|" + m.id)) await store.setAttendance(cur.id, m.id, "geldi"); });
+  document.getElementById("f-guest").onsubmit = e => {
+    e.preventDefault(); const f = e.target, name = f.full_name.value.trim();
+    if (!name) return;
+    run(async () => { const g = await store.saveGuest({ full_name: name, phone: f.phone.value.trim() }); await store.setGuestAttendance(cur.id, g.id, "geldi"); toast(`${esc(name)} misafir olarak eklendi.`); });
   };
+  v.querySelectorAll("[data-gdel]").forEach(b => b.onclick = () => {
+    const g = guestList.find(x => x.id === b.dataset.gdel);
+    if (g && confirm(`${g.full_name} misafir listesinden ve tüm yoklama kayıtlarından silinsin mi?`)) run(() => store.deleteGuest(g.id));
+  });
   const order = [undefined, "geldi", "gelmedi", "mazeretli"];
-  v.querySelectorAll("[data-cm]").forEach(b => b.onclick = async () => {
-    const s = amap.get(b.dataset.cm + "|" + b.dataset.cp)?.status;
+  v.querySelectorAll("[data-cm]").forEach(b => b.onclick = () => {
+    const guest = !!b.dataset.cg, id = guest ? b.dataset.cg : b.dataset.cp;
+    const s = (guest ? gmap : amap).get(b.dataset.cm + "|" + id)?.status;
     const next = order[(order.indexOf(s) + 1) % order.length] || null;
-    try { await store.setAttendance(b.dataset.cm, b.dataset.cp, next); refreshKeep(v, viewAttendance, true); } catch (e) { fail(e); }
+    run(() => guest ? store.setGuestAttendance(b.dataset.cm, id, next) : store.setAttendance(b.dataset.cm, id, next), true);
   });
 }
 // Kaydırma konumunu ve açık <details>'i koruyarak yeniden çiz.

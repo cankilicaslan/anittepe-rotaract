@@ -892,3 +892,27 @@ $$;
 drop policy if exists profiles_delete on public.profiles;
 create policy profiles_delete on public.profiles for delete to authenticated
   using (public.is_admin() and not exists (select 1 from public.app_owners o where o.user_id = profiles.id));
+
+-- =====================================================================
+-- v8: Site başvuruları (misafir üye, iletişim, panel kaydı)
+-- basvuru Edge Function'ı her başvuruyu buraya kaydeder ve kulüp Gmail'ine iletir.
+-- Yalnızca başkan, sekreter ve geçmiş dönem başkanları okuyabilir; tarayıcıdan yazılamaz.
+-- =====================================================================
+create table if not exists public.applications (
+  id         uuid primary key default gen_random_uuid(),
+  kind       text not null default 'iletisim',
+  subject    text not null,
+  body       text not null,
+  reply_to   text,
+  page       text,
+  ip         text,
+  emailed    boolean not null default false,
+  created_at timestamptz not null default now(),
+  constraint applications_kind_chk check (kind in ('misafir','iletisim','panel'))
+);
+create index if not exists applications_created_idx on public.applications (created_at desc);
+create index if not exists applications_ip_idx on public.applications (ip, created_at);
+alter table public.applications enable row level security;
+drop policy if exists applications_select on public.applications;
+create policy applications_select on public.applications for select to authenticated
+  using (public.has_role('sekreter') or public.can_view_all());

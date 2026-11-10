@@ -30,6 +30,7 @@ async function boot() {
     app.innerHTML = `<div class="pending card"><h1>Panel açılamadı</h1><p>${esc(e.message)}</p><p class="muted">İnternet bağlantınızı ve <code>js/config.js</code> ayarlarını kontrol edin.</p></div>`;
     return;
   }
+  store.onRecovery(() => setPasswordView());
   window.addEventListener("hashchange", render);
   render();
 }
@@ -68,6 +69,7 @@ function authView(tab = "giris", error = "") {
             <label class="f">E-posta<input type="email" name="email" autocomplete="email" required></label>
             <label class="f">Şifre<input type="password" name="password" autocomplete="current-password" required></label>
             <button class="btn" type="submit">Giriş yap</button>
+            <button class="btn ghost" type="button" id="forgot">Şifremi unuttum / ilk kez giriş yapıyorum</button>
           </form>` : `
           <h2>Üye hesabı oluştur</h2><p class="muted">Hesabın, başkan onayladıktan sonra açılır.</p>
           <form id="f-signup" novalidate>
@@ -89,6 +91,8 @@ function authView(tab = "giris", error = "") {
   </div>`;
   app.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => authView(b.dataset.tab));
   const lf = document.getElementById("f-login");
+  const fg = document.getElementById("forgot");
+  if (fg) fg.onclick = () => forgotView(lf.email.value);
   if (lf) lf.onsubmit = async e => {
     e.preventDefault(); const d = Object.fromEntries(new FormData(lf));
     try { me = await store.signIn(d.email, d.password); location.hash = "#profil"; render(); } catch (er) { authView("giris", er.message); }
@@ -111,6 +115,34 @@ function authView(tab = "giris", error = "") {
     box.innerHTML = pick.map(a => `<button class="chip" data-e="${esc(a.email)}"><b>${esc(a.label)}</b><span>${esc(a.title)}</span></button>`).join("");
     box.querySelectorAll(".chip").forEach(c => c.onclick = async () => { me = await store.signIn(c.dataset.e, store.demoPassword); location.hash = "#profil"; render(); });
   });
+}
+
+function forgotView(prefill = "", msg = "", isErr = false) {
+  app.innerHTML = `<div class="auth"><aside class="auth-side"><img class="logo" src="../assets/logo-beyaz.webp" alt="Rotaract Ankara Anıttepe"><div><h1>Şifreni belirle.</h1><p>Kulüp listesindeki e-posta adresini yaz; şifre belirleme bağlantısı o adrese gelsin.</p></div></aside>
+  <main class="auth-main"><div class="auth-card"><h2>Şifre belirleme bağlantısı</h2><p class="muted">İlk kez giriş yapıyorsan da buradan şifreni oluşturursun.</p>
+  <form id="f-forgot" novalidate>${msg ? `<div class="${isErr ? "err" : "banner info"}" role="alert">${esc(msg)}</div>` : ""}
+    <label class="f">E-posta<input type="email" name="email" autocomplete="email" value="${esc(prefill)}" required></label>
+    <button class="btn" type="submit">Bağlantıyı gönder</button><button class="btn ghost" type="button" id="back">Girişe dön</button></form></div></main></div>`;
+  document.getElementById("back").onclick = () => authView();
+  document.getElementById("f-forgot").onsubmit = async e => {
+    e.preventDefault(); const email = e.target.email.value.trim();
+    if (!/^\S+@\S+\.\S+$/.test(email)) return forgotView(email, "Geçerli bir e-posta adresi yaz.", true);
+    try { await store.resetPassword(email); forgotView(email, "Bağlantı gönderildi. E-postanı (gereksiz klasörü dahil) kontrol et; bağlantıya tıklayınca yeni şifreni belirleyeceksin."); }
+    catch (er) { forgotView(email, er.message, true); }
+  };
+}
+function setPasswordView(msg = "") {
+  app.innerHTML = `<div class="pending card"><img src="../assets/logo-cranberry.webp" alt="Rotaract Ankara Anıttepe" style="width:200px"><h1>Yeni şifreni belirle</h1>
+  <form id="f-newpw" style="display:grid;gap:14px;text-align:left;max-width:380px;margin:0 auto">${msg ? `<div class="err" role="alert">${esc(msg)}</div>` : ""}
+    <label class="f">Yeni şifre <small>En az 8 karakter</small><input type="password" name="pw" autocomplete="new-password" minlength="8" required></label>
+    <label class="f">Yeni şifre (tekrar)<input type="password" name="pw2" autocomplete="new-password" minlength="8" required></label>
+    <button class="btn" type="submit">Şifremi kaydet</button></form></div>`;
+  document.getElementById("f-newpw").onsubmit = async e => {
+    e.preventDefault(); const f = e.target;
+    if (f.pw.value !== f.pw2.value) return setPasswordView("İki şifre aynı değil.");
+    try { await store.updatePassword(f.pw.value); me = await store.me(); history.replaceState(null, "", location.pathname + "#profil"); toast("Şifren kaydedildi."); render(); }
+    catch (er) { setPasswordView(er.message); }
+  };
 }
 
 function pendingView(passive = false) {
@@ -158,22 +190,41 @@ function shell() {
       <button class="btn ghost sm" id="logout">Çıkış yap</button>
     </aside>
     <div>
-      <div class="topbar"><button class="btn ghost sm" id="menu" aria-controls="side" aria-expanded="false">Menü</button><img src="../assets/logo-cranberry.webp" alt="Rotaract Ankara Anıttepe"></div>
+      <div class="topbar"><button class="icon-btn" id="menu" aria-controls="side" aria-expanded="false" aria-label="Menüyü aç"><span class="burger" aria-hidden="true"></span></button><img src="../assets/logo-cranberry.webp" alt="Rotaract Ankara Anıttepe"><span class="topbar-title">${esc((PAGES.find(p => p.id === id) || {}).label || "")}</span></div>
       <main class="main" id="main" tabindex="-1">
-        ${store.mode === "demo" ? `<div class="banner">Demo modundasın: örnek verilerle çalışıyor, değişiklikler yalnızca bu tarayıcıda saklanıyor. <button class="btn ghost sm" id="reset">Örnek verileri sıfırla</button></div>` : ""}
+        ${store.mode === "demo" ? `<div class="banner demo"><span><b>Demo modu.</b> Örnek verilerle çalışıyor; değişiklikler yalnızca bu tarayıcıda kalır.</span> <button class="btn ghost sm" id="reset">Örnek verileri sıfırla</button></div>` : ""}
         <div id="view"><p class="muted">Yükleniyor…</p></div>
       </main>
     </div>
+    <div class="scrim" id="scrim" hidden></div>
+    <nav class="tabbar" aria-label="Hızlı geçiş">${[["profil", "Profil", "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0"], ["takvim", "Takvim", "M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"], ["uyeler", "Üyeler", "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm-6 9a6 6 0 0 1 12 0M17 11a3 3 0 1 0-1-5.8M21 20a5 5 0 0 0-4-4.9"], ["kulupler", "Kulüpler", "M12 21s-7-4.5-7-11a7 7 0 0 1 14 0c0 6.5-7 11-7 11Zm0-8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z"]].map(([h, l, d]) => `<a href="#${h}" ${h === id ? 'aria-current="page"' : ""}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg><span>${l}</span></a>`).join("")}<button type="button" id="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menü</span></button></nav>
   </div>`;
   document.getElementById("logout").onclick = async () => { await store.signOut(); me = null; location.hash = ""; render(); };
   const side = document.getElementById("side"), mb = document.getElementById("menu");
-  mb.onclick = () => { const o = side.classList.toggle("open"); mb.setAttribute("aria-expanded", o); };
-  side.querySelectorAll("nav a").forEach(a => a.addEventListener("click", () => side.classList.remove("open")));
+  const scrim = document.getElementById("scrim");
+  const setMenu = o => { side.classList.toggle("open", o); scrim.hidden = !o; mb.setAttribute("aria-expanded", o); document.body.classList.toggle("lock", o); if (o) side.querySelector("nav a")?.focus(); };
+  mb.onclick = () => setMenu(!side.classList.contains("open"));
+  document.getElementById("more").onclick = () => setMenu(true);
+  scrim.onclick = () => setMenu(false);
+  document.onkeydown = e => { if (e.key === "Escape" && side.classList.contains("open")) { setMenu(false); mb.focus(); } };
+  side.querySelectorAll("nav a").forEach(a => a.addEventListener("click", () => setMenu(false)));
+  document.body.classList.remove("lock");
   const rs = document.getElementById("reset");
   if (rs) rs.onclick = () => { if (confirm("Örnek veriler ilk haline dönsün mü? Bu tarayıcıdaki demo değişiklikleri silinir.")) { store.resetDemo(); location.hash = ""; location.reload(); } };
   const view = document.getElementById("view");
   const fn = { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram }[id];
   fn(view).catch(e => { view.innerHTML = `<div class="err">${esc(e.message)}</div>`; });
+  labelTables(view);
+  new MutationObserver(() => labelTables(view)).observe(view, { childList: true, subtree: true });
+  scrollTo(0, 0);
+}
+// Telefonda tablolar kart olarak görünür: her hücreye sütun başlığını yaz.
+function labelTables(root) {
+  root.querySelectorAll("table:not(.matrix)").forEach(t => {
+    const heads = [...t.querySelectorAll("thead th")].map(th => th.textContent.trim());
+    t.classList.add("stack");
+    t.querySelectorAll("tbody tr").forEach(tr => [...tr.children].forEach((td, i) => { if (heads[i] && td.dataset.label !== heads[i]) td.dataset.label = heads[i]; }));
+  });
 }
 const header = (title, sub = "", actions = "") => `<div class="page-h"><div><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ""}</div><div class="spacer"></div>${actions}</div>`;
 const roBanner = panel => can(me, panel, "edit") ? "" : `<div class="banner info">Bu bölümü geçmiş dönem başkanı olarak yalnızca görüntüleyebilirsin.</div>`;
@@ -314,7 +365,7 @@ async function editMember(m) {
     </div></fieldset>
     <div class="row"><button class="btn" value="save">Kaydet</button><button class="btn ghost" value="cancel" formnovalidate>Vazgeç</button></div>
   </form>`;
-  dlg.showModal();
+  if (!dlg.open) dlg.showModal();
   dlg.querySelector("form").onsubmit = async e => {
     if (e.submitter?.value !== "save") return;
     const fd = new FormData(e.target);
@@ -669,7 +720,7 @@ function editProject(p, v, after = viewProjects) {
     <label class="check"><input type="checkbox" name="public" ${p.public ? "checked" : ""}> Kulüp sitesindeki takvimde göster</label>
     <div class="row"><button class="btn" value="save">Kaydet</button><button class="btn ghost" value="cancel" formnovalidate>Vazgeç</button><div class="spacer"></div>${p.id ? `<button class="btn danger" value="delete" formnovalidate>Sil</button>` : ""}</div>
   </form>`;
-  dlg.showModal();
+  if (!dlg.open) dlg.showModal();
   dlg.querySelector("form").onsubmit = async e => {
     const act = e.submitter?.value;
     try {
@@ -743,7 +794,7 @@ async function viewCalendar(v) {
   <div id="cal-export" class="cal-export">
     <div class="cal-print-head"><img src="../assets/logo-cranberry.webp" alt=""><div><b>${MONTHS[m - 1]} ${y} takvimi</b><span>Ankara Anıttepe Rotaract Kulübü · Toplantılar iki haftada bir perşembe 19.30, Hybrid Hub</span></div></div>
     <div class="cal cal2">${["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"].map(d => `<div class="dow">${d}</div>`).join("")}
-    ${cells.map(d => { const k = iso(d); return `<div class="day ${d.getMonth() !== m - 1 ? "out" : ""} ${k === today() ? "today" : ""}"><span class="n">${d.getDate()}</span>
+    ${cells.map(d => { const k = iso(d); const n = items.filter(i => i.date === k).length; return `<div class="day ${d.getMonth() !== m - 1 ? "out" : ""} ${k === today() ? "today" : ""} ${n ? "has" : ""}" data-day="${k}" ${n ? `role="button" tabindex="0" aria-label="${longDate(k)}, ${n} kayıt"` : ""}><span class="n">${d.getDate()}</span>
       ${items.filter(i => i.date === k).map(i => `<button type="button" class="ev t-${i.type} ${i.done ? "done" : ""}" data-i="${idx.get(i)}" title="${esc(i.title)}">${i.time ? `<i>${esc(i.time)}</i> ` : ""}${esc(i.title)}</button>`).join("")}</div>`; }).join("")}
     </div>
     <div class="agenda">
@@ -757,7 +808,20 @@ async function viewCalendar(v) {
   document.getElementById("c-next").onclick = () => shift(1);
   document.getElementById("c-today").onclick = () => { cal2Month = today().slice(0, 7); viewCalendar(v); };
   v.querySelectorAll("[data-f]").forEach(b => b.onclick = () => { calOff.has(b.dataset.f) ? calOff.delete(b.dataset.f) : calOff.add(b.dataset.f); viewCalendar(v); });
-  v.querySelectorAll("[data-i]").forEach(b => b.onclick = () => calDetail(items[+b.dataset.i], v));
+  v.querySelectorAll("[data-i]").forEach(b => b.onclick = e => { e.stopPropagation(); calDetail(items[+b.dataset.i], v); });
+  const small = () => matchMedia("(max-width: 640px)").matches;
+  v.querySelectorAll(".cal2 .day.has").forEach(d => {
+    const open = () => {
+      const list = items.filter(i => i.date === d.dataset.day);
+      if (!small() && list.length === 1) return calDetail(list[0], v);
+      const dlg = document.getElementById("dlg");
+      dlg.innerHTML = `<form method="dialog"><h2>${longDate(d.dataset.day)}</h2><div class="agenda" style="margin:0">${list.map(i => `<button type="button" class="ag-row" data-j="${idx.get(i)}"><span class="tag t-${i.type}">${CAL_TYPES[i.type]}</span><span class="ag-t"><b>${i.time ? esc(i.time) + " · " : ""}${esc(i.title)}</b>${i.sub ? `<small>${esc(i.sub)}</small>` : ""}</span></button>`).join("")}</div><div class="row"><button class="btn ghost" value="close">Kapat</button></div></form>`;
+      if (!dlg.open) dlg.showModal();
+      dlg.querySelectorAll("[data-j]").forEach(b => b.onclick = () => calDetail(items[+b.dataset.j], v));
+    };
+    d.addEventListener("click", open);
+    d.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+  });
   if (canAdd) document.getElementById("cal-add").onclick = () => editProject({ title: "", kind: "etkinlik", date: `${cal2Month}-${cal2Month === today().slice(0, 7) ? today().slice(8) : "01"}`, time: "", location: "", description: "", plan: "", owner: me.full_name, status: "planlandi", public: false }, v, viewCalendar);
   document.getElementById("cal-png").onclick = () => exportCalendar("png", `${MONTHS[m - 1]}-${y}`);
   document.getElementById("cal-pdf").onclick = () => exportCalendar("pdf", `${MONTHS[m - 1]}-${y}`);
@@ -779,7 +843,7 @@ function calDetail(it, v) {
       ${canAnnounce ? `<button class="btn ghost" value="announce">Duyuru gönder</button>` : ""}
       <button class="btn ghost" value="close">Kapat</button>
     </div></form>`;
-  dlg.showModal();
+  if (!dlg.open) dlg.showModal();
   dlg.querySelector("form").onsubmit = e => {
     const a = e.submitter?.value;
     if (a === "edit") setTimeout(() => editProject(it.ref, v, viewCalendar));
@@ -871,7 +935,7 @@ function editClubEvent(e, v) {
     <label class="f">Açıklama<textarea name="description" rows="3">${esc(e.description)}</textarea></label>
     <div class="row"><button class="btn" value="save">Kaydet</button><button class="btn ghost" value="cancel" formnovalidate>Vazgeç</button><div class="spacer"></div>${e.id ? `<button class="btn danger" value="delete" formnovalidate>Sil</button>` : ""}</div>
   </form>`;
-  dlg.showModal();
+  if (!dlg.open) dlg.showModal();
   dlg.querySelector("form").onsubmit = async ev => {
     const a = ev.submitter?.value;
     try {

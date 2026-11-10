@@ -19,7 +19,7 @@
 {"@context":"https://schema.org","@type":"NGO","name":"Ankara Anıttepe Rotaract Kulübü","alternateName":"Anıttepe Rotaract","url":"https://anitteperotaract.org/","logo":"https://anitteperotaract.org/assets/logo-cranberry.webp","email":"anitteperotaract1996@gmail.com","foundingDate":"1996-11","areaServed":"Ankara","sameAs":["https://www.instagram.com/anitteperotaract/","https://www.facebook.com/AnittepeRotaractKulubu/","https://www.linkedin.com/company/anittepe-rotaract/"],"parentOrganization":{"@type":"Organization","name":"Rotary International","url":"https://www.rotary.org"}}
 </script>
 <style>
-/* Layout: kızılcık hero → kayan şerit → sabitlenen yatay 30 yıl çizelgesi → sayaçlar → sürüklenebilir projeler → Rotary yılı çarkı → üyelik → kurul → haberler → iletişim. Tek cesur öğe: kaydırdıkça dönen Rotaract çarkı. */
+/* Layout: kızılcık hero → kayan şerit → sabitlenen yatay 30 yıl çizelgesi → sayaçlar → sürüklenebilir projeler → Rotary yılı çarkı → üyelik → kurul → haberler → iletişim. Tek cesur öğe: pembe disk üzerinde beyaz Rotary çarkı (marka kuralı: çark asla döndürülmez/animasyonla döndürülmez, üzerine yazı konmaz). */
 :root{
   --cran:#D41367; --cran-deep:#A30C4D; --cran-soft:#FCE6EF; --on-cran:#FFFFFF;
   --royal:#17458F; --gold:#F7A81B; --gold-soft:#FEF3DC;
@@ -437,6 +437,67 @@ body.show-notes .note{display:block}
 .qlinks span{color:var(--muted);font-size:.9rem;line-height:1.45}
 .qlinks small{margin-top:6px;font-size:.8rem;color:var(--muted)}
 @media (max-width:760px){.qlinks{grid-template-columns:1fr}}
+/* ---------- UX + mobil düzenlemeler ---------- */
+body{margin:0;overflow-wrap:break-word}
+h1,h2,h3{overflow-wrap:break-word;hyphens:auto}
+:focus-visible{outline-color:var(--royal)}
+.date-pick input:focus-visible + .dp{outline-color:var(--royal)}
+#wheel .ev:focus-visible circle.dot{stroke:var(--royal)}
+.apply-form input:focus,.apply-form select:focus,form.cf input:focus,form.cf select:focus,form.cf textarea:focus{box-shadow:0 0 0 3px color-mix(in srgb,var(--cran) 22%,transparent)}
+/* AA kontrast */
+.apply .kicker,.tag,.form-ok{color:var(--cran-deep)}
+.tl-card.dark .yr{color:var(--cran-deep)}
+.ticket-date span{opacity:.95}
+.proj-art .big,.post .art{text-shadow:0 2px 14px rgba(40,0,20,.35)}
+.cbox p{font-size:.9rem}
+.cd span{font-size:.75rem}
+/* Dokunma hedefleri */
+.menu-btn{height:44px}
+.chip,.interest button,.seg button,.socials a,.copy-btn{min-height:44px}
+.copy-btn{padding:8px 16px}
+.socials a{display:inline-flex;align-items:center}
+.lang-sw a{display:inline-flex;align-items:center;justify-content:center;min-height:40px;min-width:40px}
+.foot ul{gap:0}
+.foot li a{display:inline-block;padding-block:8px}
+footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
+@media (max-width:600px){#wheel .mlabel,#wheel .today-t{font-size:15px}}
+/* Hover kaldırma efektleri yalnızca fareli cihazlarda */
+@media (hover:none){.btn:hover,.proj:hover,.post:hover,.qlinks a:hover{transform:none}.rail{cursor:auto}}
+/* Mobil menü: üye ol + üye girişi menüde */
+.nav-extra{display:none}
+@media (max-width:1200px){
+  nav.main{max-height:calc(100svh - var(--hdr) - env(safe-area-inset-top,0px));overflow-y:auto;overscroll-behavior:contain;box-shadow:0 18px 30px -24px rgba(120,0,50,.45)}
+  nav.main a{display:flex;align-items:center;min-height:48px;padding:12px 14px;font-size:1.05rem;opacity:1;white-space:normal}
+  nav.main .nav-cta{justify-content:center;margin-top:10px;background:var(--cran);color:var(--on-cran)}
+  nav.main .nav-cta:hover{background:var(--cran-deep)}
+  nav.main .nav-login{color:var(--cran-deep);font-weight:700}
+}
+@media (min-width:641px){nav.main .nav-login{display:none}}
+/* Kaydırmalı şeritler: dokunmatikte doğal kaydırma + snap hizası */
+.tl.static .tl-track{scroll-padding-inline:var(--gl) var(--gr);overscroll-behavior-x:contain;scrollbar-width:thin}
+.rail{scroll-padding-left:max(var(--gl),calc((100vw - var(--maxw))/2 + 16px));overscroll-behavior-x:contain}
+.cbox{overscroll-behavior-x:contain}
+/* Dil önerisi: içeriği örtmeyen, akış içi şerit */
+.lang-hint{position:relative;left:auto;top:auto;transform:none;z-index:auto;max-width:none;justify-content:center;flex-wrap:wrap;border:0;border-bottom:1.5px solid var(--blush-2);border-radius:0;box-shadow:none;padding:calc(8px + env(safe-area-inset-top,0px)) var(--gr) 8px var(--gl)}
+.lang-hint a{padding:10px 16px}
+.lang-hint button{width:44px;height:44px;flex:none}
+.lang-hint{flex-wrap:nowrap;gap:10px}
+.lang-hint span{min-width:0}
+/* Gizli tarih radyoları: genel input kuralı onlara width:100% veriyordu (375px ekranda yatay taşma) */
+.date-pick label{position:relative}
+.apply-form .date-pick input{left:0;top:0;width:1px;height:1px;padding:0;margin:0;border:0}
+/* Metin bağlantılarına dokunma alanı */
+.fam a,.info-row a{display:inline-block;padding-block:8px}
+/* Küçük ekranlar */
+@media (max-width:880px){.steps button{font-size:.78rem;line-height:1.25;overflow-wrap:anywhere;min-height:64px}}
+@media (max-width:520px){
+  .hero-wheel{width:min(46%,200px)}
+  .hero-actions .btn{flex:1 1 100%;justify-content:center;text-align:center}
+  .ticket-date{min-width:78px;padding:16px 12px}
+  .ticket-body{padding:14px}
+  .cd{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+  .cd div{min-width:0;padding:6px 4px}
+}
 </style>
 
 <div class="progress" id="progress" aria-hidden="true"></div>
@@ -447,7 +508,7 @@ body.show-notes .note{display:block}
       <span class="lg on-top"><img src="assets/logo-cranberry.webp" alt="Ankara Anıttepe Rotaract Kulübü logosu"></span>
       <span class="on-scroll">
         <span class="lg l-cran"><img src="assets/logo-cranberry.webp" alt="Ankara Anıttepe Rotaract Kulübü logosu"></span>
-        <span class="lg l-white"><img src="assets/logo-beyaz.webp" alt="" aria-hidden="true"></span>
+        <span class="lg l-white"><img src="assets/logo-beyaz.webp" alt="" aria-hidden="true" width="2000" height="541" loading="lazy"></span>
       </span>
     </a>
     <nav class="main" id="nav" aria-label="Ana menü">
@@ -459,6 +520,8 @@ body.show-notes .note{display:block}
       <a href="#yonetim">Yönetim</a>
       <a href="#haberler">Haberler</a>
       <a href="#iletisim">İletişim</a>
+      <a class="nav-extra nav-cta" href="#basvuru">Misafir üye ol</a>
+      <a class="nav-extra nav-login" href="https://anitteperotaract.org/uye/">Üye girişi</a>
     </nav>
     <div class="lang-sw" role="group" aria-label="Dil seçimi"><a href="https://anitteperotaract.org/" hreflang="tr" lang="tr" data-lang="tr" aria-current="true" aria-label="Türkçe">TR</a><a href="https://anitteperotaract.org/en/" hreflang="en" lang="en" data-lang="en" aria-label="English">EN</a></div>
     <a class="mlogin" href="https://anitteperotaract.org/uye/">Üye girişi</a>
@@ -495,7 +558,7 @@ body.show-notes .note{display:block}
         </div>
       </div>
       <div class="hero-wheel" aria-hidden="true">
-        <img class="rw" src="assets/rotary-carki.webp" alt="">
+        <img class="rw" src="assets/rotary-carki.webp" alt="" width="1500" height="1500" fetchpriority="high">
       </div>
     </div>
   </section>
@@ -522,13 +585,13 @@ body.show-notes .note{display:block}
       </div>
       <form class="apply-form" id="gf" novalidate>
         <div class="gf-fields" id="gfFields">
-          <label>Ad soyad<input id="g-name" name="name" required autocomplete="name"></label>
+          <label>Ad soyad<input id="g-name" name="name" required autocomplete="name" autocapitalize="words"></label>
           <label>E-posta<input id="g-mail" name="email" type="email" required autocomplete="email"></label>
           <label>Telefon <small>(isteğe bağlı)</small><input id="g-tel" name="tel" type="tel" autocomplete="tel"></label>
           <label>Şu an
             <select id="g-status" name="status"><option>Üniversite öğrencisiyim</option><option>Çalışıyorum</option><option>Mezun oldum, iş arıyorum</option><option>Diğer</option></select>
           </label>
-          <label class="full">Okul ya da meslek<input id="g-school" name="school" placeholder="Örneğin ODTÜ Mimarlık, yazılım geliştirici"></label>
+          <label class="full">Okul ya da meslek<input id="g-school" name="school" autocomplete="organization" placeholder="Örneğin ODTÜ Mimarlık, yazılım geliştirici"></label>
           <fieldset class="full">
             <legend>Hangi toplantıya geleceksin?</legend>
             <div class="date-pick" id="gDates"></div>
@@ -542,7 +605,7 @@ body.show-notes .note{display:block}
           </label>
           <label class="full check"><input type="checkbox" id="g-kvkk" required> Bilgilerimin üyelik süreci için Anıttepe Rotaract tarafından kullanılmasını kabul ediyorum.</label>
           <button class="btn btn-cran full" type="submit">Başvurumu gönder</button>
-          <p class="gf-err" id="gErr" hidden></p>
+          <p class="gf-err" id="gErr" role="alert" hidden></p>
         </div>
         <div class="gf-done" id="gDone" hidden></div>
       </form>
@@ -559,7 +622,7 @@ body.show-notes .note{display:block}
         </div>
         <div class="tl-bar" aria-hidden="true"><i id="tlBar"></i></div>
       </div>
-      <div class="tl-track" id="tlTrack">
+      <div class="tl-track" id="tlTrack" role="group" aria-label="Zaman çizelgesi kartları">
         <article class="tl-card"><span class="yr">1968</span><h3>Rotaract doğuyor</h3><p>Rotary International, gençler için Rotaract programını 13 Mart 1968'de başlatıyor. Bugün 180 ülkede 10.000'den fazla kulüp var.</p></article>
         <article class="tl-card hl"><span class="yr">1996</span><h3>Anıttepe Rotaract kuruluyor</h3><p>Kasım 1996'da, Ankara Anıttepe Rotary Kulübü'nün sponsorluğunda Ankara'nın Rotaract kulüplerinden biri olarak yola çıkıyoruz.</p></article>
         <article class="tl-card"><span class="yr">2007</span><h3>İlk Döneme Merhaba Partisi</h3><p>Her yeni dönemi açan, farklı kulüpleri buluşturan partimiz başlıyor. 2026'da 20. kez yapıldı.</p></article>
@@ -654,7 +717,7 @@ body.show-notes .note{display:block}
       <div class="dial">
         <div class="dial-box">
           <svg id="wheel" viewBox="-24 -24 448 448" role="group" aria-label="Rotary yılı takvimi"></svg>
-          <div class="dial-center" aria-hidden="true"><span class="rw-disc"><img src="assets/rotary-carki.webp" alt=""></span></div>
+          <div class="dial-center" aria-hidden="true"><span class="rw-disc"><img src="assets/rotary-carki.webp" alt="" width="1500" height="1500" loading="lazy" decoding="async"></span></div>
         </div>
         <ul class="ev-list" id="evList"></ul>
       </div>
@@ -821,7 +884,7 @@ body.show-notes .note{display:block}
         </div>
       </div>
       <form class="cf" id="cf" novalidate>
-        <label>Ad soyad<input id="f-name" name="name" required autocomplete="name"></label>
+        <label>Ad soyad<input id="f-name" name="name" required autocomplete="name" autocapitalize="words"></label>
         <label>E-posta<input id="f-mail" name="email" type="email" required autocomplete="email"></label>
         <label class="full">Konu
           <select id="f-subject" name="subject">
@@ -833,7 +896,7 @@ body.show-notes .note{display:block}
         </label>
         <label class="full">Mesajın<textarea id="f-msg" name="message" placeholder="Kendinden ya da fikrinden kısaca bahset"></textarea></label>
         <button class="btn btn-cran" type="submit">Mesajı gönder</button>
-        <div class="form-ok" id="formOk" hidden></div>
+        <div class="form-ok" id="formOk" role="status" hidden></div>
       </form>
     </div>
   </section>
@@ -869,8 +932,13 @@ body.show-notes .note{display:block}
   let tt;function toast(m){const t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(tt);tt=setTimeout(()=>t.hidden=true,2600)}
 
   // ---------- Nav ----------
-  $("#menuBtn").addEventListener("click",e=>{const o=$("#nav").classList.toggle("open");e.currentTarget.setAttribute("aria-expanded",o)});
-  $$("#nav a").forEach(a=>a.addEventListener("click",()=>{$("#nav").classList.remove("open");$("#menuBtn").setAttribute("aria-expanded","false")}));
+  const navEl=$("#nav"),menuBtn=$("#menuBtn");
+  function setMenu(o){navEl.classList.toggle("open",o);menuBtn.setAttribute("aria-expanded",o);menuBtn.setAttribute("aria-label",o?"Menüyü kapat":"Menüyü aç");menuBtn.textContent=o?"✕":"☰"}
+  menuBtn.addEventListener("click",()=>setMenu(!navEl.classList.contains("open")));
+  navEl.addEventListener("click",e=>{if(e.target.closest("a"))setMenu(false)});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape"&&navEl.classList.contains("open")){setMenu(false);menuBtn.focus()}});
+  document.addEventListener("click",e=>{if(navEl.classList.contains("open")&&!e.target.closest("#nav,#menuBtn"))setMenu(false)});
+  matchMedia("(min-width:1201px)").addEventListener("change",m=>{if(m.matches)setMenu(false)});
 
   // ---------- Next meeting: 19 Nov 2026 = 610th, term #11; every 14 days ----------
   const ANCHOR=new Date(2026,10,19,19,30), ANCHOR_NO=610, ANCHOR_TERM=11, STEP=14*864e5;
@@ -895,9 +963,16 @@ body.show-notes .note{display:block}
   // ---------- Scroll: progress, header, timeline, floating apply button ----------
   const hdr=$("#hdr"),bar=$("#progress"),fab=$("#fab"),apply=$("#basvuru");
   const tl=$("#hikaye"),track=$("#tlTrack"),tlBar=$("#tlBar");
+  // Dokunmatik ve dar ekranlarda sabitlenen yatay kaydırma yerine doğal yatay kaydırma (scroll-snap)
+  const coarse=matchMedia("(pointer:coarse)");
+  function updTl(){const w=track.scrollWidth;tlBar.style.transform=`scaleX(${w>0?Math.min(1,(track.scrollLeft+track.clientWidth)/w):1})`}
+  track.addEventListener("scroll",()=>{if(tl.classList.contains("static"))updTl()},{passive:true});
   function sizeTimeline(){
-    if(reduce||innerWidth<0){tl.classList.add("static");return}
-    tl.classList.remove("static");
+    if(reduce||innerWidth<768||coarse.matches){
+      if(!tl.classList.contains("static")){tl.classList.add("static");tl.style.height="";track.style.transform="";track.tabIndex=0}
+      updTl();return;
+    }
+    tl.classList.remove("static");track.removeAttribute("tabindex");
     const extra=Math.max(0,track.scrollWidth-innerWidth);
     tl.style.height=(innerHeight+extra)+"px";
   }
@@ -914,7 +989,8 @@ body.show-notes .note{display:block}
       track.style.transform=`translateX(${-extra*p}px)`;tlBar.style.transform=`scaleX(${p})`;
     }
   }
-  addEventListener("scroll",onScroll,{passive:true});
+  let ticking=false;
+  addEventListener("scroll",()=>{if(!ticking){ticking=true;requestAnimationFrame(()=>{ticking=false;onScroll()})}},{passive:true});
   addEventListener("resize",()=>{sizeTimeline();onScroll()});
   sizeTimeline();onScroll();
 
@@ -929,6 +1005,11 @@ body.show-notes .note{display:block}
   const INTERESTS=["Hizmet projeleri","Uluslararası","Meslek gelişimi","Afet","Tanıtım ve sosyal medya","Etkinlik ve hobi"];
   $("#gInterest").innerHTML=INTERESTS.map(x=>`<button type="button" aria-pressed="false">${x}</button>`).join("");
   $$("#gInterest button").forEach(b=>b.addEventListener("click",()=>b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")!=="true")));
+
+  // Formlar kulüp mailine doğrudan gider (FormSubmit). Sunucuya ulaşılamazsa e-posta uygulaması açılır.
+  const sendMail=(subject,body,replyTo)=>fetch("https://formsubmit.co/ajax/anitteperotaract1996@gmail.com",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({_subject:subject,_template:"table",_captcha:"false",_replyto:replyTo,"Mesaj":body})})
+    .then(r=>r.json()).then(j=>{if(String(j.success)!=="true")throw new Error("not sent");return true})
+    .catch(()=>{location.href="mailto:anitteperotaract1996@gmail.com?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(body);return false});
   $("#gf").addEventListener("submit",e=>{
     e.preventDefault();const err=$("#gErr");
     const name=$("#g-name").value.trim(),mail=$("#g-mail").value.trim();
@@ -938,12 +1019,13 @@ body.show-notes .note{display:block}
     err.hidden=true;
     const m=window._gMeetings[+(document.querySelector('input[name="gdate"]:checked')||{value:0}).value];
     const _l={"name":"Ad soyad","mail":"E-posta","tel":"Telefon","status":"Durum","school":"Okul / meslek","source":"Bizi nereden duydu","interest":"İlgi alanları","date":"Gelmek istediği toplantı"};const _b=[[_l.name,name],[_l.mail,mail],[_l.tel,(($("#g-tel")||{}).value||"").trim()],[_l.status,(($("#g-status")||{}).value||"").trim()],[_l.school,(($("#g-school")||{}).value||"").trim()],[_l.source,(($("#g-source")||{}).value||"").trim()],[_l.interest,$("#gInterest button[aria-pressed=true]").map(b=>b.textContent).join(", ")],[_l.date,m.d.toLocaleDateString(document.documentElement.lang,{day:"numeric",month:"long",weekday:"long"})+" ("+m.no+")"]].filter(x=>x[1]).map(x=>x[0]+": "+x[1]).join("\n");
-    location.href="mailto:anitteperotaract1996@gmail.com?subject="+encodeURIComponent("Misafir üye başvurusu"+": "+name)+"&body="+encodeURIComponent(_b);
+    const _sent=sendMail("Misafir üye başvurusu"+": "+name,_b,mail);
     $("#gfFields").hidden=true;const done=$("#gDone");done.hidden=false;
     done.innerHTML=`<div class="ok" aria-hidden="true">✓</div><h3>Başvurun alındı, ${name.split(" ")[0]}.</h3>
       <p>Seni <b>${m.d.getDate()} ${MONTHS[m.d.getMonth()]} ${DAYS[m.d.getDay()]} 19.30</b>'da Hybrid Hub'daki ${m.no}. toplantımızda bekliyoruz. Ayrıntıları ${mail} adresine göndereceğiz.</p>
-      <p style="font-size:.85rem">E-posta uygulaman başvurunla birlikte açıldı. <b>Gönder</b>'e bastığında başvurun bize ulaşır. Açılmadıysa anitteperotaract1996@gmail.com adresine yazabilirsin.</p>
+      <p style="font-size:.85rem" id="gNote" role="status">Başvurun gönderiliyor…</p>
       <button class="btn btn-ghost" type="button" id="gAgain" style="justify-self:start">Yeni başvuru</button>`;
+    _sent.then(ok=>{const n=$("#gNote");if(n)n.textContent=ok?"Başvurun kulübümüze ulaştı.":"E-posta uygulaman başvurunla açıldı; Gönder'e bastığında bize ulaşır."});
     $("#gAgain").addEventListener("click",()=>{done.hidden=true;$("#gfFields").hidden=false;$("#gf").reset();$$("#gInterest button").forEach(b=>b.setAttribute("aria-pressed","false"))});
   });
 
@@ -1018,7 +1100,7 @@ body.show-notes .note{display:block}
   sorted.forEach(e=>{
     const[x,y]=pt(e.a,132);
     const g=el("g",{class:"ev",tabindex:0,role:"button","aria-label":`${e.when}: ${e.t}`});
-    el("circle",{cx:x,cy:y,r:16,fill:"transparent"},g);el("circle",{cx:x,cy:y,r:8,class:"dot"},g);
+    el("circle",{cx:x,cy:y,r:20,fill:"transparent"},g);el("circle",{cx:x,cy:y,r:8,class:"dot"},g);
     dots[e.id]=g;g.addEventListener("click",()=>pick(e.id));
     g.addEventListener("keydown",k=>{if(k.key==="Enter"||k.key===" "){k.preventDefault();pick(e.id)}});
   });
@@ -1084,8 +1166,8 @@ body.show-notes .note{display:block}
   $("#cf").addEventListener("submit",e=>{
     e.preventDefault();const ok=$("#formOk"),name=$("#f-name").value.trim(),mail=$("#f-mail").value.trim();ok.hidden=false;
     if(!name||!/^\S+@\S+\.\S+$/.test(mail)){ok.textContent="Adını ve geçerli bir e-posta adresini yazman gerekiyor.";return}
-    location.href="mailto:anitteperotaract1996@gmail.com?subject="+encodeURIComponent(((($("#f-subject")||{}).value||"").trim()||"Web sitesinden mesaj")+": "+name)+"&body="+encodeURIComponent((($("#f-msg")||{}).value||"").trim()+"\n\n"+name+" <"+mail+">");
-    ok.textContent=`Teşekkürler ${name.split(" ")[0]}. E-posta uygulaman mesajınla açıldı; Gönder'e bastığında bize ulaşır.`;
+    ok.textContent="Mesajın gönderiliyor…";
+    sendMail(((($("#f-subject")||{}).value||"").trim()||"Web sitesinden mesaj")+": "+name,(($("#f-msg")||{}).value||"").trim()+"\n\n"+name+" <"+mail+">",mail).then(sent=>{ok.textContent=sent?`Teşekkürler ${name.split(" ")[0]}. Mesajın bize ulaştı; en kısa sürede dönüş yapacağız.`:`Teşekkürler ${name.split(" ")[0]}. E-posta uygulaman mesajınla açıldı; Gönder'e bastığında bize ulaşır.`});
   });
 })();
 // 4'lü özdenetim
@@ -1123,7 +1205,7 @@ body.show-notes .note{display:block}
     const h=document.createElement("div");h.className="lang-hint";h.setAttribute("role","status");
     h.innerHTML=CUR==="tr"?'<span>This site is also available in English.</span><a href="https://anitteperotaract.org/en/" hreflang="en" data-lang="en">English</a><button type="button" aria-label="Close">×</button>'
                           :'<span>Bu sitenin Türkçesi de var.</span><a href="https://anitteperotaract.org/" hreflang="tr" data-lang="tr">Türkçe</a><button type="button" aria-label="Kapat">×</button>';
-    document.body.appendChild(h);
+    document.body.prepend(h);
     h.querySelector("a").addEventListener("click",e=>{set(localStorage,KEY,e.currentTarget.dataset.lang);const p=here();if(p)set(sessionStorage,POS,JSON.stringify(p))});
     h.querySelector("button").addEventListener("click",()=>{set(localStorage,KEY,CUR);h.remove()});
   }

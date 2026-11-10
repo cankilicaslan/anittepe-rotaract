@@ -135,6 +135,9 @@ function demoStore() {
       S.session = p.id; save(); return clone(p);
     },
     async signOut() { S.session = null; save(); },
+    async resetPassword() { throw new Error("Demo modunda şifre sıfırlama yok. Demo hesaplarına giriş ekranındaki isimlere tıklayarak girebilirsin."); },
+    async updatePassword() { throw new Error("Demo modunda şifre değiştirilemez."); },
+    onRecovery() {},
     async me() { return me() ? clone(me()) : null; },
 
     async listMembers() { return clone(S.profiles); },
@@ -282,6 +285,9 @@ async function supabaseStore() {
     },
     async signIn(email, password) { ok(await sb.auth.signInWithPassword({ email, password })); return this.me(); },
     async signOut() { await sb.auth.signOut(); },
+    async resetPassword(email) { ok(await sb.auth.resetPasswordForEmail((email || "").trim(), { redirectTo: location.origin + location.pathname })); },
+    async updatePassword(password) { if ((password || "").length < 8) throw new Error("Şifre en az 8 karakter olmalı."); ok(await sb.auth.updateUser({ password })); },
+    onRecovery(cb) { sb.auth.onAuthStateChange(ev => { if (ev === "PASSWORD_RECOVERY") cb(); }); },
     async me() {
       const id = await meId(); if (!id) return null;
       const { data } = await sb.from("profiles").select("*").eq("id", id).maybeSingle();

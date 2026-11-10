@@ -342,3 +342,9 @@
 
 /* Yerleşim, panelin genişliğine göre (kenar çubuğu dahil) değişsin. */
 .cmp { container: cmp / inline-size; }
+
+/* Mobil: dokunma alanları en az 44px */
+@media (max-width: 860px) {
+  .cmp-btn-sm { min-height: 44px; }
+  .cmp input[type="range"] { min-height: 32px; }
+}

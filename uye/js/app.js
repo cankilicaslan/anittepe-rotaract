@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611101842";
-import { can, hasRole, ROLE_LABELS } from "./roles.js?v=202611101842";
+import { createStore, trDate } from "./store.js?v=202611101932";
+import { can, hasRole, ROLE_LABELS } from "./roles.js?v=202611101932";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -243,7 +243,7 @@ function shell() {
       </main>
     </div>
     <div class="scrim" id="scrim" hidden></div>
-    <nav class="tabbar" aria-label="Hızlı geçiş">${[["profil", "Profil", "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0"], ["takvim", "Takvim", "M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"], ["uyeler", "Üyeler", "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm-6 9a6 6 0 0 1 12 0M17 11a3 3 0 1 0-1-5.8M21 20a5 5 0 0 0-4-4.9"], ["arsiv", "Arşiv", "M4 6h16v13H4zM4 15l4.5-4.5 3.5 3.5 2.5-2.5L20 17M15.5 9.5h.01"]].map(([h, l, d]) => `<a href="#${h}" ${h === navId ? 'aria-current="page"' : ""}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg><span>${l}</span></a>`).join("")}<button type="button" id="more"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menü</span></button></nav>
+    <nav class="tabbar" aria-label="Hızlı geçiş">${[["profil", "Profil", "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0"], ["takvim", "Takvim", "M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"], ["uyeler", "Üyeler", "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm-6 9a6 6 0 0 1 12 0M17 11a3 3 0 1 0-1-5.8M21 20a5 5 0 0 0-4-4.9"], ["arsiv", "Arşiv", "M4 6h16v13H4zM4 15l4.5-4.5 3.5 3.5 2.5-2.5L20 17M15.5 9.5h.01"]].map(([h, l, d]) => `<a href="#${h}" ${h === navId ? 'aria-current="page"' : ""}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg><span>${l}</span></a>`).join("")}<button type="button" id="more"${["profil", "takvim", "uyeler", "arsiv"].includes(navId) ? "" : ' class="on"'}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menü</span></button></nav>
   </div>`;
   document.getElementById("logout").onclick = async () => { await store.signOut(); me = null; location.hash = ""; render(); };
   const side = document.getElementById("side"), mb = document.getElementById("menu");
@@ -409,7 +409,7 @@ async function viewMembers(v) {
   v.innerHTML = header("Üye listesi", `${members.filter(m => m.status === "active").length} aktif üye`, `<div class="row"><input type="search" id="q" placeholder="İsim, görev, telefon ara" style="max-width:260px" aria-label="Üye ara">${admin ? `<button class="btn" id="addm">Yeni üye ekle</button><label class="btn ghost" style="cursor:pointer">Excel'den bilgileri al<input type="file" id="xls" accept=".xlsx,.xls,.csv" class="sr"></label>` : ""}</div>`) +
     (admin ? `<p class="muted" style="margin:-8px 0 16px;font-size:.86rem">Excel'den alma yalnızca listedeki mevcut üyelerin telefon, e-posta, doğum tarihi, meslek, Instagram ve kan grubu bilgilerini günceller; yeni kişi eklemez. Dosya bu tarayıcıda okunur, hiçbir yere yüklenmez.</p>` : "") +
     (admin && pending.length ? `<div class="card" style="margin-bottom:16px"><h2>Onay bekleyen hesaplar</h2>${pending.map(m => `<div class="pay-row">${person(m)}<span class="muted">${esc(m.email)} · ${esc(m.phone)}</span><button class="btn sm" data-approve="${m.id}">Onayla</button><button class="btn danger sm" data-reject="${m.id}">Pasife al</button></div>`).join("")}</div>` : "") +
-    (acc ? `<p class="muted acct-legend"><span class="acct on"></span>Siteye şifresini oluşturdu <span class="acct"></span>Henüz oluşturmadı · ${members.filter(m => acc.get(m.id)?.has_password).length}/${members.length} kişi</p>` : "") +
+    (acc ? `<p class="muted acct-legend"><span class="lg"><span class="acct on"></span>Siteye şifresini oluşturdu</span> <span class="lg"><span class="acct"></span>Henüz oluşturmadı</span> <span class="lg">· ${members.filter(m => acc.get(m.id)?.has_password).length}/${members.length} kişi</span></p>` : "") +
     `<div class="tbl-wrap"><table><thead><tr><th>Üye</th><th>Telefon</th><th>E-posta</th><th>Doğum tarihi</th><th>Meslek / okul</th><th>Instagram</th><th>Üyelik</th><th>Durum</th>${seeDebt ? '<th class="num">Aidat borcu</th>' : ""}${admin ? "<th></th>" : ""}</tr></thead><tbody id="tb">${rows("")}</tbody></table></div>
     <dialog id="dlg"></dialog>`;
   const tb = document.getElementById("tb");
@@ -548,7 +548,7 @@ async function viewAttendance(v) {
   const statRow = (p, s, extra) => `<tr><td>${person(p)}</td><td>${extra}</td><td class="num">${s.geldi}</td><td class="num">${s.gelmedi}</td><td class="num">${s.mazeretli}</td><td class="num">${s.isaretsiz}</td>
       <td><div class="row" style="flex-wrap:nowrap"><div class="bar" style="flex:1"><i style="width:${s.oran * 100}%"></i></div><b style="min-width:44px;text-align:right">${pct(s.oran)}</b></div></td><td class="num">${pct(s.oranMazeretHaric)}</td></tr>`;
   const startTxt = no => no > 1 ? `${no}. toplantıdan` : "Dönem başından";
-  const matrixRow = (p, map, kind) => { const st = startOf.get(p.id); return `<tr><td>${esc(p.full_name)}</td>${meetings.map(m => {
+  const matrixRow = (p, map, kind) => { const st = startOf.get(p.id); return `<tr><td title="${esc(p.full_name)}">${esc(p.full_name)}</td>${meetings.map(m => {
     const fut = m.date > today() ? "future" : "";
     if (kind === "cp" && m.term_no < st) return `<td class="${fut}"><span class="cell pre" title="Henüz üye değildi">–</span></td>`;
     const s = map.get(m.id + "|" + p.id)?.status;
@@ -866,7 +866,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611101842");
+  const { mountComposer } = await import("./composer.js?v=202611101932");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1201,7 +1201,7 @@ async function viewWaMeeting(v) {
     </form>
     <div class="card">
       <h2>WhatsApp mesajı</h2>
-      <p class="muted" style="margin-top:-6px;font-size:.86rem">Soldaki bilgileri değiştirdikçe metin yenilenir. İstersen buradan da düzenleyebilirsin.</p>
+      <p class="muted" style="margin-top:-6px;font-size:.86rem">Toplantı bilgilerini değiştirdikçe metin yenilenir. İstersen buradan da düzenleyebilirsin.</p>
       <textarea id="wa-text" rows="16" class="wa-text" aria-label="WhatsApp mesajı"></textarea>
       <div class="row" style="margin-top:12px">
         <button type="button" class="btn wa" id="wa-send">WhatsApp grubunda paylaş</button>

@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611102221";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611102221";
+import { createStore, trDate } from "./store.js?v=202611102233";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611102233";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -908,12 +908,14 @@ async function viewProjects(v) {
   const ro = !can(me, "projeler", "edit");
   const [projects, meetings] = await Promise.all([store.listProjects(), store.listMeetings()]);
   projects.sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  // Saat, yer ve durum alanları kaldırıldı: tarihi geçmiş proje "yapıldı" sayılır.
   const up = projects.filter(p => p.date >= today() && p.status !== "iptal");
+  const doneP = projects.filter(p => p.date && p.date < today() && p.status !== "iptal");
   v.innerHTML = header("Hizmet projeleri", "Projeleri planla; liste ve takvim birlikte güncellenir.", ro ? "" : `<button class="btn" id="newp">Yeni proje</button>`) + roBanner("projeler") + `
   <div class="stats">
     <div class="stat hl"><span>Yaklaşan</span><b>${up.length}</b></div>
-    <div class="stat"><span>Planlanan</span><b>${projects.filter(p => p.status === "planlandi").length}</b></div>
-    <div class="stat"><span>Tamamlanan</span><b>${projects.filter(p => p.status === "tamamlandi").length}</b></div>
+    <div class="stat"><span>Toplam</span><b>${projects.length}</b></div>
+    <div class="stat"><span>Yapılan</span><b>${doneP.length}</b></div>
     <div class="stat"><span>Sitede görünen</span><b>${projects.filter(p => p.public).length}</b></div>
   </div>
   <div class="row" style="margin-bottom:14px"><div class="seg" role="group" aria-label="Görünüm"><button data-mode="liste" aria-pressed="${projMode === "liste"}">Liste</button><button data-mode="takvim" aria-pressed="${projMode === "takvim"}">Takvim</button></div></div>
@@ -923,7 +925,7 @@ async function viewProjects(v) {
     body.innerHTML = `<div class="card">${projects.length ? projects.map(p => {
       const d = p.date ? new Date(p.date + "T12:00:00") : null;
       return `<div class="proj"><div class="date">${d ? `<b>${d.getDate()}</b><span>${MONTHS[d.getMonth()].slice(0, 3)} ${d.getFullYear()}</span>` : "<span>Tarih yok</span>"}</div>
-        <div><h3>${esc(p.title)}</h3><div class="row"><span class="tag ${PSTAT[p.status]?.[1]}">${PSTAT[p.status]?.[0]}</span><span class="tag">${KIND[p.kind] || ""}</span>${p.public ? '<span class="tag cran">Sitede</span>' : ""}<span class="muted" style="font-size:.86rem">${[p.time, p.location, p.owner].filter(Boolean).map(esc).join(" · ")}</span></div>
+        <div><h3>${esc(p.title)}</h3><div class="row"><span class="tag">${KIND[p.kind] || ""}</span>${p.public ? '<span class="tag cran">Sitede</span>' : ""}<span class="muted" style="font-size:.86rem">${[p.committee, p.owner].filter(Boolean).map(esc).join(" · ")}</span></div>
         ${p.description ? `<p>${esc(p.description)}</p>` : ""}${p.plan ? `<p class="muted" style="white-space:pre-line"><b style="color:var(--ink)">Nasıl yapılacak:</b> ${esc(p.plan)}</p>` : ""}</div>
         <div class="acts row">${ro ? "" : `<button class="btn ghost sm" data-ep="${p.id}">Düzenle</button>`}</div></div>`;
     }).join("") : '<p class="muted">Henüz proje yok. "Yeni proje" ile ilkini planla.</p>'}</div>`;
@@ -936,7 +938,7 @@ async function viewProjects(v) {
     <div class="cal">${["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"].map(d => `<div class="dow">${d}</div>`).join("")}
     ${cells.map(d => { const k = iso(d); return `<div class="day ${d.getMonth() !== m - 1 ? "out" : ""} ${k === today() ? "today" : ""}"><span class="n">${d.getDate()}</span>
       ${meetings.filter(x => x.date === k).map(x => `<span class="ev meet">${x.term_no}. toplantı 19.30</span>`).join("")}
-      ${projects.filter(p => p.date === k).map(p => `<button class="ev ${p.status === "tamamlandi" ? "done" : ""}" data-ep="${p.id}" title="${esc(p.title)}">${esc(p.title)}</button>`).join("")}</div>`; }).join("")}</div>`;
+      ${projects.filter(p => p.date === k).map(p => `<button class="ev ${p.date < today() ? "done" : ""}" data-ep="${p.id}" title="${esc(p.title)}">${esc(p.title)}</button>`).join("")}</div>`; }).join("")}</div>`;
     const shift = n => { const d = new Date(y, m - 1 + n, 1); calMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; viewProjects(v); };
     document.getElementById("prev").onclick = () => shift(-1);
     document.getElementById("next").onclick = () => shift(1);
@@ -955,11 +957,8 @@ function editProject(p, v, after = viewProjects) {
     <div class="grid g3">
       <label class="f">Tür<select name="kind">${Object.entries(KIND).map(([k, l]) => `<option value="${k}" ${p.kind === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
       <label class="f">Tarih<input type="date" name="date" value="${esc(p.date)}" required></label>
-      <label class="f">Saat<input type="time" name="time" value="${esc(p.time)}"></label>
-      <label class="f">Yer<input type="text" name="location" value="${esc(p.location)}"></label>
       <label class="f">Sorumlu<input type="text" name="owner" value="${esc(p.owner)}"></label>
       <label class="f">Komite<select name="committee"><option value="">Seç…</option>${COMMITTEES.map(c => `<option ${p.committee === c ? "selected" : ""}>${c}</option>`).join("")}</select></label>
-      <label class="f">Durum<select name="status">${Object.entries(PSTAT).map(([k, [l]]) => `<option value="${k}" ${p.status === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
     </div>
     <label class="f">Kısa açıklama<textarea name="description" rows="2">${esc(p.description)}</textarea></label>
     <label class="f">Nasıl yapılacak? <small>Adımlar, ihtiyaçlar, görev dağılımı</small><textarea name="plan" rows="4">${esc(p.plan)}</textarea></label>
@@ -985,7 +984,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611102221");
+  const { mountComposer } = await import("./composer.js?v=202611102233");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1653,26 +1652,26 @@ let pfFilter = "hepsi";
 async function viewProjectForms(v) {
   const ro = !can(me, "proje-form", "edit");
   const all = await store.listProjects();
-  const done = all.filter(p => p.status === "tamamlandi").sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const done = all.filter(p => p.date && p.date <= today() && p.status !== "iptal").sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   const withForm = done.filter(p => p.form_submitted_at);
   const shown = done.filter(p => pfFilter === "hepsi" || (pfFilter === "girildi" ? p.form_submitted_at : !p.form_submitted_at));
   const byCom = {};
   done.forEach(p => { const k = p.committee || "Belirtilmedi"; byCom[k] ||= { done: 0, form: 0 }; byCom[k].done++; if (p.form_submitted_at) byCom[k].form++; });
-  v.innerHTML = header("Proje formları", "Tamamlanan projeler, hangi komiteden yapıldığı ve bölgeye proje formunun girildiği tarih.") + roBanner("proje-form") + `
+  v.innerHTML = header("Proje formları", "Yapılan projeler, hangi komiteden yapıldığı ve bölgeye proje formunun girildiği tarih.") + roBanner("proje-form") + `
   <div class="stats">
-    <div class="stat hl"><span>Tamamlanan proje</span><b>${done.length}</b></div>
+    <div class="stat hl"><span>Yapılan proje</span><b>${done.length}</b></div>
     <div class="stat"><span>Proje formu girilen</span><b>${withForm.length}</b></div>
     <div class="stat"><span>Form bekleyen</span><b>${done.length - withForm.length}</b></div>
     <div class="stat"><span>Komite sayısı</span><b>${Object.keys(byCom).filter(k => k !== "Belirtilmedi").length}</b></div>
   </div>
   <div class="card"><h2>Komitelere göre</h2>
-    ${Object.keys(byCom).length ? `<div class="tbl-wrap"><table><thead><tr><th>Komite</th><th class="num">Tamamlanan</th><th class="num">Form girilen</th><th>Oran</th></tr></thead><tbody>
+    ${Object.keys(byCom).length ? `<div class="tbl-wrap"><table><thead><tr><th>Komite</th><th class="num">Yapılan</th><th class="num">Form girilen</th><th>Oran</th></tr></thead><tbody>
     ${Object.entries(byCom).sort((a, b) => b[1].done - a[1].done).map(([k, c]) => `<tr><td>${esc(k)}</td><td class="num">${c.done}</td><td class="num">${c.form}</td><td><div class="row" style="flex-wrap:nowrap"><div class="bar" style="flex:1"><i style="width:${c.form / c.done * 100}%"></i></div><b style="min-width:44px;text-align:right">${pct(c.form / c.done)}</b></div></td></tr>`).join("")}
-    </tbody></table></div>` : '<p class="muted" style="margin:0">Henüz tamamlanan proje yok.</p>'}
+    </tbody></table></div>` : '<p class="muted" style="margin:0">Henüz yapılmış proje yok.</p>'}
   </div>
-  <div class="card"><div class="row" style="margin-bottom:12px"><h2 style="margin:0">Tamamlanan projeler</h2><div class="spacer"></div>
+  <div class="card"><div class="row" style="margin-bottom:12px"><h2 style="margin:0">Yapılan projeler</h2><div class="spacer"></div>
     <div class="seg" role="group" aria-label="Filtre">${[["hepsi", "Hepsi"], ["bekleyen", "Form bekleyen"], ["girildi", "Form girilen"]].map(([k, l]) => `<button type="button" data-pf="${k}" aria-pressed="${pfFilter === k}">${l}</button>`).join("")}</div></div>
-    <p class="muted" style="margin:-4px 0 12px;font-size:.88rem">Hizmet projeleri sayfasında durumu "Tamamlandı" yapılan projeler burada listelenir.</p>
+    <p class="muted" style="margin:-4px 0 12px;font-size:.88rem">Hizmet projeleri sayfasındaki tarihi gelmiş (yapılmış) projeler burada listelenir.</p>
     ${shown.length ? `<div class="tbl-wrap"><table><thead><tr><th>Proje</th><th>Komite</th><th>Proje tarihi</th><th>Proje formu girildi</th></tr></thead><tbody>
     ${shown.map(p => `<tr data-id="${p.id}">
       <td><b>${esc(p.title)}</b>${p.owner ? `<br><small class="muted">${esc(p.owner)}</small>` : ""}</td>

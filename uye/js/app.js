@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611102051";
-import { can, hasRole, ROLE_LABELS } from "./roles.js?v=202611102051";
+import { createStore, trDate } from "./store.js?v=202611102056";
+import { can, hasRole, ROLE_LABELS } from "./roles.js?v=202611102056";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -13,6 +13,49 @@ const pct = x => `%${Math.round(x * 100)}`;
 const MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 
 let store, me;
+// Görünüm önizleme (yalnızca site sahibi görür): başka bir görevlinin panelini onun gözünden gösterir; değişiklik yapılamaz.
+let realMe = null, realStore = null, preview = null;
+const isRealOwner = () => !!(realMe || me)?.is_owner;
+const PREVIEW_ROLES = [["baskan", "Başkan"], ["sekreter", "Sekreter"], ["sayman", "Sayman"], ["pr", "Halkla İlişkiler (HİTK)"], ["hizmet", "Hizmet Projeleri"], ["gdb", "Geçmiş dönem başkanı"], ["uye", "Normal üye"]];
+function readOnlyStore(st) {
+  const block = async () => { throw new Error("Önizleme modunda değişiklik yapılamaz."); };
+  return new Proxy(st, { get(t, k) {
+    const v = t[k];
+    if (k === "me") return async () => JSON.parse(JSON.stringify(me));
+    if (typeof v === "function" && /^(save|create|update|delete|set|upload|send|approve|add|reset|publish|invite|remove|mark)/.test(String(k)) && k !== "resetDemo") return block;
+    return typeof v === "function" ? v.bind(t) : v;
+  } });
+}
+function startPreview(profile, label) {
+  realMe = me; realStore = store;
+  me = { ...profile, is_owner: false };
+  store = readOnlyStore(realStore);
+  preview = { label };
+  location.hash = "#profil"; render();
+}
+function endPreview() {
+  if (!preview) return;
+  me = realMe; store = realStore; realMe = realStore = preview = null;
+  location.hash = "#profil"; render();
+}
+async function previewPicker() {
+  const members = (await store.listMembers()).filter(m => m.status === "active" && m.id !== me.id).sort((a, b) => a.full_name.localeCompare(b.full_name, "tr"));
+  let d = document.getElementById("pv-dlg"); if (!d) { d = document.createElement("dialog"); d.id = "pv-dlg"; d.className = "bday-dlg"; document.body.appendChild(d); }
+  d.innerHTML = `<form method="dialog"><h2>Paneli başka gözle gör</h2>
+    <p class="muted" style="margin:0 0 12px">Seçtiğin görevin ya da üyenin panelini, onun gördüğü menü ve yetkilerle açar. Önizlemede hiçbir değişiklik kaydedilmez.</p>
+    <div class="grid g2" style="gap:8px">${PREVIEW_ROLES.map(([k, l]) => `<button type="button" class="btn ghost sm" data-pr="${k}">${l}</button>`).join("")}</div>
+    <label class="f" style="margin-top:14px">Belirli bir üye gibi gör<select id="pv-m"><option value="">Üye seç…</option>${members.map(m => `<option value="${m.id}">${esc(m.full_name)}${m.title ? " · " + esc(m.title) : ""}</option>`).join("")}</select></label>
+    <div class="row" style="margin-top:16px"><button class="btn ghost" value="close">Vazgeç</button></div></form>`;
+  if (!d.open) d.showModal();
+  d.querySelectorAll("[data-pr]").forEach(b => b.onclick = () => {
+    const k = b.dataset.pr, label = PREVIEW_ROLES.find(x => x[0] === k)[1];
+    const base = { ...me, roles: [], past_president: false, hide_roles: false, title: label };
+    if (k === "gdb") base.past_president = true; else if (k !== "uye") base.roles = [k];
+    if (k === "uye") base.title = "Üye";
+    d.close(); startPreview(base, label);
+  });
+  d.querySelector("#pv-m").onchange = e => { const m = members.find(x => x.id === e.target.value); if (m) { d.close(); startPreview(m, m.full_name); } };
+}
 let toastT;
 export function toast(msg, kind = "") {
   const t = document.getElementById("toast");
@@ -261,19 +304,23 @@ function shell() {
       <a href="../"><img class="logo" src="../assets/logo-cranberry.webp" alt="Rotaract Ankara Anıttepe, kulüp sitesine dön"></a>
       <nav aria-label="Panel">${navHtml}</nav>
       <div class="who">${avatar(me)}<div style="min-width:0"><b>${esc(me.full_name)}</b><span>${esc(me.title || "Üye")}</span></div></div>
+      ${isRealOwner() && !preview ? `<button class="btn ghost sm" id="pv-open">Paneli başka gözle gör</button>` : ""}
       <button class="btn ghost sm" id="logout">Çıkış yap</button>
     </aside>
     <div>
       <div class="topbar"><button class="icon-btn" id="menu" aria-controls="side" aria-expanded="false" aria-label="Menüyü aç"><span class="burger" aria-hidden="true"></span></button><img src="../assets/logo-cranberry.webp" alt="Rotaract Ankara Anıttepe"><span class="topbar-title">${esc((PAGES.find(p => p.id === id) || {}).label || "")}</span></div>
       <main class="main" id="main" tabindex="-1">
         ${store.mode === "demo" ? `<div class="banner demo"><span><b>Demo modu.</b> Örnek verilerle çalışıyor; değişiklikler yalnızca bu tarayıcıda kalır.</span> <button class="btn ghost sm" id="reset">Örnek verileri sıfırla</button></div>` : ""}
+        ${preview ? `<div class="banner preview" role="status"><span><b>Önizleme:</b> ${esc(preview.label)} olarak görüyorsun. Değişiklikler kaydedilmez.</span> <button class="btn sm" id="pv-end">Önizlemeden çık</button></div>` : ""}
         <div id="view"><p class="muted">Yükleniyor…</p></div>
       </main>
     </div>
     <div class="scrim" id="scrim" hidden></div>
     <nav class="tabbar" aria-label="Hızlı geçiş">${[["profil", "Profil", "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0"], ["takvim", "Takvim", "M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"], ["uyeler", "Üyeler", "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm-6 9a6 6 0 0 1 12 0M17 11a3 3 0 1 0-1-5.8M21 20a5 5 0 0 0-4-4.9"], ["arsiv", "Arşiv", "M4 6h16v13H4zM4 15l4.5-4.5 3.5 3.5 2.5-2.5L20 17M15.5 9.5h.01"]].map(([h, l, d]) => `<a href="#${h}" ${h === navId ? 'aria-current="page"' : ""}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg><span>${l}</span></a>`).join("")}<button type="button" id="more"${["profil", "takvim", "uyeler", "arsiv"].includes(navId) ? "" : ' class="on"'}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menü</span></button></nav>
   </div>`;
-  document.getElementById("logout").onclick = async () => { await store.signOut(); me = null; location.hash = ""; render(); };
+  document.getElementById("logout").onclick = async () => { if (preview) { me = realMe; store = realStore; realMe = realStore = preview = null; } await store.signOut(); me = null; location.hash = ""; render(); };
+  document.getElementById("pv-open")?.addEventListener("click", previewPicker);
+  document.getElementById("pv-end")?.addEventListener("click", endPreview);
   const side = document.getElementById("side"), mb = document.getElementById("menu");
   const scrim = document.getElementById("scrim");
   const setMenu = o => { side.classList.toggle("open", o); scrim.hidden = !o; mb.setAttribute("aria-expanded", o); document.body.classList.toggle("lock", o); if (o) side.querySelector("nav a")?.focus(); };
@@ -894,7 +941,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611102051");
+  const { mountComposer } = await import("./composer.js?v=202611102056");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 

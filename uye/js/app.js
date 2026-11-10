@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611102148";
-import { can, hasRole, ROLE_LABELS } from "./roles.js?v=202611102148";
+import { createStore, trDate } from "./store.js?v=202611102150";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611102150";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -303,6 +303,16 @@ const visible = p => p.panel ? can(me, p.panel, "view") : p.show?.();
 let composerInst = null;
 // Adresin alt parçaları: #arsiv/toplanti/<albümId>, #yukle/<albümId>
 let route = [];
+// Menüde salt görüntülenen paneller: asbaşkanda panelin görevlisi parantez içinde yazar, diğerlerinde "Görüntüle" etiketi çıkar.
+function navLabel(p) {
+  const sfx = navSuffix(p);
+  return sfx.includes("owner-note") ? `<span class="nav-l">${p.label}${sfx}</span>` : p.label + sfx;
+}
+function navSuffix(p) {
+  if (!p.panel || can(me, p.panel, "edit")) return "";
+  if (hasRole(me, "asbaskan")) { const o = panelOwners(p.panel); return o ? ` <span class="owner-note">(${o})</span>` : ""; }
+  return '<span class="ro" title="Yalnızca görüntüleme">Görüntüle</span>';
+}
 function shell() {
   try { composerInst?.destroy?.(); } catch {} composerInst = null;
   [route] = [(location.hash || "#profil").slice(1).split("/").map(decodeURIComponent)];
@@ -313,7 +323,7 @@ function shell() {
   const nav = PAGES.filter(p => p.grp || (visible(p) && !p.hidden));
   const navHtml = nav.map((p, i) => p.grp
     ? (nav.slice(i + 1).some(x => !x.grp) ? `<div class="grp">${p.grp}</div>` : "")
-    : `<a href="#${p.id}" ${p.id === navId ? 'aria-current="page"' : ""}>${p.label}${p.panel && !can(me, p.panel, "edit") ? '<span class="ro" title="Yalnızca görüntüleme">Görüntüle</span>' : ""}</a>`).join("");
+    : `<a href="#${p.id}" ${p.id === navId ? 'aria-current="page"' : ""}>${navLabel(p)}</a>`).join("");
   app.innerHTML = `
   <div class="shell">
     <aside class="side" id="side">
@@ -957,7 +967,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611102148");
+  const { mountComposer } = await import("./composer.js?v=202611102150");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 

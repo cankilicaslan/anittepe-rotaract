@@ -2,6 +2,9 @@
 export const ROLE_LABELS = { baskan: "Başkan", asbaskan: "Asbaşkan", sayman: "Sayman", sekreter: "Sekreter", pr: "Halkla İlişkiler ve Tanıtım", hizmet: "Hizmet Projeleri" };
 const OWNER = { aidat: ["sayman"], kasa: ["sayman"], yoklama: ["sekreter"], instagram: ["pr"], projeler: ["hizmet"], duyuru: ["sekreter", "pr"], "wa-toplanti": ["sekreter"], "wa-aidat": ["sayman"], "arsiv-yonetim": ["sekreter", "pr"], "uyeler-yonetim": ["baskan"] };
 
+// Panel hangi görevlinin? (asbaşkanın menüsünde parantez içinde gösterilir)
+const SHORT = { sayman: "Sayman", sekreter: "Sekreter", pr: "HİTK", hizmet: "Hizmet Projeleri" };
+export const panelOwners = panel => (OWNER[panel] || []).map(r => SHORT[r]).filter(Boolean).join(", ");
 const GDB_VIEW = ["yoklama", "aidat", "kasa", "projeler"];
 
 export const isActive = p => !!p && p.status === "active";

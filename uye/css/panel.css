@@ -502,3 +502,6 @@ input[type=checkbox],input[type=radio]{accent-color:var(--cran)}
 
 /* Görünüm önizleme şeridi (yalnızca site sahibi görür) */
 .banner.preview{background:#FEF3DC;border:1px solid #F7A81B;color:#5a3d00;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
+/* Asbaşkan menüsü: panelin görevlisi */
+.side nav a .owner-note{font-weight:500;color:var(--muted);font-size:.86em}
+.side nav a[aria-current="page"] .owner-note{color:inherit;opacity:.75}

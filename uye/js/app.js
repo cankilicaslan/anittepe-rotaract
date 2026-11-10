@@ -1040,9 +1040,7 @@ async function viewAnnounce(v) {
     <input type="hidden" name="kind" value="${esc(pre.kind)}">
     <div class="row" style="margin-top:16px">
       <button type="button" class="btn" id="s-mail">E-posta ile gönder</button>
-      <button type="button" class="btn" id="s-sms">SMS gönder</button>
-      ${store.mode === "supabase" ? `<button type="button" class="btn ghost sm" id="s-mailapp">E-posta uygulamasında aç</button>` : ""}
-      <div class="spacer"></div>
+      <button type="button" class="btn" id="s-sms">SMS gönder</button>      <div class="spacer"></div>
       <button type="button" class="btn ghost sm" id="c-mail">E-postaları kopyala</button>
       <button type="button" class="btn ghost sm" id="c-tel">Numaraları kopyala</button>
     </div>
@@ -1085,10 +1083,7 @@ async function viewAnnounce(v) {
       toast(`E-posta gönderildi: ${r.email?.sent ?? 0} kişi.${failed ? ` ${failed} kişiye gidemedi. ${(r.errors || []).join(" ")}` : ""}`, failed ? "bad" : undefined);
       viewAnnounce(v);
     } catch (e) { fail(e); mailBtn.disabled = false; mailBtn.textContent = "E-posta ile gönder"; }
-  };
-  const appBtn = document.getElementById("s-mailapp");
-  if (appBtn) appBtn.onclick = openMailApp;
-  document.getElementById("s-sms").onclick = async () => {
+  };  document.getElementById("s-sms").onclick = async () => {
     if (!f.reportValidity()) return;
     const nums = sel().map(m => smsNumber(m.phone)).filter(Boolean);
     if (!nums.length) return toast("Seçili üyelerin hiçbirinin telefonu yok.", "bad");

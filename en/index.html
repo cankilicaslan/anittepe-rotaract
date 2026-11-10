@@ -323,11 +323,6 @@ nav.main a:hover{opacity:1;background:color-mix(in srgb,currentColor 12%,transpa
 .fam a:hover{color:var(--cran)}
 @media (max-width:820px){.family{grid-template-columns:1fr}.fam{padding:0 0 24px 34px}.fam::before{position:absolute;left:0;top:4px}.fam::after{left:7px;top:22px;bottom:0;right:auto;width:2px;height:auto}}
 
-/* ---------- Culture box ---------- */
-.cbox{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:12px;scrollbar-width:thin}
-.cbox article{scroll-snap-align:start;flex:0 0 210px;background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:18px;display:grid;gap:8px;align-content:start}
-.cbox .glyph{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-weight:800;font-size:1.25rem}
-.cbox p{font-size:.87rem;color:var(--muted);line-height:1.45}
 
 /* ---------- Support ---------- */
 .support{display:grid;grid-template-columns:1.2fr 1fr;gap:20px}
@@ -449,7 +444,6 @@ h1,h2,h3{overflow-wrap:break-word;hyphens:auto}
 .tl-card.dark .yr{color:var(--cran-deep)}
 .ticket-date span{opacity:.95}
 .proj-art .big,.post .art{text-shadow:0 2px 14px rgba(40,0,20,.35)}
-.cbox p{font-size:.9rem}
 .cd span{font-size:.75rem}
 /* Dokunma hedefleri */
 .menu-btn{height:44px}
@@ -476,7 +470,6 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 /* Kaydırmalı şeritler: dokunmatikte doğal kaydırma + snap hizası */
 .tl.static .tl-track{scroll-padding-inline:var(--gl) var(--gr);overscroll-behavior-x:contain;scrollbar-width:thin}
 .rail{scroll-padding-left:max(var(--gl),calc((100vw - var(--maxw))/2 + 16px));overscroll-behavior-x:contain}
-.cbox{overscroll-behavior-x:contain}
 /* Dil önerisi: içeriği örtmeyen, akış içi şerit */
 .lang-hint{position:relative;left:auto;top:auto;transform:none;z-index:auto;max-width:none;justify-content:center;flex-wrap:wrap;border:0;border-bottom:1.5px solid var(--blush-2);border-radius:0;box-shadow:none;padding:calc(8px + env(safe-area-inset-top,0px)) var(--gr) 8px var(--gl)}
 .lang-hint a{padding:10px 16px}
@@ -963,18 +956,6 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
     </div>
   </section>
 
-  <!-- CULTURE BOX -->
-  <section class="band" id="culture-box">
-    <div class="wrap">
-      <div class="sec-head rv">
-        <span class="kicker">Culture Box</span>
-        <h2>The box we send around the world</h2>
-        <p class="lead">Every item in the box we send to our partner clubs abroad carries a story from Türkiye.</p>
-      </div>
-      <div class="cbox" id="cbox" tabindex="0" aria-label="Culture Box contents"></div>
-    </div>
-  </section>
-
   <!-- DOCS -->
   <section class="band alt" id="belgeler">
     <div class="wrap support">
@@ -1302,9 +1283,6 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   $$(".seg button").forEach(btn=>btn.addEventListener("click",()=>{$$(".seg button").forEach(x=>x.setAttribute("aria-pressed",x===btn));renderBoard(btn.dataset.term)}));
   renderBoard("2026");
 
-  // ---------- Culture box ----------
-  const CB=[["Mustafa Kemal Atatürk","Founder of the Republic; we include a card telling his story.","#D41367"],["Anıtkabir","Ankara's landmark, right next to the neighbourhood our club is named after.","#17458F"],["Turkish coffee","On UNESCO's list of intangible cultural heritage.","#6B3E1E"],["Turkish tea","Strong, served in a tulip-shaped glass. The first thing offered to a guest.","#B4261C"],["Şalgam","Adana's purple drink; the taste that surprises people most when they open the box.","#6A1B4D"],["Turkish delight","A favourite sweet for centuries.","#E58A00"],["Hazelnuts","Most of the world's hazelnuts come from the Black Sea region.","#8A5A2B"],["Kolonya","The lemon cologne offered to guests.","#1F8A4C"],["Turkish flag","Our crescent-and-star flag, also the symbol of our 29 October project.","#E30A17"],["Rumi","The voice of tolerance, from Konya to the whole world.","#17458F"],["Evil eye bead","A blue charm against the evil eye.","#1F5FBF"],["Prayer beads","A calming habit passed from hand to hand.","#6E5F69"],["Deer-motif rug","A symbol of abundance often seen in Anatolian weaving.","#8A5A2B"],["Tile-pattern glass","Patterns inspired by İznik tiles.","#1F7A8C"],["Tile-pattern coaster","The same pattern's companion on the table.","#1F7A8C"],["Kilim","A hand-woven rug where every motif carries a wish.","#B4261C"]];
-  $("#cbox").innerHTML=CB.map(([t,x,c])=>`<article><div class="glyph" style="background:color-mix(in srgb,${c} 16%,var(--surface));color:${c}">${t[0]}</div><h3 style="font-size:1rem">${t}</h3><p>${x}</p></article>`).join("");
 
   // ---------- Copy + form ----------
   $$("[data-copy]").forEach(b=>b.addEventListener("click",()=>{

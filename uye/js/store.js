@@ -259,7 +259,7 @@ function demoStore() {
 
 /* ---------------------------- SUPABASE ---------------------------- */
 async function supabaseStore() {
-  const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm");
+  const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm");
   const sb = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
   const ok = ({ data, error }) => { if (error) throw new Error(trError(error.message)); return data; };
   let cachedTerm = null;

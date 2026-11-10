@@ -1,8 +1,8 @@
 // Üye paneli ayarları.
 // SUPABASE_URL boşsa panel "demo modu"nda çalışır: veriler yalnızca bu tarayıcıda tutulur.
-// Gerçek kullanım için backend/KURULUM.md adımlarını izleyip iki değeri doldurun.
-// anon key herkese açık olabilir; service_role anahtarını ASLA buraya yazmayın.
+// Buradaki anahtar herkese açık "publishable" anahtardır; verileri veritabanındaki erişim kuralları korur.
+// service_role / secret anahtarı ASLA buraya yazmayın.
 export const CONFIG = {
-  SUPABASE_URL: "",
-  SUPABASE_ANON_KEY: ""
+  SUPABASE_URL: "https://fyjcgfbooajuljebxnil.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_HmlR3dKiWqbTJ1id363IDA_OIsC6GhP"
 };

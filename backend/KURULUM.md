@@ -40,8 +40,8 @@ Bu adım tabloları, erişim kurallarını, fotoğraf klasörlerini (`avatars`, 
    - Açık bırakırsanız yeni üyeler e-postalarındaki bağlantıya tıklayınca hesapları etkinleşir. Supabase'in ücretsiz e-posta servisi saatte çok az e-posta gönderebilir.
    - Kapatırsanız üyeler hemen giriş yapabilir. Zaten her yeni üye başkan onaylayana kadar "onay bekliyor" durumunda kalır, bu yüzden kapatmak güvenlidir ve önerilir.
 3. **Authentication > URL Configuration**:
-   - **Site URL**: `https://cankilicaslan.github.io/anittepe-rotaract/uye/`
-   - **Redirect URLs** kısmına da aynı adresi ekleyin: `https://cankilicaslan.github.io/anittepe-rotaract/uye/**`
+   - **Site URL**: `https://www.anitteperotaract.org/uye/`
+   - **Redirect URLs** kısmına da aynı adresi ekleyin: `https://www.anitteperotaract.org/uye/**`
 
 ## 4. Paneli Supabase'e bağlayın (config.js)
 

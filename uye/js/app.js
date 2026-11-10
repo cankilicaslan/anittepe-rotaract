@@ -40,6 +40,43 @@ function render() {
   if (me.status === "pending") return pendingView();
   if (me.status === "passive") return pendingView(true);
   shell();
+  birthdayNotice();
+}
+
+/* ---------------------- Doğum günü bildirimi (pop-up) ---------------------- */
+// Başkan ve sekreter, yarın (ve bugün) doğum günü olan üyeleri günde bir kez pop-up olarak görür.
+let bdayChecked = false;
+const isoLocal = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+function birthdaysOn(members, date) {
+  const leap = y => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+  const md = isoLocal(date).slice(5);
+  return members.filter(m => m.status === "active" && m.birth_date).filter(m => {
+    let b = m.birth_date.slice(5);
+    if (b === "02-29" && !leap(date.getFullYear())) b = "02-28";
+    return b === md;
+  }).map(m => ({ m, age: +m.birth_date.slice(0, 4) > 1900 ? date.getFullYear() - +m.birth_date.slice(0, 4) : null }));
+}
+async function birthdayNotice() {
+  if (bdayChecked || !(hasRole(me, "baskan") || hasRole(me, "sekreter"))) return;
+  bdayChecked = true;
+  const key = "ar-bday-seen-" + today();
+  try { if (localStorage.getItem(key)) return; } catch {}
+  let members; try { members = await store.listMembers(); } catch { return; }
+  const now = new Date(), tom = new Date(now); tom.setDate(now.getDate() + 1);
+  const tomorrow = birthdaysOn(members, tom), todayList = birthdaysOn(members, now);
+  if (!tomorrow.length && !todayList.length) return;
+  const line = ({ m, age }) => `<li><b>${esc(m.full_name)}</b>${age ? ` · ${age} yaşına giriyor` : ""}${m.phone ? ` · <a href="tel:${esc(m.phone.replace(/\s/g, ""))}">${esc(m.phone)}</a>` : ""}</li>`;
+  const d = document.createElement("dialog");
+  d.className = "bday-dlg";
+  d.innerHTML = `<form method="dialog">
+    <h2>🎂 Doğum günü hatırlatması</h2>
+    ${tomorrow.length ? `<p style="margin:0 0 6px">Yarın (${longDate(isoLocal(tom))}) doğum günü olan${tomorrow.length > 1 ? "lar" : ""}:</p><ul>${tomorrow.map(line).join("")}</ul>` : ""}
+    ${todayList.length ? `<p style="margin:12px 0 6px">Bugün doğum günü olan${todayList.length > 1 ? "lar" : ""}:</p><ul>${todayList.map(line).join("")}</ul>` : ""}
+    <div class="row" style="margin-top:16px"><button class="btn" value="ok">Tamam</button></div>
+  </form>`;
+  document.body.appendChild(d);
+  d.addEventListener("close", () => { try { localStorage.setItem(key, "1"); } catch {} d.remove(); });
+  d.showModal();
 }
 
 /* ---------------------------- Giriş / kayıt ---------------------------- */

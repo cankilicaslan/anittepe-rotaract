@@ -707,3 +707,29 @@ language sql stable security definer set search_path = public, auth as $$
 $$;
 revoke all on function public.member_accounts() from public, anon;
 grant execute on function public.member_accounts() to authenticated;
+
+-- =====================================================================
+-- v5: Doğum günü hatırlatması (her sabah 09.00'da başkan ve sekretere e-posta)
+-- Önce birthday-reminder Edge Function'ını yükleyin ve "Verify JWT" ayarını kapatın.
+-- =====================================================================
+create table if not exists public.reminder_log (
+  kind       text not null,
+  day        date not null,
+  created_at timestamptz not null default now(),
+  primary key (kind, day)
+);
+alter table public.reminder_log enable row level security;  -- politika yok: yalnızca sunucu (service role) erişir
+
+create extension if not exists pg_cron;
+create extension if not exists pg_net with schema extensions;
+
+select cron.unschedule(jobid) from cron.job where jobname = 'birthday-reminder';
+select cron.schedule(
+  'birthday-reminder',
+  '0 6 * * *',  -- 06.00 UTC = 09.00 Türkiye
+  $$ select net.http_post(
+       url     := 'https://fyjcgfbooajuljebxnil.supabase.co/functions/v1/birthday-reminder',
+       headers := '{"Content-Type": "application/json"}'::jsonb,
+       body    := '{}'::jsonb
+     ); $$
+);

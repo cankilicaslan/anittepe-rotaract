@@ -1099,3 +1099,16 @@ delete from public.kasa_groups where name = 'Önceki dönemden kalan borçlar';
 
 update public.transactions set group_name = 'Döneme Merhaba Partisi' where group_name = 'Parti' and category like 'Etkinlik%';
 update public.kasa_groups  set name = 'Döneme Merhaba Partisi' where name = 'Parti' and kind = 'etkinlik';
+
+-- =====================================================================
+-- v18: Panel hesabı (e-postası) olmayan üyeler de listeye eklenebilsin
+-- (Eklenen üyeler kişisel veri içerdiği için ayrı bir SQL ile işlendi.)
+-- =====================================================================
+do $$
+declare c text;
+begin
+  select conname into c from pg_constraint
+   where conrelid = 'public.profiles'::regclass and contype = 'f' and confrelid = 'auth.users'::regclass;
+  if c is not null then execute format('alter table public.profiles drop constraint %I', c); end if;
+end $$;
+alter table public.profiles alter column id set default gen_random_uuid();

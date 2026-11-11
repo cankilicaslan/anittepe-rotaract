@@ -1136,7 +1136,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   $$("#gInterest button").forEach(b=>b.addEventListener("click",()=>b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")!=="true")));
 
   // Formlar kulüp sunucusuna (Supabase) gider: başvuru kaydedilir ve kulüp Gmail adresine iletilir. Ulaşılamazsa e-posta uygulaması açılır.
-  const sendMail=(subject,body,replyTo,kind)=>fetch("https://fyjcgfbooajuljebxnil.supabase.co/functions/v1/basvuru",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({kind:kind||(/başvuru|application/i.test(subject)?"misafir":"iletisim"),subject,body,reply_to:replyTo,page:location.href})})
+  const sendMail=(subject,body,replyTo,kind,confirm)=>fetch("https://fyjcgfbooajuljebxnil.supabase.co/functions/v1/basvuru",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({kind:kind||(/başvuru|application/i.test(subject)?"misafir":"iletisim"),subject,body,reply_to:replyTo,confirm,page:location.href})})
     .then(r=>r.json()).then(j=>{if(!j.ok)throw new Error(j.error||"not sent");return true})
     .catch(()=>{location.href="mailto:anitteperotaract1996@gmail.com?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(body);return false});
   $("#gf").addEventListener("submit",e=>{
@@ -1149,7 +1149,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
     err.hidden=true;
     const m=window._gMeetings[+(document.querySelector('input[name="gdate"]:checked')||{value:0}).value];
     const _l={"name":"Name","mail":"Email","tel":"Phone","status":"Status","school":"School / job","source":"Heard about us from","interest":"Interests","date":"Meeting they want to attend"};const _b=[[_l.name,name],[_l.mail,mail],[_l.tel,(($("#g-tel")||{}).value||"").trim()],[_l.status,(($("#g-status")||{}).value||"").trim()],[_l.school,(($("#g-school")||{}).value||"").trim()],[_l.source,(($("#g-source")||{}).value||"").trim()],[_l.interest,$("#gInterest button[aria-pressed=true]").map(b=>b.textContent).join(", ")],[_l.date,m.d.toLocaleDateString(document.documentElement.lang,{day:"numeric",month:"long",weekday:"long"})+" ("+m.no+")"]].filter(x=>x[1]).map(x=>x[0]+": "+x[1]).join("\n");
-    const _sent=sendMail("Guest application"+": "+name,_b,mail);
+    const _sent=sendMail("Guest application"+": "+name,_b,mail,"misafir",{name,lang:"en",meeting:m.d.getDate()+" "+MONTHS[m.d.getMonth()]+" "+DAYS[m.d.getDay()],meeting_no:String(m.no)});
     $("#gfFields").hidden=true;const done=$("#gDone");done.hidden=false;
     done.innerHTML=`<div class="ok" aria-hidden="true">✓</div><h3>Application received, ${name.split(" ")[0]}.</h3>
       <p>We'll see you at our ${ord(m.no)} meeting at Hybrid Hub on <b>${DAYS[m.d.getDay()]} ${m.d.getDate()} ${MONTHS[m.d.getMonth()]}, 7:30 pm</b>. We'll send the details to ${mail}.</p>
@@ -1295,7 +1295,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
     e.preventDefault();const ok=$("#formOk"),name=$("#f-name").value.trim(),mail=$("#f-mail").value.trim();ok.hidden=false;
     if(!name||!/^\S+@\S+\.\S+$/.test(mail)){ok.textContent="Please enter your name and a valid email address.";return}
     ok.textContent="Sending your message…";
-    sendMail(((($("#f-subject")||{}).value||"").trim()||"Message from the website")+": "+name,(($("#f-msg")||{}).value||"").trim()+"\n\n"+name+" <"+mail+">",mail).then(sent=>{ok.textContent=sent?`Thank you, ${name.split(" ")[0]}. Your message has reached us; we will get back to you soon.`:`Thank you, ${name.split(" ")[0]}. Your email app opened with your message; press Send and it reaches us.`});
+    sendMail(((($("#f-subject")||{}).value||"").trim()||"Message from the website")+": "+name,(($("#f-msg")||{}).value||"").trim()+"\n\n"+name+" <"+mail+">",mail,"iletisim",{name,lang:"en",topic:(($("#f-subject")||{}).value||"").trim(),message:(($("#f-msg")||{}).value||"").trim()}).then(sent=>{ok.textContent=sent?`Thank you, ${name.split(" ")[0]}. Your message has reached us; we will get back to you soon.`:`Thank you, ${name.split(" ")[0]}. Your email app opened with your message; press Send and it reaches us.`});
   });
 })();
 // Four-Way Test

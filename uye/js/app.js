@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611111237";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611111237";
+import { createStore, trDate } from "./store.js?v=202611111244";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611111244";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -24,7 +24,7 @@ Tarih: ${new Date().toLocaleString("tr-TR")}
 Onaylamak için üye panelinde Üye listesi > Onay bekleyen hesaplar bölümüne bakın: https://anitteperotaract.org/uye/#uyeler`;
   try {
     const r = await fetch(`${CONFIG_URL}/functions/v1/basvuru`, { method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind: "panel", subject: `Üyelik başvurusu (panel): ${d.full_name}`, body, reply_to: d.email, page: location.href }) });
+      body: JSON.stringify({ kind: "panel", subject: `Üyelik başvurusu (panel): ${d.full_name}`, body, reply_to: d.email, page: location.href, confirm: { name: d.full_name, lang: "tr" } }) });
     const j = await r.json().catch(() => ({})); if (!j.ok) throw new Error(j.error || r.status);
   } catch (e) { console.warn("Kayıt bildirimi gönderilemedi", e); }
 }
@@ -963,7 +963,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611111237");
+  const { mountComposer } = await import("./composer.js?v=202611111244");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 

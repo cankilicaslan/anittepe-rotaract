@@ -1084,3 +1084,18 @@ update public.transactions set group_name = null, category = 'Diğer gider'
 delete from public.kasa_groups where name = 'Önceki dönemden kalan borçlar';
 
 select kind, name from public.kasa_groups order by kind, name;
+
+-- =====================================================================
+-- v17: Rozet satışı alanları, borç ödemeleri ve "Parti" adı
+-- (Aidat taksitleri ve Excel'deki ödemeler kişisel veri içerdiği için ayrı, depoya girmeyen bir SQL ile işlendi.)
+-- =====================================================================
+alter table public.transactions add column if not exists badge      text;
+alter table public.transactions add column if not exists qty        int;
+alter table public.transactions add column if not exists unit_price numeric(12,2);
+
+update public.transactions set group_name = null, category = 'Diğer gider'
+ where group_name = 'Önceki dönemden kalan borçlar';
+delete from public.kasa_groups where name = 'Önceki dönemden kalan borçlar';
+
+update public.transactions set group_name = 'Döneme Merhaba Partisi' where group_name = 'Parti' and category like 'Etkinlik%';
+update public.kasa_groups  set name = 'Döneme Merhaba Partisi' where name = 'Parti' and kind = 'etkinlik';

@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611111941";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611111941";
+import { createStore, trDate } from "./store.js?v=202611111945";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611111945";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -894,14 +894,28 @@ async function viewTreasury(v) {
       ${shown.map(r => `<tr><td>${trDate(r.date)}</td><td>${esc(r.description)}${r.donation_for ? `<br><small class="muted">${esc(r.donation_for)} adına</small>` : ""}</td><td><span class="tag ${r.kind === "gelir" ? "ok" : ""}">${esc(r.category)}</span></td><td>${person(r)}</td><td class="num">${amt(r)}</td>${delBtn(r)}</tr>`).join("") || `<tr><td colspan="6" class="muted">Bu filtrede hareket yok.</td></tr>`}
       </tbody></table></div></div>`;
   } else if (kasaTab === "aidat") {
-    const ds = rows.filter(r => r.category === "Üye aidat tahsilatı");
-    const byP = {}; ds.forEach(r => { const p = r.person || (r.auto ? "Aidat modülünden" : "Belirtilmedi"); (byP[p] ||= []).push(r); });
-    const list = Object.entries(byP).sort((x, y) => x[0].localeCompare(y[0], "tr"));
+    const tDues = dues.filter(d => d.term_id === term.id).sort((x, y) => (x.due_date || "").localeCompare(y.due_date || ""));
+    const mById = Object.fromEntries(members.map(m => [m.id, m]));
+    const mids = [...new Set(charges.filter(c => tDues.some(d => d.id === c.due_id)).map(c => c.member_id))].sort((x, y) => (mById[x]?.full_name || "").localeCompare(mById[y]?.full_name || "", "tr"));
+    const manual = rows.filter(r => r.category === "Üye aidat tahsilatı" && !r.auto);
+    const manualPeople = [...new Set(manual.map(r => r.person || "Belirtilmedi"))].sort((x, y) => x.localeCompare(y, "tr"));
+    const cellOf = (mid, d) => { const c = charges.find(c => c.member_id === mid && c.due_id === d.id); if (!c) return '<span class="muted">–</span>'; if (c.paid_at) return `<span class="tag ok">Ödendi · ${trDate(c.paid_at)}</span>`; return d.due_date && d.due_date < today() ? '<span class="tag bad">Gecikti</span>' : '<span class="tag warn">Bekliyor</span>'; };
+    const paidOf = mid => sum(charges.filter(c => c.member_id === mid && c.paid_at && tDues.some(d => d.id === c.due_id)));
+    const debtOfM = mid => sum(charges.filter(c => c.member_id === mid && !c.paid_at && tDues.some(d => d.id === c.due_id && d.due_date && d.due_date <= today())));
+    const totPaid = mids.reduce((s, m) => s + paidOf(m), 0) + sum(manual), totDebt = mids.reduce((s, m) => s + debtOfM(m), 0);
     body = `<div class="card"><h2>Üye aidat tahsilatları</h2>
-      <p class="muted" style="margin:-6px 0 12px;font-size:.88rem">"Üye aidat tahsilatı" kalemiyle girilen ödemeler ve Aidat sayfasında ödendi işaretlenenler üye bazında.</p>
-      ${list.length ? `<div class="tbl-wrap"><table class="matrix"><thead><tr><th>Üye</th><th>Ödemeler</th><th class="num">Toplam</th></tr></thead><tbody>
-      ${list.map(([p, rs]) => `<tr><td><b>${esc(p)}</b></td><td>${rs.sort((x, y) => x.date.localeCompare(y.date)).map(r => `<span class="tag" style="margin:2px 4px 2px 0">${trDate(r.date)} · ${TL(r.amount)}</span>`).join("")}</td><td class="num"><b>${TL(sum(rs))}</b></td></tr>`).join("")}
-      </tbody><tfoot><tr><th>Toplam</th><th>${ds.length} ödeme</th><th class="num">${TL(sum(ds))}</th></tr></tfoot></table></div>` : '<p class="muted" style="margin:0">Henüz aidat tahsilatı yok.</p>'}</div>`;
+      <p class="muted" style="margin:-6px 0 12px;font-size:.88rem">Taksitler Aidat sayfasından gelir; ödendi işaretlenen her taksit kasaya "Üye aidat tahsilatı" olarak yazılır. Borç, son ödeme günü geçmiş ve ödenmemiş taksitlerin toplamıdır.</p>
+      <div class="stats" style="margin-bottom:12px"><div class="stat"><span>Tahsil edilen</span><b>${TL(totPaid)}</b></div><div class="stat"><span>Vadesi gelmiş borç</span><b>${TL(totDebt)}</b></div></div>
+      ${mids.length || manualPeople.length ? `<div class="tbl-wrap"><table class="matrix"><thead><tr><th>Üye</th>${tDues.map(d => `<th>${esc(d.label)}<br><small class="muted">${d.due_date ? trDate(d.due_date) : ""}</small></th>`).join("")}<th class="num">Ödenen</th><th class="num">Borç</th></tr></thead><tbody>
+      ${mids.map(mid => `<tr><td><b>${esc(mById[mid]?.full_name || "Silinmiş üye")}</b></td>${tDues.map(d => `<td>${cellOf(mid, d)}</td>`).join("")}<td class="num">${TL(paidOf(mid))}</td><td class="num">${debtOfM(mid) ? `<b style="color:var(--bad)">${TL(debtOfM(mid))}</b>` : TL(0)}</td></tr>`).join("")}
+      ${manualPeople.map(p => { const rs = manual.filter(r => (r.person || "Belirtilmedi") === p); return `<tr><td><b>${esc(p)}</b><br><small class="muted">Panelde hesabı yok</small></td><td colspan="${tDues.length || 1}">${rs.map(r => `<span class="tag ok" style="margin:2px 4px 2px 0">${esc(r.description || "Ödeme")} · ${trDate(r.date)}</span>`).join("")}</td><td class="num">${TL(sum(rs))}</td><td class="num muted">–</td></tr>`; }).join("")}
+      </tbody><tfoot><tr><th>Toplam</th>${tDues.map(d => `<th>${charges.filter(c => c.due_id === d.id && c.paid_at).length}/${charges.filter(c => c.due_id === d.id).length} ödendi</th>`).join("")}<th class="num">${TL(totPaid)}</th><th class="num">${TL(totDebt)}</th></tr></tfoot></table></div>` : '<p class="muted" style="margin:0">Henüz aidat tanımlanmadı. Aidat sayfasından taksit ekleyebilirsin.</p>'}</div>`;
+  } else if (kasaTab === "rozet") {
+    const bs = rows.filter(r => r.category === "Rozet satışı").sort((x, y) => y.date.localeCompare(x.date));
+    body = `<div class="card"><h2>Rozet satışları</h2>
+      <div class="tbl-wrap"><table class="matrix"><thead><tr><th>Tarih</th><th>Rozet</th><th class="num">Adet</th><th class="num">Bir rozetin bedeli</th><th class="num">Toplam</th><th>Satılan kişi</th>${ro ? "" : "<th></th>"}</tr></thead><tbody>
+      ${bs.map(r => `<tr><td>${trDate(r.date)}</td><td>${esc(r.badge || r.description || "–")}</td><td class="num">${r.qty ?? "–"}</td><td class="num">${r.unit_price != null ? TL(r.unit_price) : "–"}</td><td class="num"><b>${TL(r.amount)}</b></td><td>${person(r)}</td>${delBtn(r)}</tr>`).join("") || `<tr><td colspan="7" class="muted">Henüz rozet satışı yok. "Hareket ekle → Gelir → Rozet satışı" ile girebilirsin.</td></tr>`}
+      </tbody><tfoot><tr><th colspan="2">Toplam</th><th class="num">${bs.reduce((s, r) => s + (+r.qty || 0), 0)}</th><th></th><th class="num">${TL(sum(bs))}</th><th colspan="${ro ? 1 : 2}"></th></tr></tfoot></table></div></div>`;
   } else {
     const ms = rows.filter(r => r.category === "Misafir toplantı ücreti");
     const nos = [...new Set(ms.map(r => r.meeting_no).filter(Boolean))].sort((a, b) => a - b);
@@ -935,13 +949,18 @@ async function viewTreasury(v) {
     <div class="grid g3">
       <label class="f">Tarih<input type="date" name="date" value="${today()}" required></label>
       <label class="f">Kalem<select name="category" id="cat">${CATS.gider.map(c => `<option>${c}</option>`).join("")}</select></label>
-      <label class="f">Tutar (TL)<input type="number" name="amount" min="0.01" step="0.01" required></label>
-      <label class="f">Açıklama<input type="text" name="description" required placeholder="Ne için?"></label>
+      <label class="f" id="amt-f">Tutar (TL)<input type="number" name="amount" min="0.01" step="0.01" required></label>
+      <label class="f" id="badge-f" hidden>Hangi rozet<input type="text" name="badge" list="kasa-badges" autocomplete="off" placeholder="ör. Rotaract rozeti"></label>
+      <label class="f" id="qty-f" hidden>Rozet sayısı<input type="number" name="qty" min="1" step="1" value="1"></label>
+      <label class="f" id="unit-f" hidden>Bir rozetin bedeli (TL)<input type="number" name="unit_price" min="0.01" step="0.01"></label>
+      <label class="f" id="desc-f">Açıklama<input type="text" name="description" required placeholder="Ne için?"></label>
       <label class="f"><span id="person-l">Ödemeyi yapan</span><input type="text" name="person" list="kasa-people" autocomplete="off" placeholder="Ad soyad"></label>
       <label class="f" id="meet-f" hidden>Toplantı<select name="meeting_no"><option value="">Seç…</option>${meetOpts}</select></label>
       <label class="f" id="don-f" hidden>Kim adına<input type="text" name="donation_for" placeholder="ör. Kulüp adına / Ad Soyad"></label>
     </div>
     <datalist id="kasa-people">${people.map(p => `<option value="${esc(p)}">`).join("")}</datalist>
+    <datalist id="kasa-badges">${[...new Set(rows.map(r => r.badge).filter(Boolean))].map(b => `<option value="${esc(b)}">`).join("")}</datalist>
+    <p class="muted" id="badge-total" hidden style="margin:10px 0 0"></p>
     <div class="row" style="margin-top:14px"><button class="btn" type="submit">Ekle</button></div>
     <p class="muted" style="font-size:.84rem;margin:12px 0 0">Ödenen aidatlar kasaya "Üye aidat tahsilatı" olarak kendiliğinden eklenir. "Bağış – …" kalemleri Bağışlar listesine de düşer.</p>
     </form>` : `<form id="f-grp" class="row" style="align-items:flex-end">
@@ -950,7 +969,7 @@ async function viewTreasury(v) {
     </form>
     <p class="muted" style="font-size:.84rem;margin:12px 0 0">Eklenince adı aşağıdaki sekmelerin yanında görünür; tıklayınca gelir ve giderlerini ayrı ayrı girersin.</p>`}
   </div>`}
-  <div class="seg kasa-tabs" role="tablist" aria-label="Kasa görünümü" style="margin:4px 0 14px;flex-wrap:wrap">${tabBtn("ozet", "Özet")}${tabBtn("hareket", "Hareketler")}${tabBtn("misafir", "Misafir tahsilatları")}${tabBtn("aidat", "Aidatlar")}${["etkinlik", "proje"].map(k => { const gs = groups.filter(g => g.kind === k); const on = openGroup?.kind === k; return `<select class="kasa-pick${on ? " on" : ""}" data-kp="${k}" aria-label="${k === "etkinlik" ? "Etkinlik seç" : "Proje seç"}"><option value="">${k === "etkinlik" ? "Etkinlik" : "Proje"} ▾</option>${gs.map(g => `<option value="${esc(g.id)}" ${openGroup?.id === g.id ? "selected" : ""}>${esc(g.name)}</option>`).join("") || `<option disabled>Henüz ${k} yok</option>`}</select>`; }).join("")}</div>
+  <div class="seg kasa-tabs" role="tablist" aria-label="Kasa görünümü" style="margin:4px 0 14px;flex-wrap:wrap">${tabBtn("ozet", "Özet")}${tabBtn("hareket", "Hareketler")}${tabBtn("misafir", "Misafir tahsilatları")}${tabBtn("aidat", "Aidatlar")}${tabBtn("rozet", "Rozet satışları")}${["etkinlik", "proje"].map(k => { const gs = groups.filter(g => g.kind === k); const on = openGroup?.kind === k; return `<select class="kasa-pick${on ? " on" : ""}" data-kp="${k}" aria-label="${k === "etkinlik" ? "Etkinlik seç" : "Proje seç"}"><option value="">${k === "etkinlik" ? "Etkinlik" : "Proje"} ▾</option>${gs.map(g => `<option value="${esc(g.id)}" ${openGroup?.id === g.id ? "selected" : ""}>${esc(g.name)}</option>`).join("") || `<option disabled>Henüz ${k} yok</option>`}</select>`; }).join("")}</div>
   ${body}
   <form id="f-open" class="card row" style="align-items:flex-end"><fieldset ${ro ? "disabled" : ""} class="row" style="align-items:flex-end;flex:1;border:0;padding:0;margin:0">
     <label class="f" style="flex:1">Kasa başlangıcı (TL) <small>Dönemin ilk günündeki kasa</small><input type="number" step="0.01" name="opening_balance" value="${term.opening_balance}"></label>
@@ -974,17 +993,27 @@ async function viewTreasury(v) {
     // Toplantı yalnızca misafir toplantı ücretinde, "Kim adına" yalnızca bağış giderinde açılır.
     const sync = () => {
       const gelir = f.kind.value === "gelir", c = f.category.value;
-      document.getElementById("person-l").textContent = c === "Misafir toplantı ücreti" ? "Misafir" : gelir ? "Ödeyen" : "Ödemeyi yapan";
+      const badge = c === "Rozet satışı";
+      document.getElementById("person-l").textContent = c === "Misafir toplantı ücreti" ? "Misafir" : badge ? "Satılan kişi" : gelir ? "Ödeyen" : "Ödemeyi yapan";
       document.getElementById("meet-f").hidden = c !== "Misafir toplantı ücreti";
+      ["badge-f", "qty-f", "unit-f", "badge-total"].forEach(id => document.getElementById(id).hidden = !badge);
+      document.getElementById("amt-f").hidden = badge; document.getElementById("desc-f").hidden = badge;
+      f.amount.required = !badge; f.description.required = !badge; f.badge.required = badge; f.qty.required = badge; f.unit_price.required = badge;
+      calc();
       document.getElementById("don-f").hidden = !(!gelir && isDonCat(c));
     };
     f.querySelectorAll("[data-k]").forEach(b => b.onclick = () => {
       f.querySelectorAll("[data-k]").forEach(x => x.setAttribute("aria-pressed", x === b));
       f.kind.value = b.dataset.k; document.getElementById("cat").innerHTML = CATS[b.dataset.k].map(c => `<option>${c}</option>`).join(""); sync();
     });
+    // Rozet satışında toplam = rozet sayısı × bir rozetin bedeli
+    function calc() { const t = (+f.qty.value || 0) * (+f.unit_price.value || 0); document.getElementById("badge-total").textContent = `Gelire yazılacak tutar: ${f.qty.value || 0} × ${TL(+f.unit_price.value || 0)} = ${TL(t)}`; }
+    f.qty.addEventListener("input", calc); f.unit_price.addEventListener("input", calc);
     document.getElementById("cat").addEventListener("change", sync);
     f.onsubmit = async e => {
       e.preventDefault(); const d = Object.fromEntries(new FormData(f)); d.amount = +d.amount;
+      if (d.category === "Rozet satışı") { d.qty = +d.qty; d.unit_price = +d.unit_price; d.badge = (d.badge || "").trim(); d.amount = Math.round(d.qty * d.unit_price * 100) / 100; d.description = `${d.badge} × ${d.qty}`; if (!(d.amount > 0)) return toast("Rozet sayısı ve bedeli gerekli.", "bad"); }
+      else { d.badge = null; d.qty = null; d.unit_price = null; }
       for (const k of ["person", "donation_for", "description"]) d[k] = (d[k] || "").trim() || null;
       d.group_name = null;
       d.meeting_no = d.category === "Misafir toplantı ücreti" && d.meeting_no ? +d.meeting_no : null;
@@ -1093,7 +1122,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611111941");
+  const { mountComposer } = await import("./composer.js?v=202611111945");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 

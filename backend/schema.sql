@@ -1075,3 +1075,12 @@ select distinct term_id, case when category like 'Proje%' then 'proje' else 'etk
 on conflict do nothing;
 
 select kind, name from public.kasa_groups order by kind, name;
+
+-- =====================================================================
+-- v16: Önceki dönem borç ödemeleri proje değil; normal kasa gideri ("Diğer gider")
+-- =====================================================================
+update public.transactions set group_name = null, category = 'Diğer gider'
+ where group_name = 'Önceki dönemden kalan borçlar';
+delete from public.kasa_groups where name = 'Önceki dönemden kalan borçlar';
+
+select kind, name from public.kasa_groups order by kind, name;

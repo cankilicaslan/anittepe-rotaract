@@ -513,3 +513,8 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 
 /* hidden özniteliği .f gibi display tanımlayan sınıfları da gizlesin */
 [hidden]{display:none !important}
+
+/* Kasa: Etkinlik / Proje açılır listeleri sekme satırında */
+.kasa-tabs .kasa-pick{width:auto;min-height:0;border:0;background:transparent;font:inherit;font-weight:700;font-size:.88rem;color:var(--muted);padding:7px 26px 7px 12px;border-radius:999px;cursor:pointer;box-shadow:none}
+.kasa-tabs .kasa-pick.on{background:#fff;color:var(--cran-deep, #A30C4D);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.kasa-tabs .kasa-pick{-webkit-appearance:none;appearance:none;background-image:none !important;width:auto !important;flex:0 0 auto;max-width:240px;padding:6px 12px !important;min-height:32px;font-size:.84rem}

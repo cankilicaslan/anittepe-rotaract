@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611111937";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611111937";
+import { createStore, trDate } from "./store.js?v=202611111941";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611111941";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -893,6 +893,15 @@ async function viewTreasury(v) {
       <div class="tbl-wrap"><table><thead><tr><th>Tarih</th><th>Açıklama</th><th>Kalem</th><th>Ödeyen / Ödemeyi yapan</th><th class="num">Tutar</th>${ro ? "" : "<th></th>"}</tr></thead><tbody>
       ${shown.map(r => `<tr><td>${trDate(r.date)}</td><td>${esc(r.description)}${r.donation_for ? `<br><small class="muted">${esc(r.donation_for)} adına</small>` : ""}</td><td><span class="tag ${r.kind === "gelir" ? "ok" : ""}">${esc(r.category)}</span></td><td>${person(r)}</td><td class="num">${amt(r)}</td>${delBtn(r)}</tr>`).join("") || `<tr><td colspan="6" class="muted">Bu filtrede hareket yok.</td></tr>`}
       </tbody></table></div></div>`;
+  } else if (kasaTab === "aidat") {
+    const ds = rows.filter(r => r.category === "Üye aidat tahsilatı");
+    const byP = {}; ds.forEach(r => { const p = r.person || (r.auto ? "Aidat modülünden" : "Belirtilmedi"); (byP[p] ||= []).push(r); });
+    const list = Object.entries(byP).sort((x, y) => x[0].localeCompare(y[0], "tr"));
+    body = `<div class="card"><h2>Üye aidat tahsilatları</h2>
+      <p class="muted" style="margin:-6px 0 12px;font-size:.88rem">"Üye aidat tahsilatı" kalemiyle girilen ödemeler ve Aidat sayfasında ödendi işaretlenenler üye bazında.</p>
+      ${list.length ? `<div class="tbl-wrap"><table class="matrix"><thead><tr><th>Üye</th><th>Ödemeler</th><th class="num">Toplam</th></tr></thead><tbody>
+      ${list.map(([p, rs]) => `<tr><td><b>${esc(p)}</b></td><td>${rs.sort((x, y) => x.date.localeCompare(y.date)).map(r => `<span class="tag" style="margin:2px 4px 2px 0">${trDate(r.date)} · ${TL(r.amount)}</span>`).join("")}</td><td class="num"><b>${TL(sum(rs))}</b></td></tr>`).join("")}
+      </tbody><tfoot><tr><th>Toplam</th><th>${ds.length} ödeme</th><th class="num">${TL(sum(ds))}</th></tr></tfoot></table></div>` : '<p class="muted" style="margin:0">Henüz aidat tahsilatı yok.</p>'}</div>`;
   } else {
     const ms = rows.filter(r => r.category === "Misafir toplantı ücreti");
     const nos = [...new Set(ms.map(r => r.meeting_no).filter(Boolean))].sort((a, b) => a - b);
@@ -941,14 +950,15 @@ async function viewTreasury(v) {
     </form>
     <p class="muted" style="font-size:.84rem;margin:12px 0 0">Eklenince adı aşağıdaki sekmelerin yanında görünür; tıklayınca gelir ve giderlerini ayrı ayrı girersin.</p>`}
   </div>`}
-  <div class="seg kasa-tabs" role="tablist" aria-label="Kasa görünümü" style="margin:4px 0 14px;flex-wrap:wrap">${tabBtn("ozet", "Özet")}${tabBtn("hareket", "Hareketler")}${tabBtn("misafir", "Misafir tahsilatları")}${groups.map(g => tabBtn("g:" + g.id, esc(g.name), `<small style="opacity:.7;font-weight:600">${GROUP_LABEL[g.kind]} · </small>`)).join("")}</div>
+  <div class="seg kasa-tabs" role="tablist" aria-label="Kasa görünümü" style="margin:4px 0 14px;flex-wrap:wrap">${tabBtn("ozet", "Özet")}${tabBtn("hareket", "Hareketler")}${tabBtn("misafir", "Misafir tahsilatları")}${tabBtn("aidat", "Aidatlar")}${["etkinlik", "proje"].map(k => { const gs = groups.filter(g => g.kind === k); const on = openGroup?.kind === k; return `<select class="kasa-pick${on ? " on" : ""}" data-kp="${k}" aria-label="${k === "etkinlik" ? "Etkinlik seç" : "Proje seç"}"><option value="">${k === "etkinlik" ? "Etkinlik" : "Proje"} ▾</option>${gs.map(g => `<option value="${esc(g.id)}" ${openGroup?.id === g.id ? "selected" : ""}>${esc(g.name)}</option>`).join("") || `<option disabled>Henüz ${k} yok</option>`}</select>`; }).join("")}</div>
   ${body}
   <form id="f-open" class="card row" style="align-items:flex-end"><fieldset ${ro ? "disabled" : ""} class="row" style="align-items:flex-end;flex:1;border:0;padding:0;margin:0">
     <label class="f" style="flex:1">Kasa başlangıcı (TL) <small>Dönemin ilk günündeki kasa</small><input type="number" step="0.01" name="opening_balance" value="${term.opening_balance}"></label>
     ${ro ? "" : '<button class="btn ghost sm" style="margin-bottom:4px">Güncelle</button>'}</fieldset></form>`;
 
   const rerender = () => viewTreasury(v);
-  v.querySelectorAll("[data-kt]").forEach(b => b.onclick = () => { kasaTab = kasaTab === b.dataset.kt && b.dataset.kt.startsWith("g:") ? "ozet" : b.dataset.kt; rerender(); });
+  v.querySelectorAll("[data-kt]").forEach(b => b.onclick = () => { kasaTab = b.dataset.kt; rerender(); });
+  v.querySelectorAll("select[data-kp]").forEach(s => s.onchange = () => { kasaTab = s.value ? "g:" + s.value : "ozet"; rerender(); });
   v.querySelectorAll("[data-kk]").forEach(b => b.onclick = () => { kasaKind = b.dataset.kk; rerender(); });
   const kc = document.getElementById("kasa-cat"); if (kc) kc.onchange = e => { kasaCat = e.target.value; rerender(); };
   v.querySelectorAll("tr.kasa-cat").forEach(tr => { const go = () => { if (tr.dataset.g) kasaTab = "g:" + tr.dataset.g; else { kasaTab = "hareket"; kasaKind = tr.dataset.kind; kasaCat = tr.dataset.cat; } rerender(); }; tr.onclick = go; tr.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } }; });
@@ -1083,7 +1093,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611111937");
+  const { mountComposer } = await import("./composer.js?v=202611111941");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 

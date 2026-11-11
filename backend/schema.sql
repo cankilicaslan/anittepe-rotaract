@@ -1042,3 +1042,36 @@ update public.transactions set category = 'Bağış geliri'            where kin
 -- v14: "Üye tahsilatı" kalemi "Üye aidat tahsilatı" oldu
 -- =====================================================================
 update public.transactions set category = 'Üye aidat tahsilatı' where category = 'Üye tahsilatı';
+
+-- =====================================================================
+-- v15: Kasada etkinlik ve projeler (önce adıyla açılır, gelir/giderleri içinden girilir)
+-- =====================================================================
+create table if not exists public.kasa_groups (
+  id         uuid primary key default gen_random_uuid(),
+  term_id    uuid references public.terms(id) on delete cascade,
+  kind       text not null check (kind in ('etkinlik','proje')),
+  name       text not null,
+  created_at timestamptz not null default now(),
+  unique (term_id, kind, name)
+);
+alter table public.kasa_groups enable row level security;
+drop policy if exists kasa_groups_select on public.kasa_groups;
+create policy kasa_groups_select on public.kasa_groups for select to authenticated
+  using (public.has_role('sayman') or public.can_view_all());
+drop policy if exists kasa_groups_write on public.kasa_groups;
+create policy kasa_groups_write on public.kasa_groups for all to authenticated
+  using (public.has_role('sayman') or public.is_admin())
+  with check (public.has_role('sayman') or public.is_admin());
+
+-- Excel'deki "Proje x" sayfasında yer alan önceki dönem borç ödemeleri kendi kaydı altında toplansın
+update public.transactions set group_name = 'Önceki dönemden kalan borçlar'
+ where category = 'Proje gideri' and group_name is null and description like '%önceki dönemden kalan borç%';
+
+-- Kasadaki mevcut etkinlik/proje adlarını listeye ekle
+insert into public.kasa_groups (term_id, kind, name)
+select distinct term_id, case when category like 'Proje%' then 'proje' else 'etkinlik' end, group_name
+  from public.transactions
+ where group_name is not null and (category like 'Proje%' or category like 'Etkinlik%')
+on conflict do nothing;
+
+select kind, name from public.kasa_groups order by kind, name;

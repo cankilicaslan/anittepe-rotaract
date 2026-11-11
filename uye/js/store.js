@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611111931";
-import { can, hasRole } from "./roles.js?v=202611111931";
+import { CONFIG } from "./config.js?v=202611111937";
+import { can, hasRole } from "./roles.js?v=202611111937";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -115,6 +115,7 @@ function demoStore() {
   }
   if (!S.albums) { S.albums = []; S.albumPhotos = []; }
   if (!S.donations) S.donations = [];
+  if (!S.kgroups) { S.kgroups = []; (S.transactions || []).filter(t => t.group_name).forEach(t => { const kind = String(t.category).startsWith("Proje") ? "proje" : "etkinlik"; if (!S.kgroups.some(g => g.kind === kind && g.name === t.group_name)) S.kgroups.push({ id: uid(), kind, name: t.group_name, created_at: t.date }); }); }
   if (!S.guests) {
     // Demo: 6. toplantıdan beri gelen bir misafir ve 9. toplantıda üye alınmış biri
     const g = { id: uid(), full_name: "Deniz Yılmaz (örnek misafir)", phone: "", email: "", note: "", created_at: new Date().toISOString() };
@@ -283,6 +284,9 @@ function demoStore() {
       save(); return clone(x);
     },
     async deleteTransaction(id) { need("kasa"); S.transactions = S.transactions.filter(t => t.id !== id); S.donations = S.donations.filter(d => d.tx_id !== id); save(); },
+    async listKasaGroups() { need("kasa", "view"); return clone(S.kgroups); },
+    async addKasaGroup(kind, name) { need("kasa"); if (S.kgroups.some(g => g.kind === kind && g.name === name)) throw new Error("Bu adla bir kayıt zaten var."); const g = { id: uid(), kind, name, created_at: new Date().toISOString() }; S.kgroups.push(g); save(); return clone(g); },
+    async deleteKasaGroup(id) { need("kasa"); const g = S.kgroups.find(x => x.id === id); S.kgroups = S.kgroups.filter(x => x.id !== id); if (g) S.transactions = S.transactions.filter(t => t.group_name !== g.name); save(); },
     async listDonations() { need("bagis", "view"); return clone(S.donations).sort((a, b) => b.date.localeCompare(a.date)); },
     async updateDonation(id, patch) { need("bagis"); Object.assign(S.donations.find(d => d.id === id), patch); save(); },
     async updateProjectForm(id, patch) { need("proje-form"); Object.assign(S.projects.find(p => p.id === id), patch); save(); },
@@ -482,6 +486,13 @@ async function supabaseStore() {
     async listTransactions() { const t = await term(); return ok(await sb.from("transactions").select("*").eq("term_id", t.id).order("date")); },
     async addTransaction(t) { const tm = await term(); return ok(await sb.from("transactions").insert({ ...t, term_id: tm.id }).select().single()); },
     async deleteTransaction(id) { ok(await sb.from("transactions").delete().eq("id", id)); },
+    async listKasaGroups() { const t = await term(); return ok(await sb.from("kasa_groups").select("*").eq("term_id", t.id).order("created_at")); },
+    async addKasaGroup(kind, name) { const t = await term(); return ok(await sb.from("kasa_groups").insert({ term_id: t.id, kind, name }).select().single()); },
+    async deleteKasaGroup(id) {
+      const t = await term(); const g = ok(await sb.from("kasa_groups").select("*").eq("id", id).single());
+      ok(await sb.from("transactions").delete().eq("term_id", t.id).eq("group_name", g.name).like("category", g.kind === "proje" ? "Proje%" : "Etkinlik%"));
+      ok(await sb.from("kasa_groups").delete().eq("id", id));
+    },
     async listDonations() { return ok(await sb.from("donations").select("*").order("date", { ascending: false })); },
     async updateDonation(id, patch) { ok(await sb.from("donations").update(patch).eq("id", id)); },
     async updateProjectForm(id, patch) { ok(await sb.from("projects").update(patch).eq("id", id)); },

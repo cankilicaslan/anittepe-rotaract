@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611111232";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611111232";
+import { createStore, trDate } from "./store.js?v=202611111234";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611111234";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -984,7 +984,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611111232");
+  const { mountComposer } = await import("./composer.js?v=202611111234");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1610,7 +1610,7 @@ async function viewUpload(v) {
 
 /* ------------------------------- Bağışlar ------------------------------- */
 const FUNDS = ["PolioPlus", "Yıllık Fon (Annual Fund)", "Kalıcı Fon (Endowment)", "Afet Müdahale Fonu", "Diğer"];
-const COMMITTEES = ["Hizmet Projelerinden Sorumlu BRT Yardımcısı", "Üyelik ve Üyeliği Gel. Komitesinden Sorumlu BRT Yardımcısı", "Uluslararası Hizmetler Komitesinden Sorumlu BRT Yardımcısı", "Halkla İlişkiler ve Tanıtım Komitesinden Sorumlu BRT Yardımcısı", "Kulüp Hizmetleri Komitesinden Sorumlu BRT Yardımcısı", "Afet Komitesinden Sorumlu BRT Yardımcısı", "Meslek Hizmetleri Komitesinden Sorumlu BRT Yardımcısı", "Interact Komitesinden Sorumlu BRT Yardımcısı", "Hobi Komitesinden Sorumlu BRT Yardımcısı", "Diğer"];
+const COMMITTEES = ["Hizmet Projeleri", "Üyelik ve Üyeliği Geliştirme", "Uluslararası Hizmetler", "Halkla İlişkiler ve Tanıtım", "Kulüp Hizmetleri", "Afet", "Meslek Hizmetleri", "Interact", "Hobi", "Diğer"];
 async function viewDonations(v) {
   const ro = !can(me, "bagis", "edit");
   const list = await store.listDonations();

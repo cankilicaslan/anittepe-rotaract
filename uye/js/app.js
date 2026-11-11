@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611111244";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611111244";
+import { createStore, trDate } from "./store.js?v=202611111301";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611111301";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -963,7 +963,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611111244");
+  const { mountComposer } = await import("./composer.js?v=202611111301");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1277,7 +1277,7 @@ const copyText = async (txt, what = "Metin") => { try { await navigator.clipboar
 // İmza: gönderen o görevin sahibiyse görev adı, değilse (ör. başkan) kendi unvanı yazılır.
 // Görüntüleme modu: sayfadaki tüm alan ve düğmeleri kapat (bağlantılar çalışmaya devam eder).
 const lockView = root => root.querySelectorAll("input, textarea, select, button").forEach(el => { if (el.tagName === "SELECT" || el.tagName === "BUTTON") el.disabled = true; else el.readOnly = true; });
-const signature = (role, label) => `${me.full_name}\n${hasRole(me, role) ? label : me.title || label} · Ankara Anıttepe Rotaract`;
+const signature = (role, label) => `${me.full_name}\n${hasRole(me, role) ? label : me.title || label} · Ankara Anıttepe Rotaract Kulübü`;
 
 /* ---------------- Sekreter: WhatsApp toplantı duyurusu ---------------- */
 async function viewWaMeeting(v) {

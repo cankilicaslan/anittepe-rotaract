@@ -73,9 +73,14 @@ function seed() {
     profiles.forEach((p, i) => charges.push({ id: uid(), due_id: d.id, member_id: p.id, amount: 250, paid_at: (k < 2 && (i + k) % 5 !== 0) ? addDays(due_date, -3) : null }));
   });
   const transactions = [
-    { id: uid(), term_id: term.id, date: "2026-07-10", kind: "gider", category: "Etkinlik", description: "Döneme Merhaba Partisi salon kirası", amount: 3500 },
-    { id: uid(), term_id: term.id, date: "2026-07-10", kind: "gelir", category: "Etkinlik", description: "Döneme Merhaba Partisi bilet gelirleri", amount: 6200 },
-    { id: uid(), term_id: term.id, date: "2026-10-24", kind: "gider", category: "Proje", description: "Dünya Polio Günü stant malzemeleri", amount: 850 }
+    { id: uid(), term_id: term.id, date: "2026-07-10", kind: "gider", category: "Etkinlik gideri", group_name: "Döneme Merhaba Partisi", person: "Umut Ekin Akkuş", description: "Salon kirası", amount: 3500 },
+    { id: uid(), term_id: term.id, date: "2026-07-10", kind: "gelir", category: "Etkinlik geliri", group_name: "Döneme Merhaba Partisi", description: "Bilet gelirleri", amount: 6200 },
+    { id: uid(), term_id: term.id, date: "2026-08-01", kind: "gider", category: "Bölge katkı payı (BKP)", person: "Umut Ekin Akkuş", description: "Üyelerin toplu BKP ödemesi", amount: 2800 },
+    { id: uid(), term_id: term.id, date: "2026-08-15", kind: "gider", category: "Toplantı yeri", person: "Umut Ekin Akkuş", description: "Hybrid Hub 1. taksit", amount: 3000 },
+    { id: uid(), term_id: term.id, date: "2026-09-10", kind: "gelir", category: "Misafir toplantı ücreti", person: "Doruk Tahan", meeting_no: 605, description: "Misafir toplantı ücreti", amount: 450 },
+    { id: uid(), term_id: term.id, date: "2026-09-24", kind: "gelir", category: "Misafir toplantı ücreti", person: "Doruk Tahan", meeting_no: 606, description: "Misafir toplantı ücreti", amount: 450 },
+    { id: uid(), term_id: term.id, date: "2026-09-24", kind: "gelir", category: "Misafir toplantı ücreti", person: "Ecem Gökgöz", meeting_no: 606, description: "Misafir toplantı ücreti", amount: 450 },
+    { id: uid(), term_id: term.id, date: "2026-10-24", kind: "gider", category: "Proje gideri", group_name: "Dünya Polio Günü standı", person: "Melishan Özkan Ağca", description: "Stant malzemeleri", amount: 850 }
   ];
   const projects = [
     { id: uid(), title: "Dünya Polio Günü standı", kind: "hizmet", date: "2026-10-24", time: "12:00", location: "Kızılay", description: "Polio farkındalığı için bilgilendirme standı.", plan: "Broşür baskısı, stant izni, iki vardiya gönüllü.", owner: "Melishan Özkan Ağca", status: "tamamlandi", public: true, created_at: new Date().toISOString() },
@@ -274,7 +279,7 @@ function demoStore() {
     async addTransaction(t) {
       need("kasa"); const x = { id: uid(), term_id: S.term.id, ...t, amount: +t.amount }; S.transactions.push(x);
       // Kasaya "Bağış" kategorisinde gider girilince bağış listesine aktarılır (canlıda veritabanı tetikleyicisi yapar)
-      if (x.kind === "gider" && x.category === "Bağış") S.donations.push({ id: uid(), tx_id: x.id, date: x.date, fund: x.donation_fund || null, on_behalf: x.donation_for || null, amount: x.amount, note: x.description, district_form_at: null, created_at: new Date().toISOString() });
+      if (x.kind === "gider" && (x.category === "Bağış" || String(x.category).startsWith("Bağış – "))) S.donations.push({ id: uid(), tx_id: x.id, date: x.date, fund: x.donation_fund || null, on_behalf: x.donation_for || null, amount: x.amount, note: x.description, district_form_at: null, created_at: new Date().toISOString() });
       save(); return clone(x);
     },
     async deleteTransaction(id) { need("kasa"); S.transactions = S.transactions.filter(t => t.id !== id); S.donations = S.donations.filter(d => d.tx_id !== id); save(); },

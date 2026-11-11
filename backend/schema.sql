@@ -1005,3 +1005,35 @@ create policy projects_update_sekreter on public.projects for update to authenti
 drop policy if exists projects_insert_sekreter on public.projects;
 create policy projects_insert_sekreter on public.projects for insert to authenticated
   with check (public.has_role('sekreter'));
+
+-- =====================================================================
+-- v13: Kasa takibi Excel düzenine göre
+-- Kasa hareketine ödeyen / ödemeyi yapan kişi, etkinlik-proje adı ve misafirin toplantısı eklenir.
+-- Bağış yapılan fon artık kalemin parçası ("Bağış – PolioPlus"); bu kalemler Bağışlar listesine düşer.
+-- =====================================================================
+alter table public.transactions add column if not exists person     text;
+alter table public.transactions add column if not exists group_name text;
+alter table public.transactions add column if not exists meeting_no int;
+
+create or replace function public.tx_to_donation()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.kind = 'gider' and (new.category = 'Bağış' or new.category like 'Bağış – %') then
+    insert into public.donations (tx_id, date, fund, on_behalf, amount, note)
+    values (new.id, new.date,
+            coalesce(new.donation_fund, nullif(substring(new.category from 'Bağış – (.*)$'), '')),
+            new.donation_for, new.amount, new.description)
+    on conflict (tx_id) do nothing;
+  end if;
+  return new;
+end;
+$$;
+
+-- Eski "Bağış" kategorili giderleri yeni kalem adına taşı
+update public.transactions set category = 'Bağış – ' || donation_fund
+ where kind = 'gider' and category = 'Bağış' and donation_fund is not null;
+-- Eski kategori adlarını Excel'deki kalemlere eşle
+update public.transactions set category = 'Etkinlik gideri'         where kind = 'gider' and category = 'Etkinlik';
+update public.transactions set category = 'Proje gideri'            where kind = 'gider' and category = 'Proje';
+update public.transactions set category = 'Bölge katkı payı (BKP)'  where kind = 'gider' and category = 'Bölge katkı payı';
+update public.transactions set category = 'Bağış geliri'            where kind = 'gelir' and category = 'Bağış';

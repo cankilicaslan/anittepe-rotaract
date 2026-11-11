@@ -1037,3 +1037,8 @@ update public.transactions set category = 'Etkinlik gideri'         where kind =
 update public.transactions set category = 'Proje gideri'            where kind = 'gider' and category = 'Proje';
 update public.transactions set category = 'Bölge katkı payı (BKP)'  where kind = 'gider' and category = 'Bölge katkı payı';
 update public.transactions set category = 'Bağış geliri'            where kind = 'gelir' and category = 'Bağış';
+
+-- =====================================================================
+-- v14: "Üye tahsilatı" kalemi "Üye aidat tahsilatı" oldu
+-- =====================================================================
+update public.transactions set category = 'Üye aidat tahsilatı' where category = 'Üye tahsilatı';

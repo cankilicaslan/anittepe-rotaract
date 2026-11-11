@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611111917";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611111917";
+import { createStore, trDate } from "./store.js?v=202611111931";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611111931";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -817,18 +817,20 @@ async function refreshKeepOpen(v, fn) {
 // Kasa kategorileri kulübün "Kasa Takibi" Excel'ine göre. Bağış yapılan fon artık kategorinin parçası ("Bağış – PolioPlus").
 const DON_PREFIX = "Bağış – ";
 const FUNDS = ["PolioPlus", "Yıllık Fon (Annual Fund)", "Kalıcı Fon (Endowment)", "Afet Müdahale Fonu", "Diğer"];
+const KASA_FUNDS = ["PolioPlus", "Yıllık Fon (Annual Fund)"];
 const CATS = {
-  gelir: ["Üye tahsilatı", "Misafir toplantı ücreti", "Rozet satışı", "Etkinlik geliri", "Proje geliri", "Sponsorluk", "Bağış geliri", "Diğer gelir"],
-  gider: ["Bölge katkı payı (BKP)", "UR ödemesi", "Toplantı yeri", "Etkinlik gideri", "Proje gideri", ...FUNDS.map(f => DON_PREFIX + f), "Malzeme", "Ulaşım", "İkram", "Diğer gider"]
+  gelir: ["Üye aidat tahsilatı", "Misafir toplantı ücreti", "Rozet satışı", "Diğer gelir"],
+  gider: ["Bölge katkı payı (BKP)", "UR ödemesi", "Toplantı yeri", ...KASA_FUNDS.map(f => DON_PREFIX + f), "Diğer gider"]
 };
+// Etkinlik ve proje hareketleri "Etkinlik ekle" / "Proje ekle" ile girilir (Excel'deki Etkinlik x / Proje x sayfaları gibi).
+const GROUP_CAT = { etkinlik: { gelir: "Etkinlik geliri", gider: "Etkinlik gideri" }, proje: { gelir: "Proje geliri", gider: "Proje gideri" } };
 const isDonCat = c => c === "Bağış" || String(c || "").startsWith(DON_PREFIX);
-const needsGroup = c => /^(Etkinlik|Proje)/.test(c || "");
-let kasaTab = "ozet", kasaKind = "hepsi", kasaCat = "";
+let kasaTab = "ozet", kasaKind = "hepsi", kasaCat = "", kasaAdd = "hareket";
 async function viewTreasury(v) {
   const ro = !can(me, "kasa", "edit");
   const [term, txs, charges, dues, meetings, members] = await Promise.all([store.getTerm(), store.listTransactions(), store.listCharges(), store.listDues(), store.listMeetings(), store.listMembers()]);
-  // Ödenen aidatlar "Üye tahsilatı" olarak kendiliğinden gelir yazılır.
-  const duesIncome = dues.filter(d => d.term_id === term.id).map(d => { const cs = charges.filter(c => c.due_id === d.id && c.paid_at); return { id: "d-" + d.id, date: cs.map(c => c.paid_at).sort().at(-1) || d.due_date, kind: "gelir", category: "Üye tahsilatı", description: `${d.label} (${cs.length} üye)`, amount: cs.reduce((s, c) => s + +c.amount, 0), auto: true }; }).filter(x => x.amount > 0);
+  // Ödenen aidatlar "Üye aidat tahsilatı" olarak kendiliğinden gelir yazılır.
+  const duesIncome = dues.filter(d => d.term_id === term.id).map(d => { const cs = charges.filter(c => c.due_id === d.id && c.paid_at); return { id: "d-" + d.id, date: cs.map(c => c.paid_at).sort().at(-1) || d.due_date, kind: "gelir", category: "Üye aidat tahsilatı", description: `${d.label} (${cs.length} üye)`, amount: cs.reduce((s, c) => s + +c.amount, 0), auto: true }; }).filter(x => x.amount > 0);
   const rows = [...txs, ...duesIncome].sort((a, b) => b.date.localeCompare(a.date));
   const sum = list => list.reduce((s, r) => s + +r.amount, 0);
   const inc = sum(rows.filter(r => r.kind === "gelir")), exp = sum(rows.filter(r => r.kind === "gider"));
@@ -878,7 +880,7 @@ async function viewTreasury(v) {
       </tbody><tfoot><tr><th>Toplam</th>${nos.map(n => `<th class="num">${TL(sum(ms.filter(r => +r.meeting_no === n)))}</th>`).join("")}${ms.some(r => !r.meeting_no) ? `<th class="num">${TL(sum(ms.filter(r => !r.meeting_no)))}</th>` : ""}<th class="num">${TL(sum(ms))}</th></tr></tfoot></table></div>` : '<p class="muted" style="margin:0">Henüz misafir toplantı ücreti girilmedi.</p>'}</div>`;
   }
 
-  const groupNames = [...new Set(rows.map(r => r.group_name).filter(Boolean))];
+  const groupsOf = kind => [...new Set(rows.filter(r => r.group_name && String(r.category).startsWith(kind === "etkinlik" ? "Etkinlik" : "Proje")).map(r => r.group_name))];
   const people = [...new Set([...members.map(m => m.full_name), ...rows.map(r => r.person).filter(Boolean)])].sort((a, b) => a.localeCompare(b, "tr"));
   const meetOpts = meetings.filter(m => m.date <= new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10)).slice().sort((a, b) => b.date.localeCompare(a.date)).map(m => { const n = m.club_no; return `<option value="${n}">${n}${m.term_no ? "/" + m.term_no : ""} · ${trDate(m.date)}</option>`; }).join("");
 
@@ -889,7 +891,9 @@ async function viewTreasury(v) {
     <div class="stat"><span>Toplam gider</span><b>${TL(exp)}</b></div>
     <div class="stat hl"><span>Güncel kasa</span><b>${TL(bal)}</b></div>
   </div>
-  ${ro ? "" : `<form class="card" id="f-tx"><h2>Hareket ekle</h2>
+  ${ro ? "" : `<div class="card">
+    <div class="seg" role="group" aria-label="Ne eklenecek" style="margin-bottom:14px">${[["hareket", "Hareket ekle"], ["etkinlik", "Etkinlik ekle"], ["proje", "Proje ekle"]].map(([k, l]) => `<button type="button" data-ka="${k}" aria-pressed="${kasaAdd === k}">${l}</button>`).join("")}</div>
+    ${kasaAdd === "hareket" ? `<form id="f-tx">
     <div class="seg" role="group" aria-label="Tür" style="margin-bottom:12px"><button type="button" data-k="gider" aria-pressed="true">Gider</button><button type="button" data-k="gelir" aria-pressed="false">Gelir</button></div>
     <input type="hidden" name="kind" value="gider">
     <div class="grid g3">
@@ -898,15 +902,27 @@ async function viewTreasury(v) {
       <label class="f">Tutar (TL)<input type="number" name="amount" min="0.01" step="0.01" required></label>
       <label class="f">Açıklama<input type="text" name="description" required placeholder="Ne için?"></label>
       <label class="f"><span id="person-l">Ödemeyi yapan</span><input type="text" name="person" list="kasa-people" autocomplete="off" placeholder="Ad soyad"></label>
-      <label class="f" id="grp-f" hidden>Etkinlik / proje adı<input type="text" name="group_name" list="kasa-groups" autocomplete="off" placeholder="ör. Döneme Merhaba Partisi"></label>
       <label class="f" id="meet-f" hidden>Toplantı<select name="meeting_no"><option value="">Seç…</option>${meetOpts}</select></label>
       <label class="f" id="don-f" hidden>Kim adına<input type="text" name="donation_for" placeholder="ör. Kulüp adına / Ad Soyad"></label>
     </div>
-    <datalist id="kasa-people">${people.map(p => `<option value="${esc(p)}">`).join("")}</datalist>
-    <datalist id="kasa-groups">${groupNames.map(p => `<option value="${esc(p)}">`).join("")}</datalist>
     <div class="row" style="margin-top:14px"><button class="btn" type="submit">Ekle</button></div>
-    <p class="muted" style="font-size:.84rem;margin:12px 0 0">Ödenen aidatlar kasaya "Üye tahsilatı" olarak kendiliğinden eklenir. "Bağış – …" kalemleri Bağışlar listesine de düşer.</p>
-  </form>`}
+    <p class="muted" style="font-size:.84rem;margin:12px 0 0">Ödenen aidatlar kasaya "Üye aidat tahsilatı" olarak kendiliğinden eklenir. "Bağış – …" kalemleri Bağışlar listesine de düşer.</p>
+    </form>` : `<form id="f-grp">
+    <div class="seg" role="group" aria-label="Tür" style="margin-bottom:12px"><button type="button" data-k="gider" aria-pressed="true">Gider</button><button type="button" data-k="gelir" aria-pressed="false">Gelir</button></div>
+    <input type="hidden" name="kind" value="gider">
+    <div class="grid g3">
+      <label class="f">${kasaAdd === "etkinlik" ? "Etkinlik adı" : "Proje adı"}<input type="text" name="group_name" list="kasa-groups" required autocomplete="off" placeholder="${kasaAdd === "etkinlik" ? "ör. Döneme Merhaba Partisi" : "ör. 10 Kasım Kitap Projesi"}"></label>
+      <label class="f">İşlem tarihi<input type="date" name="date" value="${today()}" required></label>
+      <label class="f">Tutar (TL)<input type="number" name="amount" min="0.01" step="0.01" required></label>
+      <label class="f">Ayrıntı<input type="text" name="description" required placeholder="ör. Salon kirası, bilet gelirleri"></label>
+      <label class="f"><span id="person-l">Ödemeyi yapan</span><input type="text" name="person" list="kasa-people" autocomplete="off" placeholder="Ad soyad"></label>
+    </div>
+    <datalist id="kasa-groups">${groupsOf(kasaAdd).map(p => `<option value="${esc(p)}">`).join("")}</datalist>
+    <div class="row" style="margin-top:14px"><button class="btn" type="submit">Ekle</button></div>
+    <p class="muted" style="font-size:.84rem;margin:12px 0 0">Aynı ${kasaAdd === "etkinlik" ? "etkinliğin" : "projenin"} her gelir ve giderini aynı adla gir; "Etkinlik ve projeler" sekmesinde toplanır.</p>
+    </form>`}
+    <datalist id="kasa-people">${people.map(p => `<option value="${esc(p)}">`).join("")}</datalist>
+  </div>`}
   <div class="seg" role="tablist" aria-label="Kasa görünümü" style="margin:4px 0 14px">${[["ozet", "Özet"], ["hareket", "Hareketler"], ["etkinlik", "Etkinlik ve projeler"], ["misafir", "Misafir tahsilatları"]].map(([k, l]) => `<button type="button" role="tab" data-kt="${k}" aria-pressed="${kasaTab === k}" aria-selected="${kasaTab === k}">${l}</button>`).join("")}</div>
   ${body}
   <form id="f-open" class="card row" style="align-items:flex-end"><fieldset ${ro ? "disabled" : ""} class="row" style="align-items:flex-end;flex:1;border:0;padding:0;margin:0">
@@ -919,25 +935,33 @@ async function viewTreasury(v) {
   const kc = document.getElementById("kasa-cat"); if (kc) kc.onchange = e => { kasaCat = e.target.value; rerender(); };
   v.querySelectorAll("tr.kasa-cat").forEach(tr => { const go = () => { kasaTab = "hareket"; kasaKind = tr.dataset.kind; kasaCat = tr.dataset.cat; rerender(); }; tr.onclick = go; tr.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } }; });
   if (ro) return;
-  const f = document.getElementById("f-tx");
-  // Kaleme göre ilgili alanlar açılır: etkinlik/proje adı, misafirin toplantısı, bağışın kim adına yapıldığı.
+  v.querySelectorAll("[data-ka]").forEach(b => b.onclick = () => { kasaAdd = b.dataset.ka; rerender(); });
+  const f = document.getElementById("f-tx") || document.getElementById("f-grp");
+  // Toplantı yalnızca misafir toplantı ücretinde, "Kim adına" yalnızca bağış giderinde açılır.
   const sync = () => {
-    const c = f.category.value, gelir = f.kind.value === "gelir";
+    const gelir = f.kind.value === "gelir", c = f.category?.value;
     document.getElementById("person-l").textContent = c === "Misafir toplantı ücreti" ? "Misafir" : gelir ? "Ödeyen" : "Ödemeyi yapan";
-    document.getElementById("grp-f").hidden = !needsGroup(c);
+    if (f.id !== "f-tx") return;
     document.getElementById("meet-f").hidden = c !== "Misafir toplantı ücreti";
-    document.getElementById("don-f").hidden = !(f.kind.value === "gider" && isDonCat(c));
+    document.getElementById("don-f").hidden = !(!gelir && isDonCat(c));
   };
   f.querySelectorAll("[data-k]").forEach(b => b.onclick = () => {
     f.querySelectorAll("[data-k]").forEach(x => x.setAttribute("aria-pressed", x === b));
-    f.kind.value = b.dataset.k; document.getElementById("cat").innerHTML = CATS[b.dataset.k].map(c => `<option>${c}</option>`).join(""); sync();
+    f.kind.value = b.dataset.k;
+    if (f.id === "f-tx") document.getElementById("cat").innerHTML = CATS[b.dataset.k].map(c => `<option>${c}</option>`).join("");
+    sync();
   });
-  document.getElementById("cat").addEventListener("change", sync);
+  document.getElementById("cat")?.addEventListener("change", sync);
   f.onsubmit = async e => {
     e.preventDefault(); const d = Object.fromEntries(new FormData(f)); d.amount = +d.amount;
     for (const k of ["person", "group_name", "donation_for", "description"]) d[k] = (d[k] || "").trim() || null;
+    if (f.id === "f-grp") {
+      d.category = GROUP_CAT[kasaAdd][d.kind]; d.meeting_no = null; d.donation_fund = null; d.donation_for = null;
+      try { await store.addTransaction(d); toast(`${kasaAdd === "etkinlik" ? "Etkinlik" : "Proje"} kaydı eklendi.`); rerender(); } catch (er) { fail(er); }
+      return;
+    }
+    d.group_name = null;
     d.meeting_no = d.category === "Misafir toplantı ücreti" && d.meeting_no ? +d.meeting_no : null;
-    if (!needsGroup(d.category)) d.group_name = null;
     const isDon = d.kind === "gider" && isDonCat(d.category);
     if (isDon) d.donation_fund = d.category.startsWith(DON_PREFIX) ? d.category.slice(DON_PREFIX.length) : null; else { d.donation_fund = null; d.donation_for = null; }
     try { await store.addTransaction(d); toast(isDon ? "Kasa hareketi eklendi; bağış Bağışlar listesine aktarıldı." : "Kasa hareketi eklendi."); rerender(); } catch (er) { fail(er); }
@@ -1030,7 +1054,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611111917");
+  const { mountComposer } = await import("./composer.js?v=202611111931");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 

@@ -1131,7 +1131,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
     $("#gDates").innerHTML=out.map((m,i)=>`<label><input type="radio" name="gdate" value="${i}"${i===0?" checked":""}><span class="dp"><b>${m.d.getDate()}</b><span>${MONTHS[m.d.getMonth()]}</span><span>${ord(m.no)} meeting</span></span></label>`).join("");
     window._gMeetings=out;
   })();
-  const INTERESTS=["Service projects","International","Professional growth","Disaster response","PR and social media","Events and hobbies"];
+  const INTERESTS=["Community service projects","Leadership and personal growth","Career and professional network","New friends and social events","International connections and exchange","Environment and sustainability","Social media and PR","Hobbies, arts and culture"];
   $("#gInterest").innerHTML=INTERESTS.map(x=>`<button type="button" aria-pressed="false">${x}</button>`).join("");
   $$("#gInterest button").forEach(b=>b.addEventListener("click",()=>b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")!=="true")));
 

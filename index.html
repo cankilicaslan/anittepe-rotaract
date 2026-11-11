@@ -1130,7 +1130,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
     $("#gDates").innerHTML=out.map((m,i)=>`<label><input type="radio" name="gdate" value="${i}"${i===0?" checked":""}><span class="dp"><b>${m.d.getDate()}</b><span>${MONTHS[m.d.getMonth()]}</span><span>${m.no}. toplantı</span></span></label>`).join("");
     window._gMeetings=out;
   })();
-  const INTERESTS=["Hizmet projeleri","Uluslararası","Meslek gelişimi","Afet","Tanıtım ve sosyal medya","Etkinlik ve hobi"];
+  const INTERESTS=["Topluma faydalı projeler","Liderlik ve kişisel gelişim","Kariyer ve meslek ağı","Yeni arkadaşlar, sosyal etkinlikler","Uluslararası bağlantılar ve değişim","Çevre ve sürdürülebilirlik","Sosyal medya ve tanıtım","Hobi ve kültür-sanat"];
   $("#gInterest").innerHTML=INTERESTS.map(x=>`<button type="button" aria-pressed="false">${x}</button>`).join("");
   $$("#gInterest button").forEach(b=>b.addEventListener("click",()=>b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")!=="true")));
 

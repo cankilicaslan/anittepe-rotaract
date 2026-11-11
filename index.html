@@ -726,7 +726,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
         <div class="gf-fields" id="gfFields">
           <label>Ad soyad<input id="g-name" name="name" required autocomplete="name" autocapitalize="words"></label>
           <label>E-posta<input id="g-mail" name="email" type="email" required autocomplete="email"></label>
-          <label>Telefon <small>(isteğe bağlı)</small><input id="g-tel" name="tel" type="tel" autocomplete="tel"></label>
+          <label>Telefon<input id="g-tel" name="tel" type="tel" autocomplete="tel" inputmode="tel" required placeholder="05xx xxx xx xx"></label>
           <label>Şu an
             <select id="g-status" name="status"><option>Üniversite öğrencisiyim</option><option>Çalışıyorum</option><option>Mezun oldum, iş arıyorum</option><option>Diğer</option></select>
           </label>
@@ -1143,6 +1143,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
     const name=$("#g-name").value.trim(),mail=$("#g-mail").value.trim();
     if(!name){err.hidden=false;err.textContent="Adını yazman gerekiyor.";$("#g-name").focus();return}
     if(!/^\S+@\S+\.\S+$/.test(mail)){err.hidden=false;err.textContent="Geçerli bir e-posta adresi yazman gerekiyor.";$("#g-mail").focus();return}
+    if($("#g-tel").value.replace(/\D/g,"").length<10){err.hidden=false;err.textContent="Telefon numaranı yazman gerekiyor.";$("#g-tel").focus();return}
     if(!$("#g-kvkk").checked){err.hidden=false;err.textContent="Devam etmek için bilgilerinin kullanımını onaylaman gerekiyor.";return}
     err.hidden=true;
     const m=window._gMeetings[+(document.querySelector('input[name="gdate"]:checked')||{value:0}).value];

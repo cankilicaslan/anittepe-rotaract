@@ -726,7 +726,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
         <div class="gf-fields" id="gfFields">
           <label>Full name<input id="g-name" name="name" required autocomplete="name" autocapitalize="words"></label>
           <label>Email<input id="g-mail" name="email" type="email" required autocomplete="email"></label>
-          <label>Phone <small>(optional)</small><input id="g-tel" name="tel" type="tel" autocomplete="tel"></label>
+          <label>Phone<input id="g-tel" name="tel" type="tel" autocomplete="tel" inputmode="tel" required placeholder="05xx xxx xx xx"></label>
           <label>Currently
             <select id="g-status" name="status"><option>University student</option><option>Working</option><option>Graduated, looking for work</option><option>Other</option></select>
           </label>
@@ -1144,6 +1144,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
     const name=$("#g-name").value.trim(),mail=$("#g-mail").value.trim();
     if(!name){err.hidden=false;err.textContent="Please enter your name.";$("#g-name").focus();return}
     if(!/^\S+@\S+\.\S+$/.test(mail)){err.hidden=false;err.textContent="Please enter a valid email address.";$("#g-mail").focus();return}
+    if($("#g-tel").value.replace(/\D/g,"").length<10){err.hidden=false;err.textContent="Please enter your phone number.";$("#g-tel").focus();return}
     if(!$("#g-kvkk").checked){err.hidden=false;err.textContent="To continue, please agree to the use of your details.";return}
     err.hidden=true;
     const m=window._gMeetings[+(document.querySelector('input[name="gdate"]:checked')||{value:0}).value];

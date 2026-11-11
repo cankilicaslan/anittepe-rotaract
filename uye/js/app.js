@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611111234";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611111234";
+import { createStore, trDate } from "./store.js?v=202611111237";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611111237";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -778,12 +778,6 @@ async function viewDues(v) {
     </details>
     <div class="row" style="margin-top:14px"><button class="btn" type="submit">Aidatı ekle</button></div>
   </form>`}
-  ${ro ? "" : `<form class="card" id="f-month"><h2>Dönemin her ayı için aidat oluştur</h2>
-    <p class="muted" style="margin-top:-6px">Temmuz’dan Haziran’a kadar, henüz aidatı olmayan her ay için aynı tutar ve aynı son ödeme günüyle aidat açılır. Takvimde de her ayın aidat günü görünür.</p>
-    <div class="grid g3"><label class="f">Aylık tutar (TL)<input type="number" name="amount" min="0" step="0.01" required></label>
-      <label class="f">Son ödeme günü <small>Ayın kaçı</small><input type="number" name="day" min="1" max="28" value="15" required></label>
-      <div class="f" style="align-self:end"><button class="btn" type="submit">Eksik ayları oluştur</button></div></div>
-  </form>`}
   <div class="card"><h2>Aidat dönemleri</h2>
     ${dues.length ? dues.slice().sort((a, b) => (b.due_date || "").localeCompare(a.due_date || "")).map(d => {
       const cs = charges.filter(c => c.due_id === d.id).sort((a, b) => (mmap[a.member_id]?.full_name || "").localeCompare(mmap[b.member_id]?.full_name || "", "tr"));
@@ -801,21 +795,6 @@ async function viewDues(v) {
     ${members.map(m => ({ m, d: debtOf(m.id, charges, dues) })).sort((a, b) => b.d.total - a.d.total).map(({ m, d }) => `<tr><td>${person(m)}</td><td class="num">${d.open.length}</td><td class="num">${d.overdue.length ? `<span class="tag bad">${d.overdue.length}</span>` : 0}</td><td class="num"><b>${TL(d.total)}</b></td></tr>`).join("")}
   </tbody></table></div></div>`;
   if (ro) return;
-  document.getElementById("f-month").onsubmit = async e => {
-    e.preventDefault(); const fd = new FormData(e.target), amount = +fd.get("amount"), day = String(+fd.get("day")).padStart(2, "0");
-    const term = await store.getTerm(); const [sy, sm] = term.start_date.split("-").map(Number);
-    const have = new Set(dues.map(d => d.period));
-    const ids = members.filter(m => m.status === "active").map(m => m.id);
-    let n = 0;
-    try {
-      for (let i = 0; i < 12; i++) {
-        const d = new Date(sy, sm - 1 + i, 1), period = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-        if (have.has(period)) continue;
-        await store.createDue({ label: `${MONTHS[d.getMonth()]} ${d.getFullYear()} aidatı`, period, amount, due_date: `${period}-${day}`, member_ids: ids }); n++;
-      }
-      toast(n ? `${n} ay için aidat oluşturuldu.` : "Dönemin bütün aylarında zaten aidat var."); refresh();
-    } catch (er) { fail(er); }
-  };
   const f = document.getElementById("f-due");
   f.addEventListener("change", () => { const n = f.querySelectorAll("[name=mem]:checked").length, t = f.querySelectorAll("[name=mem]").length; document.getElementById("who-n").textContent = n === t ? "Tüm aktif üyeler" : `${n} üye seçili`; });
   f.onsubmit = async e => {
@@ -984,7 +963,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611111234");
+  const { mountComposer } = await import("./composer.js?v=202611111237");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 

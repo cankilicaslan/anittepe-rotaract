@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611111945";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611111945";
+import { createStore, trDate } from "./store.js?v=202611112136";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611112136";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -403,9 +403,14 @@ function attendanceStats(memberId, meetings, att, startNo = 1) {
   const n = held.length;
   return { held: n, ...c, isaretsiz: n - mine.length, oran: n ? c.geldi / n : 0, oranMazeretHaric: (n - c.mazeretli) ? c.geldi / (n - c.mazeretli) : 0 };
 }
+// Ödeme aralığı son günden 14 gün önce açılır (ör. 2. taksit 1–15 Kasım). Aralık açılmadan taksit borç sayılmaz.
+const PAY_WINDOW_DAYS = 14;
+function payOpens(d) { if (!d?.due_date) return ""; const x = new Date(d.due_date + "T00:00:00"); x.setDate(x.getDate() - PAY_WINDOW_DAYS); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`; }
+const isPayOpen = d => !!d && (!d.due_date || payOpens(d) <= today());
+const notOpenTag = d => `<span class="tag">Ödeme başlangıcı: ${trDate(payOpens(d))}</span>`;
 function debtOf(memberId, charges, dues) {
   const dmap = Object.fromEntries(dues.map(d => [d.id, d]));
-  const open = charges.filter(c => c.member_id === memberId && !c.paid_at).map(c => ({ ...c, due: dmap[c.due_id] })).filter(c => c.due);
+  const open = charges.filter(c => c.member_id === memberId && !c.paid_at).map(c => ({ ...c, due: dmap[c.due_id] })).filter(c => c.due && isPayOpen(c.due));
   return { total: open.reduce((s, c) => s + +c.amount, 0), open, overdue: open.filter(c => c.due.due_date < today()) };
 }
 
@@ -763,7 +768,7 @@ async function viewDues(v) {
   <div class="stats">
     <div class="stat"><span>Toplam tahakkuk</span><b>${TL(total)}</b></div>
     <div class="stat"><span>Tahsil edilen</span><b>${TL(paid)}</b></div>
-    <div class="stat hl"><span>Bekleyen</span><b>${TL(total - paid)}</b></div>
+    <div class="stat hl"><span>Bekleyen</span><b>${TL(charges.filter(c => !c.paid_at && isPayOpen(dmap[c.due_id])).reduce((s, c) => s + +c.amount, 0))}</b></div>
     <div class="stat"><span>Son ödeme tarihi geçen</span><b>${TL(overdue)}</b></div>
   </div>
   ${ro ? "" : `<form class="card" id="f-due"><h2>Yeni aidat gir</h2>
@@ -783,9 +788,9 @@ async function viewDues(v) {
       const cs = charges.filter(c => c.due_id === d.id).sort((a, b) => (mmap[a.member_id]?.full_name || "").localeCompare(mmap[b.member_id]?.full_name || "", "tr"));
       const p = cs.filter(c => c.paid_at).length;
       return `<details class="due"><summary><b>${esc(d.label)}</b><span class="muted">${TL(d.amount)} · son ödeme ${trDate(d.due_date)}</span><div class="spacer"></div>
-        <span class="tag ${p === cs.length ? "ok" : d.due_date < today() ? "bad" : "warn"}">${p}/${cs.length} ödendi</span></summary>
+        ${p < cs.length && !isPayOpen(d) ? notOpenTag(d) : `<span class="tag ${p === cs.length ? "ok" : d.due_date < today() ? "bad" : "warn"}">${p}/${cs.length} ödendi</span>`}</summary>
         <div class="body">${cs.map(c => `<div class="pay-row">${person(mmap[c.member_id] || { full_name: "Silinmiş üye" })}
-          ${c.paid_at ? `<span class="tag ok">Ödendi · ${trDate(c.paid_at)}</span>` : `<span class="tag ${d.due_date < today() ? "bad" : "warn"}">${d.due_date < today() ? "Gecikti" : "Bekliyor"}</span>`}
+          ${c.paid_at ? `<span class="tag ok">Ödendi · ${trDate(c.paid_at)}</span>` : !isPayOpen(d) ? notOpenTag(d) : `<span class="tag ${d.due_date < today() ? "bad" : "warn"}">${d.due_date < today() ? "Gecikti" : "Bekliyor"}</span>`}
           ${ro ? "" : c.paid_at ? `<button class="btn ghost sm" data-unpay="${c.id}">Geri al</button>` : `<input type="date" value="${today()}" data-pd="${c.id}" aria-label="Ödeme tarihi" style="width:auto;min-height:32px"><button class="btn sm" data-pay="${c.id}">Ödendi</button>`}
         </div>`).join("")}
         ${ro ? "" : `<div class="row" style="margin-top:10px"><button class="btn danger sm" data-deldue="${d.id}">Bu aidat dönemini sil</button></div>`}</div></details>`;
@@ -899,7 +904,7 @@ async function viewTreasury(v) {
     const mids = [...new Set(charges.filter(c => tDues.some(d => d.id === c.due_id)).map(c => c.member_id))].sort((x, y) => (mById[x]?.full_name || "").localeCompare(mById[y]?.full_name || "", "tr"));
     const manual = rows.filter(r => r.category === "Üye aidat tahsilatı" && !r.auto);
     const manualPeople = [...new Set(manual.map(r => r.person || "Belirtilmedi"))].sort((x, y) => x.localeCompare(y, "tr"));
-    const cellOf = (mid, d) => { const c = charges.find(c => c.member_id === mid && c.due_id === d.id); if (!c) return '<span class="muted">–</span>'; if (c.paid_at) return `<span class="tag ok">Ödendi · ${trDate(c.paid_at)}</span>`; return d.due_date && d.due_date < today() ? '<span class="tag bad">Gecikti</span>' : '<span class="tag warn">Bekliyor</span>'; };
+    const cellOf = (mid, d) => { const c = charges.find(c => c.member_id === mid && c.due_id === d.id); if (!c) return '<span class="muted">–</span>'; if (c.paid_at) return `<span class="tag ok">Ödendi · ${trDate(c.paid_at)}</span>`; if (!isPayOpen(d)) return notOpenTag(d); return d.due_date && d.due_date < today() ? '<span class="tag bad">Gecikti</span>' : '<span class="tag warn">Bekliyor</span>'; };
     const paidOf = mid => sum(charges.filter(c => c.member_id === mid && c.paid_at && tDues.some(d => d.id === c.due_id)));
     const debtOfM = mid => sum(charges.filter(c => c.member_id === mid && !c.paid_at && tDues.some(d => d.id === c.due_id && d.due_date && d.due_date <= today())));
     const totPaid = mids.reduce((s, m) => s + paidOf(m), 0) + sum(manual), totDebt = mids.reduce((s, m) => s + debtOfM(m), 0);
@@ -1122,7 +1127,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611111945");
+  const { mountComposer } = await import("./composer.js?v=202611112136");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 

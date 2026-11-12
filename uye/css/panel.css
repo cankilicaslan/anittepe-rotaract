@@ -518,3 +518,21 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 .kasa-tabs .kasa-pick{width:auto;min-height:0;border:0;background:transparent;font:inherit;font-weight:700;font-size:.88rem;color:var(--muted);padding:7px 26px 7px 12px;border-radius:999px;cursor:pointer;box-shadow:none}
 .kasa-tabs .kasa-pick.on{background:#fff;color:var(--cran-deep, #A30C4D);box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .kasa-tabs .kasa-pick{-webkit-appearance:none;appearance:none;background-image:none !important;width:auto !important;flex:0 0 auto;max-width:240px;padding:6px 12px !important;min-height:32px;font-size:.84rem}
+
+/* Site düzenleme (HİTK): sohbet ve fark görünümü */
+.chat-log{display:grid;gap:12px;max-height:62vh;overflow:auto;padding:4px 2px 12px}
+.chat-me,.chat-ai{display:flex}
+.chat-me{justify-content:flex-end}
+.chat .bub{max-width:min(720px,92%);border-radius:16px;padding:12px 14px;display:grid;gap:6px}
+.chat .bub p{margin:0;overflow-wrap:anywhere}
+.chat .bub small{opacity:.75;font-size:.78rem}
+.chat-me .bub{background:var(--cran-deep,#A30C4D);color:#fff;border-bottom-right-radius:4px}
+.chat-ai .bub{background:#fff;border:1px solid var(--line,#eadde3);border-bottom-left-radius:4px}
+.chat-ai .tag{justify-self:start}
+.chat-form{border-top:1px solid var(--line,#eadde3);padding-top:12px;display:grid;gap:10px}
+.sdiff{display:grid;gap:4px;margin-top:6px}
+.sdiff .d-old,.sdiff .d-new{border-radius:8px;padding:8px 10px;font-size:.92rem;overflow-wrap:anywhere}
+.sdiff .d-old{background:#fdecee;color:#8a1c2b;text-decoration:line-through;text-decoration-color:rgba(138,28,43,.45)}
+.sdiff .d-new{background:#e7f6ec;color:#185c33}
+.sdiff details summary{cursor:pointer;font-size:.82rem;color:var(--muted);padding:4px 0}
+.sdiff pre{white-space:pre-wrap;font-size:.78rem;margin:4px 0;max-height:220px;overflow:auto;text-decoration:none}

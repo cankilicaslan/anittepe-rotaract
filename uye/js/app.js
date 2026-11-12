@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611121500";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611121500";
+import { createStore, trDate } from "./store.js?v=202611121521";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611121521";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -298,7 +298,9 @@ const PAGES = [
   { id: "projeler", label: "Hizmet projeleri", panel: "projeler" },
   { id: "proje-formlari", label: "Proje formları", panel: "proje-form" },
   // Instagram: yalnızca paylaşım yapabilenler (başkan ve Halkla İlişkiler / HİTK) görür ve açar.
-  { id: "instagram", label: "Instagram paylaşımı", panel: "instagram" }
+  { id: "instagram", label: "Instagram paylaşımı", panel: "instagram" },
+  // Site düzenleme: yalnızca Halkla İlişkiler ve Tanıtım (HİTK) görevlisi.
+  { id: "site", label: "Site düzenleme", show: () => hasRole(me, "pr") }
 ];
 const visible = p => p.panel ? can(me, p.panel, "view") : p.show?.();
 
@@ -364,7 +366,7 @@ function shell() {
   const rs = document.getElementById("reset");
   if (rs) rs.onclick = () => { if (confirm("Örnek veriler ilk haline dönsün mü? Bu tarayıcıdaki demo değişiklikleri silinir.")) { store.resetDemo(); location.hash = ""; location.reload(); } };
   const view = document.getElementById("view");
-  const fn = { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram, arsiv: viewArchive, yukle: viewUpload, bagislar: viewDonations, "proje-formlari": viewProjectForms, "wa-toplanti": viewWaMeeting, "wa-aidat": viewWaDues }[id];
+  const fn = { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram, site: viewSite, arsiv: viewArchive, yukle: viewUpload, bagislar: viewDonations, "proje-formlari": viewProjectForms, "wa-toplanti": viewWaMeeting, "wa-aidat": viewWaDues }[id];
   fn(view).catch(e => { view.innerHTML = `<div class="err">${esc(e.message)}</div>`; });
   labelTables(view);
   new MutationObserver(() => labelTables(view)).observe(view, { childList: true, subtree: true });
@@ -1124,10 +1126,67 @@ function editProject(p, v, after = viewProjects) {
 }
 
 /* ----------------------------- Instagram ----------------------------- */
+/* ------------------------- Site düzenleme (HİTK) ------------------------- */
+let siteSid = null;
+const SITE_STATUS = { onerildi: ["Onay bekliyor", "warn"], yayinlandi: ["Yayınlandı", "ok"], reddedildi: ["Vazgeçildi", ""], hata: ["Uygulanamadı", "bad"], yanit: ["Yanıt", ""] };
+const dt = s => s ? new Date(s).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" }) : "";
+const plain = h => { const d = document.createElement("div"); d.innerHTML = h; return (d.textContent || "").replace(/\s+/g, " ").trim(); };
+const nl2br = s => s.split("\n").join("<br>");
+function siteDiff(edits) {
+  return edits.map(e => { const o = plain(e.old_str), n = plain(e.new_str), textOnly = o !== n;
+    return `<div class="sdiff"><small class="muted">${e.file === "en/index.html" ? "İngilizce sayfa" : "Türkçe sayfa"}</small>
+      ${textOnly ? `<div class="d-old" aria-label="Eski">${esc(o) || "<i>(boş)</i>"}</div><div class="d-new" aria-label="Yeni">${esc(n) || "<i>(silinecek)</i>"}</div>` : `<p class="muted" style="margin:4px 0">Görünen metin aynı; bağlantı ya da görsel gibi kod kısmı değişiyor.</p>`}
+      <details><summary>HTML farkı</summary><pre class="d-old">${esc(e.old_str)}</pre><pre class="d-new">${esc(e.new_str)}</pre></details></div>`; }).join("");
+}
+async function viewSite(v) {
+  const rerender = () => viewSite(v), uid = () => crypto.randomUUID();
+  const rows = await store.listSiteEdits();
+  if (!siteSid) siteSid = rows.find(r => r.user_id === me.id)?.session_id || uid();
+  const thread = rows.filter(r => r.session_id === siteSid).sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const act = r => r.status === "onerildi" ? `<div class="row" style="margin-top:10px"><button class="btn sm" data-se="publish" data-id="${r.id}">Yayınla</button><button class="btn ghost sm" data-se="reject" data-id="${r.id}">Vazgeç</button></div>`
+    : r.status === "yayinlandi" ? `<div class="row" style="margin-top:10px;align-items:center"><span class="muted" style="font-size:.86rem">Yayınlandı · ${dt(r.published_at)}. Sitede 1–2 dakika içinde görünür.</span><a class="btn ghost sm" href="https://anitteperotaract.org/" target="_blank" rel="noopener">Siteyi aç</a><button class="btn ghost sm" data-se="revert" data-id="${r.id}">Geri al</button></div>` : "";
+  const bubble = r => `<div class="chat-me"><div class="bub"><p>${nl2br(esc(r.prompt))}</p><small>${esc(r.user_name || "")} · ${dt(r.created_at)}</small></div></div>
+    <div class="chat-ai"><div class="bub"><p>${nl2br(esc(r.reply || ""))}</p>
+      ${r.status !== "yanit" ? `<span class="tag ${SITE_STATUS[r.status]?.[1] || ""}">${SITE_STATUS[r.status]?.[0] || esc(r.status)}</span>` : ""}
+      ${r.error ? `<p class="muted" style="font-size:.86rem;margin:6px 0 0">${esc(r.error)}</p>` : ""}
+      ${r.edits?.length ? siteDiff(r.edits) : ""}${act(r)}</div></div>`;
+  v.innerHTML = header("Site düzenleme", "Anasayfada neyin değişmesini istediğini yaz. Yapay zekâ değişikliği hazırlar; sen önce farkı görür, sonra yayınlarsın.", `<button class="btn ghost" id="se-new">Yeni sohbet</button>`) + `
+  <div class="card chat">
+    <div class="chat-log" id="se-log">${thread.map(bubble).join("") || `<p class="muted" style="margin:0">Örnek: "Toplantı saatini 20.00 yap" ya da "Haberlere 26 Kasım'daki kan bağışı etkinliğini ekle; başlık: …, metin: …".</p>`}</div>
+    <form id="se-f" class="chat-form">
+      <label class="f">İsteğin<textarea name="prompt" rows="3" maxlength="4000" required placeholder="Anasayfada neyi, nasıl değiştirelim?"></textarea></label>
+      <div class="row"><button class="btn" type="submit">Gönder</button><span class="muted" id="se-wait" hidden style="font-size:.88rem">Değişiklik hazırlanıyor, bu 30–60 saniye sürebilir…</span></div>
+    </form>
+  </div>
+  <div class="card"><h2>Kayıtlar</h2><p class="muted" style="margin:-6px 0 12px;font-size:.88rem">Tüm istekler, yapay zekâ yanıtları ve yayınlanan değişiklikler burada saklanır. Bir satıra tıklayınca o sohbet açılır.</p>
+    <div class="tbl-wrap"><table><thead><tr><th>Tarih</th><th>Kişi</th><th>İstek</th><th>Durum</th><th class="num">Değişiklik</th><th>Commit</th></tr></thead><tbody>
+    ${rows.map(r => `<tr data-sid="${esc(r.session_id)}" style="cursor:pointer"><td>${dt(r.created_at)}</td><td>${esc(r.user_name || "–")}</td><td>${esc(r.prompt.length > 90 ? r.prompt.slice(0, 90) + "…" : r.prompt)}</td><td><span class="tag ${SITE_STATUS[r.status]?.[1] || ""}">${SITE_STATUS[r.status]?.[0] || esc(r.status)}</span></td><td class="num">${r.edits?.length || 0}</td><td>${(r.commit_urls || []).map((u, i) => `<a href="${esc(u)}" target="_blank" rel="noopener">${i + 1}</a>`).join(" ") || "–"}</td></tr>`).join("") || '<tr><td colspan="6" class="muted">Henüz kayıt yok.</td></tr>'}
+    </tbody></table></div></div>`;
+  const log = document.getElementById("se-log"); log.scrollTop = log.scrollHeight;
+  document.getElementById("se-new").onclick = () => { siteSid = uid(); rerender(); };
+  v.querySelectorAll("tr[data-sid]").forEach(tr => tr.onclick = () => { siteSid = tr.dataset.sid; rerender(); window.scrollTo(0, 0); });
+  v.querySelectorAll("[data-se]").forEach(b => b.onclick = async () => {
+    const a = b.dataset.se;
+    if (a === "publish" && !confirm("Bu değişiklik canlı siteye yayınlanacak. Devam edilsin mi?")) return;
+    v.querySelectorAll("[data-se]").forEach(x => x.disabled = true); b.textContent = a === "publish" ? "Yayınlanıyor…" : "İşleniyor…";
+    try { await store.siteEdit({ action: a, id: b.dataset.id }); toast(a === "publish" ? "Yayınlandı. Sitede 1–2 dakika içinde görünür." : a === "revert" ? "Geri alma önerisi hazır; kontrol edip yayınla." : "Öneriden vazgeçildi.", "ok"); }
+    catch (e) { toast(esc(e.message), "bad"); }
+    rerender();
+  });
+  const f = document.getElementById("se-f");
+  f.prompt.addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) f.requestSubmit(); });
+  f.onsubmit = async e => {
+    e.preventDefault(); const prompt = f.prompt.value.trim(); if (!prompt) return;
+    const btn = f.querySelector("button"); btn.disabled = true; btn.textContent = "Gönderiliyor…"; document.getElementById("se-wait").hidden = false;
+    try { await store.siteEdit({ action: "propose", prompt, session_id: siteSid }); rerender(); }
+    catch (err) { toast(esc(err.message), "bad"); btn.disabled = false; btn.textContent = "Gönder"; document.getElementById("se-wait").hidden = true; }
+  };
+}
+
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611121500");
+  const { mountComposer } = await import("./composer.js?v=202611121521");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 

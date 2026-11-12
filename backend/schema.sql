@@ -1112,3 +1112,33 @@ begin
   if c is not null then execute format('alter table public.profiles drop constraint %I', c); end if;
 end $$;
 alter table public.profiles alter column id set default gen_random_uuid();
+
+-- =====================================================================
+-- v20: HİTK site düzenleme paneli — istekler, yapay zekâ yanıtları ve yayın kayıtları
+-- =====================================================================
+create table if not exists public.site_edits (
+  id            uuid primary key default gen_random_uuid(),
+  created_at    timestamptz not null default now(),
+  session_id    uuid not null,
+  user_id       uuid,
+  user_name     text,
+  prompt        text not null,
+  reply         text,
+  edits         jsonb not null default '[]'::jsonb,
+  status        text not null default 'onerildi',
+  error         text,
+  revert_of     uuid references public.site_edits(id) on delete set null,
+  commit_urls   text[],
+  published_at  timestamptz,
+  model         text,
+  input_tokens  int,
+  output_tokens int,
+  constraint site_edits_status_chk check (status in ('onerildi','yayinlandi','reddedildi','hata','yanit'))
+);
+create index if not exists site_edits_created_idx on public.site_edits (created_at desc);
+create index if not exists site_edits_session_idx on public.site_edits (session_id, created_at);
+alter table public.site_edits enable row level security;
+-- Okuma: HİTK görevlisi (ve kulüp sahibi hesap). Yazma yalnızca site-edit fonksiyonu (service role) üzerinden.
+drop policy if exists site_edits_select on public.site_edits;
+create policy site_edits_select on public.site_edits for select to authenticated
+  using (public.has_role('pr') or public.is_owner());

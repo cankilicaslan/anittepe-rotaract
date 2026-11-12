@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611121500";
-import { can, hasRole } from "./roles.js?v=202611121500";
+import { CONFIG } from "./config.js?v=202611121521";
+import { can, hasRole } from "./roles.js?v=202611121521";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -247,6 +247,23 @@ function demoStore() {
       save();
     },
     async listGuests() { return can(me(), "yoklama") ? clone(S.guests) : []; },
+    async listSiteEdits() { return clone((S.siteEdits ||= []).slice().sort((a, b) => b.created_at.localeCompare(a.created_at))); },
+    async siteEdit(body) {
+      const list = (S.siteEdits ||= []), m = me(), now = new Date().toISOString();
+      const find = id => { const x = list.find(r => r.id === id); if (!x) throw new Error("Kayıt bulunamadı."); return x; };
+      if (body.action === "propose") {
+        const q = body.prompt.match(/["“](.+?)["”].*?["“](.+?)["”]/);
+        const row = { id: uid(), created_at: now, session_id: body.session_id, user_id: m.id, user_name: m.full_name, prompt: body.prompt, model: "demo",
+          reply: q ? "Demo: metni değiştiren bir öneri hazırladım. Gerçek panelde yapay zekâ sitedeki karşılığını bulur." : "Demo modunda yapay zekâ çalışmaz. Değiştirmek istediğin metni ve yenisini tırnak içinde yazarsan örnek bir öneri gösteririm.",
+          edits: q ? [{ file: "index.html", old_str: q[1], new_str: q[2] }] : [], status: q ? "onerildi" : "yanit" };
+        list.push(row); save(); return clone(row);
+      }
+      const row = find(body.id);
+      if (body.action === "publish") { Object.assign(row, { status: "yayinlandi", published_at: now, commit_urls: [] }); }
+      else if (body.action === "reject") { row.status = "reddedildi"; }
+      else if (body.action === "revert") { const n = { ...row, id: uid(), created_at: now, revert_of: row.id, prompt: "Geri al: " + row.prompt, reply: "Önceki değişikliğin tersi hazır.", status: "onerildi", published_at: null, edits: row.edits.map(e => ({ file: e.file, old_str: e.new_str, new_str: e.old_str })) }; list.push(n); save(); return clone(n); }
+      save(); return clone(row);
+    },
     async saveGuest(g) {
       need("yoklama");
       if (!(g.full_name || "").trim()) throw new Error("Misafirin adını yaz.");
@@ -456,6 +473,8 @@ async function supabaseStore() {
       else ok(await sb.from("attendance").upsert({ meeting_id, member_id, status, note, updated_at: new Date().toISOString() }));
     },
     async listGuests() { return ok(await sb.from("guests").select("*").order("full_name")); },
+    async listSiteEdits() { return ok(await sb.from("site_edits").select("*").order("created_at", { ascending: false }).limit(300)); },
+    async siteEdit(body) { return (await fn("site-edit", body)).row; },
     async saveGuest(g) {
       if (!(g.full_name || "").trim()) throw new Error("Misafirin adını yaz.");
       const row = { full_name: g.full_name.trim(), phone: g.phone || null, email: g.email || null, note: g.note || null };

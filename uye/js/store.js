@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611122358";
-import { can, hasRole } from "./roles.js?v=202611122358";
+import { CONFIG } from "./config.js?v=202611130002";
+import { can, hasRole } from "./roles.js?v=202611130002";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -52,13 +52,13 @@ const SEED_PEOPLE = [
 const DEMO_PASSWORD = "rotaract2430";
 
 function seed() {
-  const term = { id: uid(), name: "2026-27", start_date: "2026-07-02", meeting_count: 24, club_meeting_offset: 599, opening_balance: 5000, is_current: true };
+  const term = { id: uid(), name: "2026-27", start_date: "2026-07-02", meeting_count: 24, club_meeting_offset: 600, opening_balance: 5000, is_current: true };
   const profiles = SEED_PEOPLE.map(([full_name, title, roles, past, slug]) => ({
     id: uid(), full_name, title, roles, past_president: past, status: "active",
     email: slug.split("-")[0] + "@demo.anitteperotaract", phone: "", photo_url: `../assets/uyeler/${slug}.jpg`,
     birth_date: null, profession: "", joined_at: "2025-10-01", created_at: new Date().toISOString()
   }));
-  const meetings = Array.from({ length: 24 }, (_, i) => ({ id: uid(), term_id: term.id, term_no: i + 1, club_no: 600 + i, date: addDays(term.start_date, 14 * i), note: "" }));
+  const meetings = Array.from({ length: 24 }, (_, i) => ({ id: uid(), term_id: term.id, term_no: i + 2, club_no: 601 + i, date: addDays(term.start_date, 14 * i), note: "" }));
   // Örnek yoklama: geçmiş toplantılar için belirlenimci, gerçekçi bir dağılım.
   const attendance = [];
   let r = 7;

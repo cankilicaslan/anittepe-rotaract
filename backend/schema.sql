@@ -1142,3 +1142,21 @@ alter table public.site_edits enable row level security;
 drop policy if exists site_edits_select on public.site_edits;
 create policy site_edits_select on public.site_edits for select to authenticated
   using (public.has_role('pr') or public.is_owner());
+
+-- =====================================================================
+-- v21: Toplantı numaraları bir ileri (19 Kasım 2026 = kulübün 611., dönemin 12. toplantısı)
+-- =====================================================================
+do $$
+declare t uuid;
+begin
+  select id into t from public.terms where is_current;
+  -- benzersizlik kısıtı çakışmasın diye iki adımda
+  update public.meetings set term_no = term_no + 1000 where term_id = t;
+  update public.meetings set term_no = term_no - 999, club_no = club_no + 1 where term_id = t;
+  update public.terms set club_meeting_offset = club_meeting_offset + 1 where id = t;
+  -- Kasadaki misafir ücretleri kulüp toplantı numarasıyla tutuluyor
+  update public.transactions set meeting_no = meeting_no + 1 where term_id = t and meeting_no is not null;
+end $$;
+
+select term_no, club_no, date from public.meetings
+ where term_id = (select id from public.terms where is_current) and date between '2026-11-01' and '2026-12-01' order by date;

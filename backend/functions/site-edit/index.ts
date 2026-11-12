@@ -205,23 +205,48 @@ async function runGemini(history: { role: "user" | "assistant"; text: string }[]
     required: ["reply", "edits"],
   };
   const out: AiOut = { reply: "", edits: [], problem: null, model, inTok: 0, outTok: 0 };
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": Deno.env.get("GEMINI_API_KEY")! },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM + "\n\nYanıtını yalnızca {reply, edits} biçiminde JSON olarak ver." }, { text: filesText }] },
-        contents,
-        generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0.2 },
-      }),
-    });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) {
-      console.error("Gemini API hatası", r.status, JSON.stringify(j).slice(0, 500));
-      throw new HttpError(502, r.status === 429 ? "Yapay zekânın ücretsiz kullanım sınırı doldu. Biraz sonra tekrar dene ya da \"Metinleri düzenle\" sekmesini kullan."
-        : r.status === 400 || r.status === 401 || r.status === 403 ? "Yapay zekâ anahtarı (GEMINI_API_KEY) geçersiz. Yöneticiye haber ver."
-        : "Yapay zekâ servisine ulaşılamadı. Tekrar dene.");
+  const key = Deno.env.get("GEMINI_API_KEY")!;
+  const BASE = "https://generativelanguage.googleapis.com/v1beta";
+  const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
+  // Yedek modeller: hesabın erişebildiği, generateContent destekleyen diğer "flash" modelleri (en yeni önce).
+  let backups: string[] | null = null;
+  const loadBackups = async () => {
+    if (backups) return backups;
+    try {
+      const lj = await (await fetch(`${BASE}/models?pageSize=200`, { headers: { "x-goog-api-key": key } })).json();
+      backups = ((lj.models ?? []) as { name: string; supportedGenerationMethods?: string[] }[])
+        .filter(m => /flash/i.test(m.name) && !/image|tts|audio|live|embed|thinking-exp/i.test(m.name) && (m.supportedGenerationMethods ?? []).includes("generateContent"))
+        .map(m => m.name.replace(/^models\//, "")).filter(n => n !== model).sort().reverse().slice(0, 3);
+    } catch { backups = []; }
+    return backups;
+  };
+  // Yoğunlukta (503) ve dakikalık sınırda (429) kısa beklemelerle tekrar dener, olmazsa yedek modele geçer.
+  const call = async (body: string) => {
+    const tries = [out.model, out.model, out.model];
+    let last = { status: 0, j: {} as Record<string, unknown> };
+    for (let i = 0; i < 6; i++) {
+      const m = tries[i] ?? (await loadBackups())[i - tries.length];
+      if (!m) break;
+      const r = await fetch(`${BASE}/models/${m}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) { out.model = m; return j; }
+      console.error("Gemini API hatası", m, r.status, JSON.stringify(j).slice(0, 400));
+      last = { status: r.status, j };
+      if (![429, 500, 503, 404].includes(r.status)) break;
+      if (r.status === 404 && i < tries.length) { i = tries.length - 1; continue; } // model yoksa doğrudan yedeklere geç
+      if (i < tries.length - 1) await sleep(1500 * (i + 1));
     }
+    throw new HttpError(502, last.status === 429 ? "Yapay zekânın ücretsiz kullanım sınırı doldu. Biraz sonra tekrar dene ya da \"Metinleri düzenle\" sekmesini kullan."
+      : last.status === 503 || last.status === 500 ? "Yapay zekâ servisi şu an çok yoğun. Birkaç dakika sonra tekrar dene ya da \"Metinleri düzenle\" sekmesini kullan."
+      : last.status === 401 || last.status === 403 || /api key/i.test(JSON.stringify(last.j)) ? "Yapay zekâ anahtarı (GEMINI_API_KEY) geçersiz. Yöneticiye haber ver."
+      : "Yapay zekâ servisine ulaşılamadı. Tekrar dene.");
+  };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const j = await call(JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM + "\n\nYanıtını yalnızca {reply, edits} biçiminde JSON olarak ver." }, { text: filesText }] },
+      contents,
+      generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0.2 },
+    }));
     out.inTok += j.usageMetadata?.promptTokenCount ?? 0; out.outTok += j.usageMetadata?.candidatesTokenCount ?? 0;
     const text = (j.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text || "").join("");
     let parsed: { reply?: unknown; edits?: unknown } = {};

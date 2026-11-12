@@ -536,3 +536,15 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 .sdiff .d-new{background:#e7f6ec;color:#185c33}
 .sdiff details summary{cursor:pointer;font-size:.82rem;color:var(--muted);padding:4px 0}
 .sdiff pre{white-space:pre-wrap;font-size:.78rem;margin:4px 0;max-height:220px;overflow:auto;text-decoration:none}
+/* Site düzenleme: doğrudan metin düzenleyici */
+.se-tools{gap:12px;align-items:flex-end;flex-wrap:wrap}
+.se-sec{border-top:1px solid var(--line,#eadde3);padding:10px 0}
+.se-sec>summary{cursor:pointer;padding:6px 0;list-style-position:inside}
+.se-sec>summary .muted{font-size:.84rem;font-weight:400}
+.se-item{margin:10px 0 0}
+.se-item>span{font-size:.78rem;color:var(--muted);font-weight:600}
+.se-item textarea{resize:vertical;min-height:42px}
+.se-item.on textarea{border-color:var(--cran,#D41367);background:#fff7fb}
+.se-bar{position:sticky;bottom:12px;z-index:5;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid var(--line,#eadde3);box-shadow:0 6px 20px rgba(60,10,30,.12);border-radius:14px;padding:10px 12px;margin-top:14px}
+.se-bar #se-count{font-weight:700;margin-right:auto}
+.se-review{border:1px solid var(--line,#eadde3);border-radius:14px;padding:14px;margin-top:14px;background:#fffafc}

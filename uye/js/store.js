@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611121521";
-import { can, hasRole } from "./roles.js?v=202611121521";
+import { CONFIG } from "./config.js?v=202611121543";
+import { can, hasRole } from "./roles.js?v=202611121543";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -256,6 +256,11 @@ function demoStore() {
         const row = { id: uid(), created_at: now, session_id: body.session_id, user_id: m.id, user_name: m.full_name, prompt: body.prompt, model: "demo",
           reply: q ? "Demo: metni değiştiren bir öneri hazırladım. Gerçek panelde yapay zekâ sitedeki karşılığını bulur." : "Demo modunda yapay zekâ çalışmaz. Değiştirmek istediğin metni ve yenisini tırnak içinde yazarsan örnek bir öneri gösteririm.",
           edits: q ? [{ file: "index.html", old_str: q[1], new_str: q[2] }] : [], status: q ? "onerildi" : "yanit" };
+        list.push(row); save(); return clone(row);
+      }
+      if (body.action === "direct") {
+        const row = { id: uid(), created_at: now, session_id: uid(), user_id: m.id, user_name: m.full_name, model: "dogrudan", prompt: `Doğrudan düzenleme (${body.edits.length} metin)${body.note ? ": " + body.note : ""}`,
+          reply: body.note || null, edits: body.edits, status: "yayinlandi", published_at: now, commit_urls: [] };
         list.push(row); save(); return clone(row);
       }
       const row = find(body.id);

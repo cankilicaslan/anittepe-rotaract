@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611121521";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611121521";
+import { createStore, trDate } from "./store.js?v=202611121543";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611121543";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1127,7 +1127,75 @@ function editProject(p, v, after = viewProjects) {
 
 /* ----------------------------- Instagram ----------------------------- */
 /* ------------------------- Site düzenleme (HİTK) ------------------------- */
-let siteSid = null;
+let siteSid = null, siteTab = "metin", siteLang = "index.html";
+// Doğrudan düzenleyici: anasayfanın GitHub'daki güncel hâli okunur, düzenlenebilir metinler bölüm bölüm listelenir.
+// Her metin kaynakta ">eski</etiket>" biçiminde aranır; bulunamayanlar (kodla üretilen kartlar vb.) listelenmez.
+const SITE_TAGS = { h1: "Başlık", h2: "Başlık", h3: "Ara başlık", h4: "Ara başlık", p: "Paragraf", li: "Liste öğesi", summary: "Soru", small: "Küçük yazı", span: "Kısa yazı", a: "Bağlantı / buton", time: "Tarih", b: "Kalın yazı", label: "Form etiketi", figcaption: "Görsel açıklaması", blockquote: "Alıntı", dt: "Terim", dd: "Açıklama" };
+const escHtml = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+async function siteBlocks(file) {
+  const src = await fetch(`https://raw.githubusercontent.com/cankilicaslan/anittepe-rotaract/main/${file}?t=${Date.now()}`, { cache: "no-store" }).then(r => { if (!r.ok) throw new Error("Anasayfa okunamadı."); return r.text(); });
+  const doc = new DOMParser().parseFromString(src, "text/html");
+  const sel = Object.keys(SITE_TAGS).join(",");
+  const cands = [...doc.body.querySelectorAll(sel)].filter(el => !el.closest("script,style,svg,noscript,template,select,button,.marquee-track[aria-hidden]") && el.textContent.trim().length > 1);
+  const set = new Set(cands);
+  const blocks = [];
+  for (const el of cands) {
+    if ([...el.querySelectorAll(sel)].some(c => set.has(c))) continue; // içinde başka düzenlenebilir öğe varsa onlar ayrı listelenir
+    const tag = el.tagName.toLowerCase(), inner = el.innerHTML, key = `>${inner}</${tag}>`;
+    const n = src.split(key).length - 1;
+    if (!n) continue;
+    const sec = el.closest("section,header,nav,main");
+    const title = el.closest("footer") ? "Alt bilgi" : sec?.querySelector("h2")?.textContent.trim() || (sec?.tagName === "HEADER" || sec?.tagName === "NAV" ? "Üst menü" : "Giriş");
+    if (blocks.some(b => b.key === key)) continue;
+    blocks.push({ id: blocks.length, tag, key, inner, n, section: title, plain: el.children.length === 0, value: el.children.length === 0 ? el.textContent : inner });
+  }
+  return { src, blocks };
+}
+async function siteDirect(box, rerender) {
+  let data;
+  try { data = await siteBlocks(siteLang); } catch (e) { box.innerHTML = `<p class="muted" style="margin:0">${esc(e.message)} Sayfayı yenileyip tekrar dene.</p>`; return; }
+  const { blocks } = data, changed = new Map();
+  const sections = [...new Set(blocks.map(b => b.section))];
+  box.innerHTML = `<div class="row se-tools">
+      <label class="f" style="flex:0 0 auto">Sayfa<select id="se-lang"><option value="index.html" ${siteLang === "index.html" ? "selected" : ""}>Türkçe anasayfa</option><option value="en/index.html" ${siteLang === "en/index.html" ? "selected" : ""}>İngilizce anasayfa</option></select></label>
+      <label class="f" style="flex:1 1 220px">Ara<input type="search" id="se-q" placeholder="Değiştirmek istediğin metinden bir parça yaz"></label>
+    </div>
+    <p class="muted" style="font-size:.86rem;margin:4px 0 12px">Geleneksel projeler, takvim ve sıradaki toplantı kartları kod içinde tutulduğu için burada listelenmez; onlar için "Yapay zekâ ile" sekmesini kullan.</p>
+    <div id="se-secs">${sections.map((s, i) => `<details class="se-sec" ${i === 0 ? "open" : ""}><summary><b>${esc(s)}</b> <span class="muted">${blocks.filter(b => b.section === s).length} metin</span></summary>
+      ${blocks.filter(b => b.section === s).map(b => `<label class="f se-item" data-b="${b.id}"><span>${SITE_TAGS[b.tag] || b.tag}${b.plain ? "" : " · HTML içerir"}${b.n > 1 ? ` · ${b.n} yerde geçiyor, hepsi değişir` : ""}</span><textarea rows="${Math.min(8, Math.max(1, Math.ceil(b.value.length / 70)))}" data-b="${b.id}">${esc(b.value)}</textarea></label>`).join("")}</details>`).join("")}</div>
+    <div class="se-bar" id="se-bar" hidden><span id="se-count"></span><button type="button" class="btn ghost sm" id="se-reset">Değişiklikleri at</button><button type="button" class="btn sm" id="se-review">Gözden geçir ve yayınla</button></div>
+    <div id="se-review-box"></div>`;
+  const bar = box.querySelector("#se-bar");
+  const upd = () => { bar.hidden = !changed.size; box.querySelector("#se-count").textContent = `${changed.size} metin değişti`; };
+  box.querySelectorAll("textarea[data-b]").forEach(t => t.addEventListener("input", () => {
+    const b = blocks[+t.dataset.b];
+    if (t.value === b.value) changed.delete(b.id); else changed.set(b.id, t.value);
+    t.closest(".se-item").classList.toggle("on", changed.has(b.id)); upd();
+  }));
+  box.querySelector("#se-lang").onchange = e => { siteLang = e.target.value; rerender(); };
+  box.querySelector("#se-q").addEventListener("input", e => {
+    const q = e.target.value.trim().toLocaleLowerCase("tr");
+    box.querySelectorAll(".se-sec").forEach(d => { let any = false;
+      d.querySelectorAll(".se-item").forEach(it => { const hit = !q || it.querySelector("textarea").value.toLocaleLowerCase("tr").includes(q); it.hidden = !hit; any ||= hit; });
+      d.hidden = !any; if (q && any) d.open = true; });
+  });
+  box.querySelector("#se-reset").onclick = () => rerender();
+  box.querySelector("#se-review").onclick = () => {
+    const edits = [...changed].map(([id, val]) => { const b = blocks[id], inner = b.plain ? escHtml(val) : val;
+      return { file: siteLang, old_str: b.key, new_str: `>${inner}</${b.tag}>`, ...(b.n > 1 ? { all: true } : {}) }; });
+    const rb = box.querySelector("#se-review-box");
+    rb.innerHTML = `<div class="se-review"><h3 style="margin:0 0 6px">Yayınlanacak değişiklikler</h3>${siteDiff(edits.map(e => ({ ...e, old_str: e.old_str.slice(1, e.old_str.lastIndexOf("</")), new_str: e.new_str.slice(1, e.new_str.lastIndexOf("</")) })))}
+      <label class="f" style="margin-top:10px">Not (isteğe bağlı)<input type="text" id="se-note" maxlength="300" placeholder="ör. Toplantı saati güncellendi"></label>
+      <div class="row" style="margin-top:10px"><button type="button" class="btn" id="se-pub">Yayınla</button><button type="button" class="btn ghost" id="se-cancel">Düzenlemeye dön</button></div></div>`;
+    rb.scrollIntoView({ block: "start", behavior: "smooth" });
+    rb.querySelector("#se-cancel").onclick = () => { rb.innerHTML = ""; };
+    rb.querySelector("#se-pub").onclick = async e => {
+      const btn = e.currentTarget; btn.disabled = true; btn.textContent = "Yayınlanıyor…";
+      try { await store.siteEdit({ action: "direct", edits, note: rb.querySelector("#se-note").value }); toast("Yayınlandı. Sitede 1–2 dakika içinde görünür.", "ok"); rerender(); }
+      catch (err) { toast(esc(err.message), "bad"); btn.disabled = false; btn.textContent = "Yayınla"; }
+    };
+  };
+}
 const SITE_STATUS = { onerildi: ["Onay bekliyor", "warn"], yayinlandi: ["Yayınlandı", "ok"], reddedildi: ["Vazgeçildi", ""], hata: ["Uygulanamadı", "bad"], yanit: ["Yanıt", ""] };
 const dt = s => s ? new Date(s).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" }) : "";
 const plain = h => { const d = document.createElement("div"); d.innerHTML = h; return (d.textContent || "").replace(/\s+/g, " ").trim(); };
@@ -1150,21 +1218,24 @@ async function viewSite(v) {
       ${r.status !== "yanit" ? `<span class="tag ${SITE_STATUS[r.status]?.[1] || ""}">${SITE_STATUS[r.status]?.[0] || esc(r.status)}</span>` : ""}
       ${r.error ? `<p class="muted" style="font-size:.86rem;margin:6px 0 0">${esc(r.error)}</p>` : ""}
       ${r.edits?.length ? siteDiff(r.edits) : ""}${act(r)}</div></div>`;
-  v.innerHTML = header("Site düzenleme", "Anasayfada neyin değişmesini istediğini yaz. Yapay zekâ değişikliği hazırlar; sen önce farkı görür, sonra yayınlarsın.", `<button class="btn ghost" id="se-new">Yeni sohbet</button>`) + `
+  const tabs = `<div class="seg" role="tablist" aria-label="Düzenleme yöntemi" style="margin:4px 0 14px">${[["metin", "Metinleri düzenle"], ["ai", "Yapay zekâ ile"]].map(([k, l]) => `<button type="button" role="tab" aria-pressed="${siteTab === k}" aria-selected="${siteTab === k}" data-st="${k}">${l}</button>`).join("")}</div>`;
+  v.innerHTML = header("Site düzenleme", siteTab === "metin" ? "Anasayfadaki metinleri buradan düzelt; değişiklikleri gözden geçirip tek tıkla yayınla." : "Anasayfada neyin değişmesini istediğini yaz. Yapay zekâ değişikliği hazırlar; sen önce farkı görür, sonra yayınlarsın.", siteTab === "ai" ? `<button class="btn ghost" id="se-new">Yeni sohbet</button>` : "") + tabs + (siteTab === "metin" ? `<div class="card" id="se-direct"><p class="muted" style="margin:0">Anasayfa yükleniyor…</p></div>` : `
   <div class="card chat">
     <div class="chat-log" id="se-log">${thread.map(bubble).join("") || `<p class="muted" style="margin:0">Örnek: "Toplantı saatini 20.00 yap" ya da "Haberlere 26 Kasım'daki kan bağışı etkinliğini ekle; başlık: …, metin: …".</p>`}</div>
     <form id="se-f" class="chat-form">
       <label class="f">İsteğin<textarea name="prompt" rows="3" maxlength="4000" required placeholder="Anasayfada neyi, nasıl değiştirelim?"></textarea></label>
       <div class="row"><button class="btn" type="submit">Gönder</button><span class="muted" id="se-wait" hidden style="font-size:.88rem">Değişiklik hazırlanıyor, bu 30–60 saniye sürebilir…</span></div>
     </form>
-  </div>
+  </div>`) + `
   <div class="card"><h2>Kayıtlar</h2><p class="muted" style="margin:-6px 0 12px;font-size:.88rem">Tüm istekler, yapay zekâ yanıtları ve yayınlanan değişiklikler burada saklanır. Bir satıra tıklayınca o sohbet açılır.</p>
     <div class="tbl-wrap"><table><thead><tr><th>Tarih</th><th>Kişi</th><th>İstek</th><th>Durum</th><th class="num">Değişiklik</th><th>Commit</th></tr></thead><tbody>
     ${rows.map(r => `<tr data-sid="${esc(r.session_id)}" style="cursor:pointer"><td>${dt(r.created_at)}</td><td>${esc(r.user_name || "–")}</td><td>${esc(r.prompt.length > 90 ? r.prompt.slice(0, 90) + "…" : r.prompt)}</td><td><span class="tag ${SITE_STATUS[r.status]?.[1] || ""}">${SITE_STATUS[r.status]?.[0] || esc(r.status)}</span></td><td class="num">${r.edits?.length || 0}</td><td>${(r.commit_urls || []).map((u, i) => `<a href="${esc(u)}" target="_blank" rel="noopener">${i + 1}</a>`).join(" ") || "–"}</td></tr>`).join("") || '<tr><td colspan="6" class="muted">Henüz kayıt yok.</td></tr>'}
     </tbody></table></div></div>`;
+  v.querySelectorAll("[data-st]").forEach(b => b.onclick = () => { siteTab = b.dataset.st; rerender(); });
+  v.querySelectorAll("tr[data-sid]").forEach(tr => tr.onclick = () => { siteSid = tr.dataset.sid; siteTab = "ai"; rerender(); window.scrollTo(0, 0); });
+  if (siteTab === "metin") return siteDirect(document.getElementById("se-direct"), rerender);
   const log = document.getElementById("se-log"); log.scrollTop = log.scrollHeight;
   document.getElementById("se-new").onclick = () => { siteSid = uid(); rerender(); };
-  v.querySelectorAll("tr[data-sid]").forEach(tr => tr.onclick = () => { siteSid = tr.dataset.sid; rerender(); window.scrollTo(0, 0); });
   v.querySelectorAll("[data-se]").forEach(b => b.onclick = async () => {
     const a = b.dataset.se;
     if (a === "publish" && !confirm("Bu değişiklik canlı siteye yayınlanacak. Devam edilsin mi?")) return;
@@ -1186,7 +1257,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611121521");
+  const { mountComposer } = await import("./composer.js?v=202611121543");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 

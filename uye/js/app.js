@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611121543";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611121543";
+import { createStore, trDate } from "./store.js?v=202611122358";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611122358";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1257,7 +1257,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611121543");
+  const { mountComposer } = await import("./composer.js?v=202611122358");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1574,8 +1574,20 @@ const lockView = root => root.querySelectorAll("input, textarea, select, button"
 const signature = (role, label) => `${me.full_name}\n${hasRole(me, role) ? label : me.title || label} · Ankara Anıttepe Rotaract Kulübü`;
 
 /* ---------------- Sekreter: WhatsApp toplantı duyurusu ---------------- */
+// Bulunma hâli eki (-da/-de/-ta/-te): yer adı için son ünlü ve son ünsüze, saat için okunuşa göre.
+const locSuffix = word => {
+  const w = String(word).trim().toLocaleLowerCase("tr"); if (!w) return "";
+  const t = w.match(/(\d{1,2})[.:](\d{2})$/);
+  if (t) {
+    const said = +t[2] || +t[1], u = said % 10, tens = said - u;
+    const UN = { 1: "de", 2: "de", 3: "te", 4: "te", 5: "te", 6: "da", 7: "de", 8: "de", 9: "da" }, TEN = { 10: "da", 20: "de", 30: "da", 40: "ta", 50: "de" };
+    return "’" + (u ? UN[u] : TEN[tens] || "da");
+  }
+  const vowels = w.match(/[aıoueiöü]/g) || ["a"], back = "aıou".includes(vowels.at(-1));
+  return "’" + ("fstkçşhp".includes(w.at(-1)) ? "t" : "d") + (back ? "a" : "e");
+};
 async function viewWaMeeting(v) {
-  const [term, meetings] = await Promise.all([store.getTerm(), store.listMeetings()]);
+  const [term, meetings, members] = await Promise.all([store.getTerm(), store.listMeetings(), store.listMembers()]);
   if (!meetings.length) { v.innerHTML = header("Toplantı duyurusu", "WhatsApp") + `<div class="card"><p class="muted" style="margin:0">Bu dönem için henüz toplantı tanımlanmamış.</p></div>`; return; }
   const next = meetings.find(m => m.date >= today()) || meetings.at(-1);
   v.innerHTML = header("Toplantı duyurusu", "Seçtiğin toplantı için WhatsApp grubuna atılacak duyuru metnini hazırlar.") + roBanner("wa-toplanti") + `
@@ -1584,13 +1596,15 @@ async function viewWaMeeting(v) {
       <h2>Toplantı bilgileri</h2>
       <label class="f">Toplantı<select name="mid">${meetings.map(m => `<option value="${m.id}" ${m.id === next.id ? "selected" : ""}>${m.term_no}. toplantı · ${trDate(m.date)}${m.date < today() ? " · yapıldı" : ""}</option>`).join("")}</select></label>
       <div class="grid g2" style="margin-top:12px">
-        <label class="f">Saat<input type="text" name="time" value="${esc(lsGet("ar-wa-time", "19.30"))}"></label>
-        <label class="f">Yer<input type="text" name="place" value="${esc(lsGet("ar-wa-place", "Hybrid Hub"))}"></label>
+        <label class="f">Saat<input type="text" name="time" value="${esc(lsGet("ar-wa-time", "19:30"))}"></label>
+        <label class="f">Yer<input type="text" name="place" value="${esc(lsGet("ar-wa-place", "HybridHub"))}"></label>
+        <label class="f">Dress code <small>boş bırakılırsa yazılmaz</small><input type="text" name="dress" value="${esc(lsGet("ar-wa-dress", "Smart Casual"))}"></label>
+        <label class="f">Harita linki <small>isteğe bağlı</small><input type="url" name="map" value="${esc(lsGet("ar-wa-map", "https://maps.app.goo.gl/SuKHmR4eTei8gXPK7"))}"></label>
       </div>
-      <label class="f" style="margin-top:12px">Gündem <small>Her maddeyi ayrı satıra yaz</small><textarea name="agenda" rows="4"></textarea></label>
+      <label class="f" style="margin-top:12px">Gündem <small>Her maddeyi ayrı satıra yaz</small><textarea name="agenda" rows="4" placeholder="Proje/Etkinlik/Hobi Etkinliği Takvimleri&#10;Proje tanıtım sunumu&#10;Kulüp içi bildirimler"></textarea></label>
       <label class="f" style="margin-top:12px">Konuk / konuşmacı <small>isteğe bağlı</small><input type="text" name="guest"></label>
       <label class="f" style="margin-top:12px">Ek not <small>isteğe bağlı</small><input type="text" name="extra" placeholder="ör. Toplantı sonrası ocakbaşı var"></label>
-      <label class="check" style="margin-top:12px"><input type="checkbox" name="rsvp" checked> Gelemeyeceklerden haber vermelerini iste</label>
+      <label class="check" style="margin-top:12px"><input type="checkbox" name="rsvp" checked> Katılım durumunun bir gün önceye kadar bildirilmesini iste</label>
     </form>
     <div class="card">
       <h2>WhatsApp mesajı</h2>
@@ -1607,18 +1621,30 @@ async function viewWaMeeting(v) {
   let edited = false;
   const build = () => {
     const m = meetings.find(x => x.id === f.mid.value);
-    const agenda = f.agenda.value.split("\n").map(s => s.trim()).filter(Boolean);
+    const agenda = f.agenda.value.split("\n").map(s => s.trim().replace(/^[-•*]\s*/, "")).filter(Boolean);
+    const d = new Date(m.date + "T12:00:00"), prev = new Date(d); prev.setDate(d.getDate() - 1);
+    const fullDate = x => `${x.getDate()} ${MONTHS[x.getMonth()]} ${x.getFullYear()} ${DAYS_TR[x.getDay()]}`;
+    const dotDate = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()} ${DAYS_TR[d.getDay()]}`;
+    const time = f.time.value.trim(), place = f.place.value.trim(), dress = f.dress.value.trim(), map = f.map.value.trim();
+    // İmza: dönemin aktif başkanı ve sekreteri (Rtc. unvanıyla)
+    const holder = r => members.find(p => p.status === "active" && (p.roles || []).includes(r));
+    const sign = [["baskan", "Dönem Başkanı"], ["sekreter", "Dönem Sekreteri"]].map(([r, l]) => holder(r) && `Rtc. ${holder(r).full_name}\nAnkara Anıttepe Rotaract Kulübü\n${term?.name || ""} ${l}`.replace("\n ", "\n")).filter(Boolean);
     return [
-      `*${m.term_no}. Toplantımız*`, "",
-      "Merhaba arkadaşlar,", "",
-      `Dönemimizin ${m.term_no}., kulübümüzün ${m.club_no}. toplantısında buluşuyoruz.`, "",
-      `📅 ${longDate(m.date)}, ${f.time.value.trim()}`,
-      `📍 ${f.place.value.trim()}`,
-      ...(agenda.length ? ["", "*Gündem*", ...agenda.map(a => `• ${a}`)] : []),
-      ...(f.guest.value.trim() ? ["", `Konuğumuz: ${f.guest.value.trim()}`] : []),
+      "Kıymetli Anıttepe Rotaract Kulübü Üye ve Misafirleri,", "",
+      `Kulübümüzün ${m.club_no}. ve dönemin ${m.term_no}. toplantısı, ${fullDate(d)} günü, saat ${time}${locSuffix(time)} ${place}${locSuffix(place)} gerçekleştirilecektir.`,
+      ...(agenda.length ? ["", "Toplantı gündemi:", "", ...agenda.map(a => `-${a}`)] : []),
+      ...(f.guest.value.trim() ? ["", `Toplantımızın konuğu: ${f.guest.value.trim()}`] : []),
+      ...(f.rsvp.checked ? ["", `Katılım durumunuzu ve katılamamanız halinde sebebini, ${fullDate(prev)} akşamına kadar bildirmeniz gerekmektedir.`] : []),
+      ...(dress ? ["", `Toplantımızda ${dress.toLocaleLowerCase("tr")} dress code olduğunu hatırlatmak isteriz.`] : []),
       ...(f.extra.value.trim() ? ["", f.extra.value.trim()] : []),
-      ...(f.rsvp.checked ? ["", "Gelemeyecek olanlar lütfen bana haber versin."] : []),
-      "", signature("sekreter", "Sekreter")
+      "",
+      `🗓️ : ${dotDate}`,
+      `⏰ : ${time}`,
+      ...(dress ? [`💃🏻 : ${dress}`] : []),
+      `📍 : ${place}`,
+      ...(map ? [map] : []),
+      "", "En derin Rotaract Sevgi ve Saygılarımızla,",
+      ...(sign.length ? sign.flatMap(s => ["", s]) : ["", signature("sekreter", "Sekreter")])
     ].join("\n");
   };
   const fill = () => {
@@ -1628,7 +1654,7 @@ async function viewWaMeeting(v) {
   };
   f.agenda.oninput = () => { f.agenda.dataset.touched = "1"; };
   f.mid.onchange = () => { delete f.agenda.dataset.touched; edited = false; fill(); };
-  f.addEventListener("input", () => { edited = false; out.value = build(); lsSet("ar-wa-time", f.time.value); lsSet("ar-wa-place", f.place.value); });
+  f.addEventListener("input", () => { edited = false; out.value = build(); lsSet("ar-wa-time", f.time.value); lsSet("ar-wa-place", f.place.value); lsSet("ar-wa-dress", f.dress.value); lsSet("ar-wa-map", f.map.value); });
   out.oninput = () => { edited = true; };
   fill();
   if (!can(me, "wa-toplanti", "edit")) { lockView(v); return; }

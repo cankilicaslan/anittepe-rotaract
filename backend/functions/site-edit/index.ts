@@ -286,7 +286,11 @@ Deno.serve(async (req) => {
     if (err instanceof HttpError) return json({ error: err.message }, err.status);
     if (err instanceof Anthropic.APIError) {
       console.error("Anthropic API hatası", err.status, err.message);
-      return json({ error: err.status === 429 ? "Yapay zekâ servisi şu an yoğun. Bir dakika sonra tekrar dene." : "Yapay zekâ servisine ulaşılamadı. Tekrar dene." }, 502);
+      const msg = err.status === 429 ? "Yapay zekâ servisi şu an yoğun. Bir dakika sonra tekrar dene."
+        : err.status === 401 || err.status === 403 ? "Yapay zekâ anahtarı (ANTHROPIC_API_KEY) geçersiz. Yöneticiye haber ver."
+        : err.status === 400 && /credit|balance/i.test(err.message) ? "Yapay zekâ hesabında kredi kalmamış. Yöneticiye haber ver."
+        : "Yapay zekâ servisine ulaşılamadı. Tekrar dene.";
+      return json({ error: msg }, 502);
     }
     console.error("Beklenmeyen hata", err);
     return json({ error: "Beklenmeyen bir hata oluştu. Tekrar dene." }, 500);

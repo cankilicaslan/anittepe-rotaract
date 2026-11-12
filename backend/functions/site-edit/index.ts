@@ -169,33 +169,57 @@ const cleanEdits = (x: unknown): Edit[] => Array.isArray(x)
   ? (x as Edit[]).filter(e => e && typeof e.file === "string" && typeof e.old_str === "string" && typeof e.new_str === "string").map(e => ({ file: e.file, old_str: e.old_str, new_str: e.new_str }))
   : [];
 
-async function runClaude(history: { role: "user" | "assistant"; text: string }[], filesText: string, files: Record<string, string>): Promise<AiOut> {
+// Claude da hızlı modda çalışır: numaralı metin listesi + propose_changes aracı.
+// Bu model aracı zorla çağırmayı (tool_choice: tool) desteklemediği için araç serbest bırakılır; araç çağrılmazsa metin yanıtı alınır.
+const CHANGES_TOOL = {
+  name: "propose_changes",
+  description: "Anasayfa metinlerinde önerilen değişiklikleri ve görevliye kısa yanıtı bildirir. Değişiklik gerekmiyorsa changes boş dizi olur.",
+  input_schema: {
+    type: "object",
+    properties: {
+      reply: { type: "string", description: "Görevliye kısa Türkçe yanıt: ne değişecek ya da neden değişiklik yok." },
+      changes: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: { id: { type: "string", description: "Listedeki kimlik, ör. t182" }, text: { type: "string", description: "O satırın yeni tam hâli" } },
+          required: ["id", "text"],
+        },
+      },
+    },
+    required: ["reply", "changes"],
+  },
+};
+async function runClaude(history: { role: "user" | "assistant"; text: string }[], files: Record<string, string>): Promise<AiOut> {
   const client = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY")! });
+  const kit = blockKit(files);
+  const rules = GEMINI_RULES.replace("Yanıtı yalnızca {reply, changes} JSON'u olarak ver.", "Her yanıtta propose_changes aracını bir kez çağır.");
   const system = [
-    { type: "text" as const, text: SYSTEM },
-    { type: "text" as const, text: filesText, cache_control: { type: "ephemeral" as const } },
+    { type: "text" as const, text: SYSTEM.replace("Her yanıtta propose_edits aracını bir kez çağır.", "") + rules },
+    { type: "text" as const, text: kit.listText, cache_control: { type: "ephemeral" as const } },
   ];
   const messages: Anthropic.Beta.BetaMessageParam[] = history.map(h => ({ role: h.role, content: h.text }));
   const out: AiOut = { reply: "", edits: [], problem: null, model: MODEL, inTok: 0, outTok: 0 };
-  // Model geçersiz bir old_str verirse hatayı söyleyip en fazla iki kez düzeltmesini ister.
   for (let attempt = 0; attempt < 3; attempt++) {
     const res = await client.beta.messages.create({
-      model: MODEL, max_tokens: 16000, output_config: { effort: "medium" },
+      model: MODEL, max_tokens: 8000, output_config: { effort: "low" },
       betas: ["server-side-fallback-2026-07-01"], fallbacks: "default",
-      system, tools: [TOOL], tool_choice: { type: "tool", name: TOOL.name }, messages,
+      system, tools: [CHANGES_TOOL], messages,
     });
     out.inTok += res.usage?.input_tokens ?? 0; out.outTok += res.usage?.output_tokens ?? 0;
     if (res.stop_reason === "refusal") throw new HttpError(422, "Yapay zekâ bu isteği yerine getirmedi. İsteği farklı yazmayı dene.");
     if (res.stop_reason === "max_tokens") throw new HttpError(422, "İstek tek seferde yapılamayacak kadar büyük. Daha küçük parçalara böl.");
     const call = res.content.find(b => b.type === "tool_use") as Anthropic.Beta.BetaToolUseBlock | undefined;
-    if (!call) throw new HttpError(502, "Yapay zekâdan beklenen yanıt gelmedi. Tekrar dene.");
-    const input = call.input as { reply?: unknown; edits?: unknown };
-    out.reply = typeof input.reply === "string" ? input.reply : "";
-    out.edits = cleanEdits(input.edits);
-    out.problem = checkEdits(out.edits, files);
+    const text = res.content.filter(b => b.type === "text").map(b => (b as { text: string }).text).join("\n").trim();
+    if (!call) { out.reply = text || "Bir yanıt üretilemedi. İsteği biraz daha açık yazmayı dene."; out.edits = []; out.problem = null; break; }
+    const input = call.input as { reply?: unknown; changes?: unknown };
+    out.reply = typeof input.reply === "string" && input.reply ? input.reply : text;
+    const { edits, bad } = kit.toEdits(input.changes);
+    out.edits = edits;
+    out.problem = bad || checkEdits(out.edits, files, 60);
     if (!out.problem) break;
     messages.push({ role: "assistant", content: res.content });
-    messages.push({ role: "user", content: [{ type: "tool_result", tool_use_id: call.id, is_error: true, content: `Öneri uygulanamadı: ${out.problem} Düzeltip propose_edits'i tekrar çağır.` }] });
+    messages.push({ role: "user", content: [{ type: "tool_result", tool_use_id: call.id, is_error: true, content: `Öneri uygulanamadı: ${out.problem} Düzeltip propose_changes'i tekrar çağır.` }] });
   }
   return out;
 }
@@ -234,20 +258,9 @@ function blocksText(blocks: Block[]) {
 }
 const GEMINI_RULES = `\n\nBu modda sana sayfaların kendisi değil, düzenlenebilir metinlerin numaralı listesi verilir. Her satır "[kimlik] metin" biçimindedir; t ile başlayanlar Türkçe, e ile başlayanlar İngilizce sayfadadır. "(HTML)" işaretli satırlarda metin içinde etiket vardır; bunları değiştirirken etiketleri koru. Değişiklik için changes dizisine {id, text} yaz: text, o satırın yeni tam hâlidir. Listede olmayan bir şey (yeni bölüm, geleneksel projeler/takvim kartları gibi kodla üretilen içerik) istenirse changes boş kalsın ve reply'da bunun "Metinleri düzenle" sekmesinden ya da yöneticiden yapılması gerektiğini söyle. Yanıtı yalnızca {reply, changes} JSON'u olarak ver.`;
 
-async function runGemini(history: { role: "user" | "assistant"; text: string }[], files: Record<string, string>): Promise<AiOut> {
-  const model = Deno.env.get("GEMINI_MODEL") || "gemini-3.8-flash";
+function blockKit(files: Record<string, string>) {
   const blocks = [...blocksOf("index.html", files["index.html"], "t"), ...blocksOf("en/index.html", files["en/index.html"], "e")];
   const byId = new Map(blocks.map(b => [b.id, b]));
-  const listText = blocksText(blocks);
-  const contents = history.map(h => ({ role: h.role === "assistant" ? "model" : "user", parts: [{ text: h.text }] }));
-  const schema = {
-    type: "OBJECT",
-    properties: {
-      reply: { type: "STRING" },
-      changes: { type: "ARRAY", items: { type: "OBJECT", properties: { id: { type: "STRING" }, text: { type: "STRING" } }, required: ["id", "text"] } },
-    },
-    required: ["reply", "changes"],
-  };
   const toEdits = (changes: unknown): { edits: Edit[]; bad: string | null } => {
     const edits: Edit[] = [];
     for (const c of Array.isArray(changes) ? changes as { id?: string; text?: string }[] : []) {
@@ -259,6 +272,21 @@ async function runGemini(history: { role: "user" | "assistant"; text: string }[]
       if (new_str !== b.key) edits.push({ file: b.file, old_str: b.key, new_str, ...(b.n > 1 ? { all: true } : {}) });
     }
     return { edits, bad: null };
+  };
+  return { listText: blocksText(blocks), toEdits };
+}
+
+async function runGemini(history: { role: "user" | "assistant"; text: string }[], files: Record<string, string>): Promise<AiOut> {
+  const model = Deno.env.get("GEMINI_MODEL") || "gemini-3.8-flash";
+  const { listText, toEdits } = blockKit(files);
+  const contents = history.map(h => ({ role: h.role === "assistant" ? "model" : "user", parts: [{ text: h.text }] }));
+  const schema = {
+    type: "OBJECT",
+    properties: {
+      reply: { type: "STRING" },
+      changes: { type: "ARRAY", items: { type: "OBJECT", properties: { id: { type: "STRING" }, text: { type: "STRING" } }, required: ["id", "text"] } },
+    },
+    required: ["reply", "changes"],
   };
   const out: AiOut = { reply: "", edits: [], problem: null, model, inTok: 0, outTok: 0 };
   const key = Deno.env.get("GEMINI_API_KEY")!;
@@ -365,11 +393,10 @@ async function propose(user: { id: string; full_name: string }, prompt: string, 
     history.push({ role: "assistant", text: `${r.reply || "(yanıt yok)"}\n[Durum: ${STATUS[r.status] || r.status}]` });
   }
   history.push({ role: "user", text: prompt });
-  const filesText = FILES.map(f => `<file name="${f}">\n${forModel(files[f])}\n</file>`).join("\n\n");
 
   const provider = aiProvider();
   if (!provider) throw new HttpError(503, "Yapay zekâ anahtarı tanımlı değil. \"Metinleri düzenle\" sekmesinden doğrudan düzenleyebilirsin.");
-  const out = provider === "gemini" ? await runGemini(history, files) : await runClaude(history, filesText, files);
+  const out = provider === "gemini" ? await runGemini(history, files) : await runClaude(history, files);
 
   const row = {
     session_id: sessionId, user_id: user.id, user_name: user.full_name, prompt, reply: out.reply,

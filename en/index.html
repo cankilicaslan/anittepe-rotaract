@@ -215,7 +215,7 @@ nav.main a:hover{opacity:1;background:color-mix(in srgb,currentColor 12%,transpa
 .proj[hidden]{display:none!important}
 .proj-art{aspect-ratio:4/3;max-width:100%;position:relative;padding:18px;display:flex;flex-direction:column;justify-content:space-between;color:#fff}
 .proj-art .when{align-self:flex-start;background:rgba(255,255,255,.95);color:#1E1420;font-weight:700;font-size:.82rem;padding:5px 12px;border-radius:999px}
-.proj-art .big{font-size:2.6rem;font-weight:800;letter-spacing:-.04em;line-height:1}
+.proj-art .big{font-size:clamp(1.2rem,1.7vw,1.45rem);font-weight:800;letter-spacing:-.01em;line-height:1.2;text-wrap:balance;max-width:22ch}
 .proj-body{padding:20px;display:grid;gap:8px;flex:1;align-content:start}
 .proj-body p{color:var(--muted);font-size:.95rem}
 .proj-body small{color:var(--cran);font-weight:700;font-size:.82rem}
@@ -570,7 +570,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   .chip{flex:none}
   .proj{flex-basis:82vw;border-radius:22px}
   .proj-art{aspect-ratio:16/9}
-  .proj-art .big{font-size:2.2rem}
+  .proj-art .big{font-size:1.15rem}
   .proj-body{padding:16px 18px}
   /* Değerler: 7 odak alanı yatay kaydırılır */
   .values{gap:28px;grid-template-columns:minmax(0,1fr)}
@@ -1191,13 +1191,13 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 
   // ---------- Projects ----------
   const PROJECTS=[
-    {id:"merhaba",t:"Hello New Term Party",cat:"kulup",m:8,d:19,when:"September",big:"20th year",since:"Döneme Merhaba · 2026 theme: Vogue",x:"The first big get-together of the new term. Every year we celebrate with Rotaractors from other clubs under a new theme: Matrix, G.O.R.A., Sunset Soirée…",bg:"linear-gradient(135deg,#D41367,#F7A81B)",img:"doneme-merhaba.jpg",pos:"center 12%"},
-    {id:"yesil",t:"Notice the Green!",cat:"farkindalik",m:9,d:6,when:"6 October",big:"Green",since:"Yeşili Fark Et · World Cerebral Palsy Day",x:"On 6 October we wear green, put on green accessories and share our photos to raise awareness of cerebral palsy online.",bg:"linear-gradient(135deg,#1F8A4C,#7CC88F)",img:"yesili-fark-et.jpg"},
-    {id:"kirmizi",t:"Red and White Everywhere",cat:"hizmet",m:9,d:29,when:"Week of 29 October",big:"103",since:"Yer Gök Kırmızı Beyaz · 2026: 103 Turkish + 103 Atatürk flags",x:"During Republic Day week we visit the first Grand National Assembly building and the Republic Museum with schoolchildren and dress the streets in red and white.",bg:"linear-gradient(160deg,#E30A17 0 60%,#B00812 60% 100%)",img:"yer-gok-kirmizi-beyaz.jpg"},
-    {id:"bordo",t:"Bordo",cat:"kaynak",m:1,d:22,when:"February",big:"Paint &amp; Drink",since:"Rotaractor–Rotarian get-together",x:"Rotaractors and Rotarians meet over wine; the proceeds of a night of Paint&Drink and a trivia quiz with prizes go to our projects.",bg:"linear-gradient(135deg,#6D0F2A,#A30C4D)",img:"bordo.jpg"},
-    {id:"balon",t:"Balloon Fairies",cat:"hizmet",m:3,d:23,when:"Week of 23 April",big:"Wishes",since:"Balon Perileri · school visits and a donation drive",x:"We collect wish lists from children in need and deliver their gifts at their school in the week of 23 April, Children's Day.",bg:"linear-gradient(135deg,#F7A81B,#F2C14E)",img:"balon-perileri.jpg",pos:"center 8%"},
-    {id:"polio",t:"World Polio Day",cat:"farkindalik",m:9,d:24,when:"24 October",big:"End Polio",since:"Rotary's global campaign",x:"We support vaccine access and awareness for a world without polio.",bg:"linear-gradient(135deg,#A30C4D,#D41367)"},
-    {id:"kurulus",t:"Club anniversary",cat:"kulup",m:10,d:15,when:"November",big:"30",since:"Since November 1996",x:"Our club's birthday month. In 2026 we celebrate turning 30.",bg:"linear-gradient(135deg,#D41367,#F78FB8)"},
+    {id:"merhaba",t:"Hello New Term Party",cat:"kulup",m:8,d:19,when:"Every September",big:"Opening the term for 20 years",since:"Döneme Merhaba · 2026 theme: Vogue",x:"The first big get-together of the new term. Every year we celebrate with Rotaractors from other clubs under a new theme: Matrix, G.O.R.A., Sunset Soirée…",bg:"linear-gradient(135deg,#D41367,#F7A81B)",img:"doneme-merhaba.jpg",pos:"center 12%"},
+    {id:"yesil",t:"Notice the Green!",cat:"farkindalik",m:9,d:6,when:"Every 6 October",big:"Wearing green for cerebral palsy",since:"Yeşili Fark Et · World Cerebral Palsy Day",x:"On 6 October we wear green, put on green accessories and share our photos to raise awareness of cerebral palsy online.",bg:"linear-gradient(135deg,#1F8A4C,#7CC88F)",img:"yesili-fark-et.jpg"},
+    {id:"kirmizi",t:"Red and White Everywhere",cat:"hizmet",m:9,d:29,when:"Week of 29 October",big:"103 flags with children",since:"Yer Gök Kırmızı Beyaz · 2026: 103 Turkish + 103 Atatürk flags",x:"During Republic Day week we visit the first Grand National Assembly building and the Republic Museum with schoolchildren and dress the streets in red and white.",bg:"linear-gradient(160deg,#E30A17 0 60%,#B00812 60% 100%)",img:"yer-gok-kirmizi-beyaz.jpg"},
+    {id:"bordo",t:"Bordo",cat:"kaynak",m:1,d:22,when:"Every February",big:"Proceeds fund our service projects",since:"Rotaractor–Rotarian get-together",x:"Rotaractors and Rotarians meet over wine; the proceeds of a night of Paint&Drink and a trivia quiz with prizes go to our projects.",bg:"linear-gradient(135deg,#6D0F2A,#A30C4D)",img:"bordo.jpg"},
+    {id:"balon",t:"Balloon Fairies",cat:"hizmet",m:3,d:23,when:"Week of 23 April",big:"Granting children's wishes",since:"Balon Perileri · school visits and a donation drive",x:"We collect wish lists from children in need and deliver their gifts at their school in the week of 23 April, Children's Day.",bg:"linear-gradient(135deg,#F7A81B,#F2C14E)",img:"balon-perileri.jpg",pos:"center 8%"},
+    {id:"polio",t:"World Polio Day",cat:"farkindalik",m:9,d:24,when:"Every 24 October",big:"Ending polio for good",since:"Rotary's global campaign",x:"We support vaccine access and awareness for a world without polio.",bg:"linear-gradient(135deg,#A30C4D,#D41367)"},
+    {id:"kurulus",t:"Club anniversary",cat:"kulup",m:10,d:15,when:"Every November",big:"Since November 1996",since:"Since November 1996",x:"Our club's birthday month. In 2026 we celebrate turning 30.",bg:"linear-gradient(135deg,#D41367,#F78FB8)"},
   ];
   const rail=$("#rail");
   rail.innerHTML=PROJECTS.map(p=>`<article class="proj" data-cat="${p.cat}">

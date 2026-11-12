@@ -215,7 +215,7 @@ nav.main a:hover{opacity:1;background:color-mix(in srgb,currentColor 12%,transpa
 .proj[hidden]{display:none!important}
 .proj-art{aspect-ratio:4/3;max-width:100%;position:relative;padding:18px;display:flex;flex-direction:column;justify-content:space-between;color:#fff}
 .proj-art .when{align-self:flex-start;background:rgba(255,255,255,.95);color:#1E1420;font-weight:700;font-size:.82rem;padding:5px 12px;border-radius:999px}
-.proj-art .big{font-size:2.6rem;font-weight:800;letter-spacing:-.04em;line-height:1}
+.proj-art .big{font-size:clamp(1.2rem,1.7vw,1.45rem);font-weight:800;letter-spacing:-.01em;line-height:1.2;text-wrap:balance;max-width:22ch}
 .proj-body{padding:20px;display:grid;gap:8px;flex:1;align-content:start}
 .proj-body p{color:var(--muted);font-size:.95rem}
 .proj-body small{color:var(--cran);font-weight:700;font-size:.82rem}
@@ -570,7 +570,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   .chip{flex:none}
   .proj{flex-basis:82vw;border-radius:22px}
   .proj-art{aspect-ratio:16/9}
-  .proj-art .big{font-size:2.2rem}
+  .proj-art .big{font-size:1.15rem}
   .proj-body{padding:16px 18px}
   /* Değerler: 7 odak alanı yatay kaydırılır */
   .values{gap:28px;grid-template-columns:minmax(0,1fr)}
@@ -1190,13 +1190,13 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 
   // ---------- Projects ----------
   const PROJECTS=[
-    {id:"merhaba",t:"Döneme Merhaba Partisi",cat:"kulup",m:8,d:19,when:"Eylül",big:"20. yıl",since:"2026 teması: Vogue",x:"Yeni dönemin ilk büyük buluşması. Farklı kulüplerden Rotaractörlerle her yıl başka bir temayla kutluyoruz: Matrix, G.O.R.A., Sunset Soirée…",bg:"linear-gradient(135deg,#D41367,#F7A81B)",img:"doneme-merhaba.jpg",pos:"center 12%"},
-    {id:"yesil",t:"Yeşili Fark Et!",cat:"farkindalik",m:9,d:6,when:"6 Ekim",big:"Yeşil",since:"Dünya Serebral Palsi Farkındalık Günü",x:"6 Ekim'de yeşil giyiyor, yeşil aksesuar takıyor ve fotoğraflarımızı paylaşarak serebral palsi farkındalığını sosyal medyaya taşıyoruz.",bg:"linear-gradient(135deg,#1F8A4C,#7CC88F)",img:"yesili-fark-et.jpg"},
-    {id:"kirmizi",t:"Yer Gök Kırmızı Beyaz",cat:"hizmet",m:9,d:29,when:"29 Ekim haftası",big:"103",since:"2026: 103 Türk + 103 Atatürk bayrağı",x:"Cumhuriyet Bayramı haftasında öğrencilerle birlikte I. TBMM'yi ve Cumhuriyet Müzesini geziyor, sokakları kırmızı beyaza büründürüyoruz.",bg:"linear-gradient(160deg,#E30A17 0 60%,#B00812 60% 100%)",img:"yer-gok-kirmizi-beyaz.jpg"},
-    {id:"bordo",t:"Bordo",cat:"kaynak",m:1,d:22,when:"Şubat",big:"Paint &amp; Drink",since:"Rotaractör–Rotaryen buluşması",x:"Rotaractörler ve Rotaryenler şarap eşliğinde bir araya geliyor; Paint&Drink ve ödüllü trivia ile geçen gecenin geliri projelerimize aktarılıyor.",bg:"linear-gradient(135deg,#6D0F2A,#A30C4D)",img:"bordo.jpg"},
-    {id:"balon",t:"Balon Perileri",cat:"hizmet",m:3,d:23,when:"23 Nisan haftası",big:"Dilekler",since:"Okul ziyaretleri ve bağış kampanyası",x:"İhtiyacı olan çocukların dilek listelerini topluyor, hediyelerini 23 Nisan haftasında okullarında teslim ediyoruz.",bg:"linear-gradient(135deg,#F7A81B,#F2C14E)",img:"balon-perileri.jpg",pos:"center 8%"},
-    {id:"polio",t:"Dünya Polio Günü",cat:"farkindalik",m:9,d:24,when:"24 Ekim",big:"End Polio",since:"Rotary'nin küresel kampanyası",x:"Çocuk felcinin olmadığı bir dünya için aşıya erişimi ve farkındalığı destekliyoruz.",bg:"linear-gradient(135deg,#A30C4D,#D41367)"},
-    {id:"kurulus",t:"Kuruluş yıl dönümü",cat:"kulup",m:10,d:15,when:"Kasım",big:"30",since:"Kasım 1996'dan beri",x:"Kulübümüzün doğum ayı. 2026'da 30. yaşımızı kutluyoruz.",bg:"linear-gradient(135deg,#D41367,#F78FB8)"},
+    {id:"merhaba",t:"Döneme Merhaba Partisi",cat:"kulup",m:8,d:19,when:"Her yıl eylülde",big:"20 yıldır yeni dönemi açıyoruz",since:"2026 teması: Vogue",x:"Yeni dönemin ilk büyük buluşması. Farklı kulüplerden Rotaractörlerle her yıl başka bir temayla kutluyoruz: Matrix, G.O.R.A., Sunset Soirée…",bg:"linear-gradient(135deg,#D41367,#F7A81B)",img:"doneme-merhaba.jpg",pos:"center 12%"},
+    {id:"yesil",t:"Yeşili Fark Et!",cat:"farkindalik",m:9,d:6,when:"Her yıl 6 Ekim'de",big:"Serebral palsi için yeşil giyiyoruz",since:"Dünya Serebral Palsi Farkındalık Günü",x:"6 Ekim'de yeşil giyiyor, yeşil aksesuar takıyor ve fotoğraflarımızı paylaşarak serebral palsi farkındalığını sosyal medyaya taşıyoruz.",bg:"linear-gradient(135deg,#1F8A4C,#7CC88F)",img:"yesili-fark-et.jpg"},
+    {id:"kirmizi",t:"Yer Gök Kırmızı Beyaz",cat:"hizmet",m:9,d:29,when:"29 Ekim haftası",big:"Çocuklarla 103 bayrak taşıdık",since:"2026: 103 Türk + 103 Atatürk bayrağı",x:"Cumhuriyet Bayramı haftasında öğrencilerle birlikte I. TBMM'yi ve Cumhuriyet Müzesini geziyor, sokakları kırmızı beyaza büründürüyoruz.",bg:"linear-gradient(160deg,#E30A17 0 60%,#B00812 60% 100%)",img:"yer-gok-kirmizi-beyaz.jpg"},
+    {id:"bordo",t:"Bordo",cat:"kaynak",m:1,d:22,when:"Her yıl şubatta",big:"Geliri hizmet projelerine",since:"Rotaractör–Rotaryen buluşması",x:"Rotaractörler ve Rotaryenler şarap eşliğinde bir araya geliyor; Paint&Drink ve ödüllü trivia ile geçen gecenin geliri projelerimize aktarılıyor.",bg:"linear-gradient(135deg,#6D0F2A,#A30C4D)",img:"bordo.jpg"},
+    {id:"balon",t:"Balon Perileri",cat:"hizmet",m:3,d:23,when:"23 Nisan haftası",big:"Çocukların dileği bizden",since:"Okul ziyaretleri ve bağış kampanyası",x:"İhtiyacı olan çocukların dilek listelerini topluyor, hediyelerini 23 Nisan haftasında okullarında teslim ediyoruz.",bg:"linear-gradient(135deg,#F7A81B,#F2C14E)",img:"balon-perileri.jpg",pos:"center 8%"},
+    {id:"polio",t:"Dünya Polio Günü",cat:"farkindalik",m:9,d:24,when:"Her yıl 24 Ekim'de",big:"Çocuk felcine son",since:"Rotary'nin küresel kampanyası",x:"Çocuk felcinin olmadığı bir dünya için aşıya erişimi ve farkındalığı destekliyoruz.",bg:"linear-gradient(135deg,#A30C4D,#D41367)"},
+    {id:"kurulus",t:"Kuruluş yıl dönümü",cat:"kulup",m:10,d:15,when:"Her yıl kasımda",big:"Kasım 1996'dan beri",since:"Kasım 1996'dan beri",x:"Kulübümüzün doğum ayı. 2026'da 30. yaşımızı kutluyoruz.",bg:"linear-gradient(135deg,#D41367,#F78FB8)"},
   ];
   const rail=$("#rail");
   rail.innerHTML=PROJECTS.map(p=>`<article class="proj" data-cat="${p.cat}">

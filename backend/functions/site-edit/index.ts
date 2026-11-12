@@ -14,7 +14,7 @@
 //   { action: "status" }                       -> { ai: "gemini" | "claude" | null }
 //
 // Gerekli secret: GITHUB_TOKEN (yalnızca bu depoya "Contents: read and write" yetkili).
-// İsteğe bağlı: GEMINI_API_KEY (ücretsiz katman, öncelikli) ya da ANTHROPIC_API_KEY; GEMINI_MODEL (varsayılan gemini-2.5-flash).
+// İsteğe bağlı: GEMINI_API_KEY (ücretsiz katman, öncelikli) ya da ANTHROPIC_API_KEY; GEMINI_MODEL (varsayılan gemini-3.8-flash).
 // SUPABASE_URL, SUPABASE_ANON_KEY ve SUPABASE_SERVICE_ROLE_KEY Supabase tarafından otomatik verilir.
 
 import Anthropic from "npm:@anthropic-ai/sdk";
@@ -194,7 +194,7 @@ async function runClaude(history: { role: "user" | "assistant"; text: string }[]
 }
 
 async function runGemini(history: { role: "user" | "assistant"; text: string }[], filesText: string, files: Record<string, string>): Promise<AiOut> {
-  const model = Deno.env.get("GEMINI_MODEL") || "gemini-2.5-flash";
+  const model = Deno.env.get("GEMINI_MODEL") || "gemini-3.8-flash";
   const contents = history.map(h => ({ role: h.role === "assistant" ? "model" : "user", parts: [{ text: h.text }] }));
   const schema = {
     type: "OBJECT",

@@ -20,6 +20,7 @@
 import Anthropic from "npm:@anthropic-ai/sdk";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { decodeBase64, encodeBase64 } from "jsr:@std/encoding@1/base64";
+import { parseHTML } from "npm:linkedom@0.18.5";
 
 const REPO = "cankilicaslan/anittepe-rotaract";
 const BRANCH = "main";
@@ -193,16 +194,65 @@ async function runClaude(history: { role: "user" | "assistant"; text: string }[]
   return out;
 }
 
-async function runGemini(history: { role: "user" | "assistant"; text: string }[], filesText: string, files: Record<string, string>): Promise<AiOut> {
+// Hızlı mod: modele sayfanın tamamı yerine yalnızca düzenlenebilir metinlerin numaralı listesi gider
+// (paneldeki "Metinleri düzenle" ile aynı yöntem). Model "şu numaralı metnin yeni hâli" der; değişiklik kaynakta birebir uygulanır.
+type Block = { id: string; file: string; tag: string; key: string; n: number; plain: boolean; value: string; section: string };
+const BLOCK_TAGS = "h1,h2,h3,h4,p,li,summary,small,span,a,time,b,label,figcaption,blockquote,dt,dd";
+const escHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function blocksOf(file: string, src: string, prefix: string): Block[] {
+  const { document } = parseHTML(src);
+  const cands = [...document.querySelectorAll(BLOCK_TAGS)].filter((el: Element) =>
+    !el.closest("script,style,svg,noscript,template,select,button") && (el.textContent || "").trim().length > 1);
+  const set = new Set(cands);
+  const out: Block[] = [];
+  for (const el of cands as Element[]) {
+    if ([...el.querySelectorAll(BLOCK_TAGS)].some(c => set.has(c))) continue;
+    const tag = el.tagName.toLowerCase(), inner = el.innerHTML, key = `>${inner}</${tag}>`;
+    const n = count(src, key);
+    if (!n || out.some(b => b.key === key)) continue;
+    const sec = el.closest("section,header,nav,main");
+    const section = el.closest("footer") ? "Alt bilgi" : (sec?.querySelector("h2")?.textContent || "").trim() || (sec && /HEADER|NAV/.test(sec.tagName) ? "Üst menü" : "Giriş");
+    const plain = el.children.length === 0;
+    out.push({ id: prefix + out.length, file, tag, key, n, plain, value: plain ? (el.textContent || "") : inner, section });
+  }
+  return out;
+}
+function blocksText(blocks: Block[]) {
+  let cur = "", s = "";
+  for (const b of blocks) {
+    const head = `${b.file === "index.html" ? "TÜRKÇE SAYFA" : "İNGİLİZCE SAYFA"} — ${b.section}`;
+    if (head !== cur) { s += `\n## ${head}\n`; cur = head; }
+    s += `[${b.id}] ${b.plain ? "" : "(HTML) "}${b.value.replace(/\s+/g, " ").trim()}\n`;
+  }
+  return s;
+}
+const GEMINI_RULES = `\n\nBu modda sana sayfaların kendisi değil, düzenlenebilir metinlerin numaralı listesi verilir. Her satır "[kimlik] metin" biçimindedir; t ile başlayanlar Türkçe, e ile başlayanlar İngilizce sayfadadır. "(HTML)" işaretli satırlarda metin içinde etiket vardır; bunları değiştirirken etiketleri koru. Değişiklik için changes dizisine {id, text} yaz: text, o satırın yeni tam hâlidir. Listede olmayan bir şey (yeni bölüm, geleneksel projeler/takvim kartları gibi kodla üretilen içerik) istenirse changes boş kalsın ve reply'da bunun "Metinleri düzenle" sekmesinden ya da yöneticiden yapılması gerektiğini söyle. Yanıtı yalnızca {reply, changes} JSON'u olarak ver.`;
+
+async function runGemini(history: { role: "user" | "assistant"; text: string }[], files: Record<string, string>): Promise<AiOut> {
   const model = Deno.env.get("GEMINI_MODEL") || "gemini-3.8-flash";
+  const blocks = [...blocksOf("index.html", files["index.html"], "t"), ...blocksOf("en/index.html", files["en/index.html"], "e")];
+  const byId = new Map(blocks.map(b => [b.id, b]));
+  const listText = blocksText(blocks);
   const contents = history.map(h => ({ role: h.role === "assistant" ? "model" : "user", parts: [{ text: h.text }] }));
   const schema = {
     type: "OBJECT",
     properties: {
       reply: { type: "STRING" },
-      edits: { type: "ARRAY", items: { type: "OBJECT", properties: { file: { type: "STRING", enum: [...FILES] }, old_str: { type: "STRING" }, new_str: { type: "STRING" } }, required: ["file", "old_str", "new_str"] } },
+      changes: { type: "ARRAY", items: { type: "OBJECT", properties: { id: { type: "STRING" }, text: { type: "STRING" } }, required: ["id", "text"] } },
     },
-    required: ["reply", "edits"],
+    required: ["reply", "changes"],
+  };
+  const toEdits = (changes: unknown): { edits: Edit[]; bad: string | null } => {
+    const edits: Edit[] = [];
+    for (const c of Array.isArray(changes) ? changes as { id?: string; text?: string }[] : []) {
+      const b = byId.get(String(c?.id ?? "").replace(/[\[\]\s]/g, ""));
+      if (!b) return { edits: [], bad: `"${c?.id}" kimlikli bir metin yok; yalnızca listedeki kimlikleri kullan.` };
+      if (typeof c.text !== "string") continue;
+      const inner = b.plain ? escHtml(c.text) : c.text;
+      const new_str = `>${inner}</${b.tag}>`;
+      if (new_str !== b.key) edits.push({ file: b.file, old_str: b.key, new_str, ...(b.n > 1 ? { all: true } : {}) });
+    }
+    return { edits, bad: null };
   };
   const out: AiOut = { reply: "", edits: [], problem: null, model, inTok: 0, outTok: 0 };
   const key = Deno.env.get("GEMINI_API_KEY")!;
@@ -234,7 +284,7 @@ async function runGemini(history: { role: "user" | "assistant"; text: string }[]
       last = { status: r.status, j };
       if (![429, 500, 503, 404].includes(r.status)) break;
       if (r.status === 404 && i < tries.length) { i = tries.length - 1; continue; } // model yoksa doğrudan yedeklere geç
-      if (i < tries.length - 1) await sleep(1500 * (i + 1));
+      if (i < tries.length - 1) await sleep(700 * (i + 1));
     }
     throw new HttpError(502, last.status === 429 ? "Yapay zekânın ücretsiz kullanım sınırı doldu. Biraz sonra tekrar dene ya da \"Metinleri düzenle\" sekmesini kullan."
       : last.status === 503 || last.status === 500 ? "Yapay zekâ servisi şu an çok yoğun. Birkaç dakika sonra tekrar dene ya da \"Metinleri düzenle\" sekmesini kullan."
@@ -243,17 +293,18 @@ async function runGemini(history: { role: "user" | "assistant"; text: string }[]
   };
   for (let attempt = 0; attempt < 3; attempt++) {
     const j = await call(JSON.stringify({
-      systemInstruction: { parts: [{ text: SYSTEM + "\n\nYanıtını yalnızca {reply, edits} biçiminde JSON olarak ver." }, { text: filesText }] },
+      systemInstruction: { parts: [{ text: SYSTEM + GEMINI_RULES }, { text: listText }] },
       contents,
-      generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0.2 },
+      generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0.2, maxOutputTokens: 4096 },
     }));
     out.inTok += j.usageMetadata?.promptTokenCount ?? 0; out.outTok += j.usageMetadata?.candidatesTokenCount ?? 0;
     const text = (j.candidates?.[0]?.content?.parts ?? []).map((p: { text?: string }) => p.text || "").join("");
-    let parsed: { reply?: unknown; edits?: unknown } = {};
+    let parsed: { reply?: unknown; changes?: unknown } = {};
     try { parsed = JSON.parse(text); } catch { /* aşağıda hata olarak döner */ }
     out.reply = typeof parsed.reply === "string" ? parsed.reply : "";
-    out.edits = cleanEdits(parsed.edits);
-    out.problem = text && out.reply !== "" ? checkEdits(out.edits, files) : "Yapay zekâdan okunabilir bir yanıt gelmedi.";
+    const { edits, bad } = toEdits(parsed.changes);
+    out.edits = edits;
+    out.problem = !text || out.reply === "" ? "Yapay zekâdan okunabilir bir yanıt gelmedi." : bad || checkEdits(out.edits, files, 60);
     if (!out.problem) break;
     contents.push({ role: "model", parts: [{ text: text || "{}" }] });
     contents.push({ role: "user", parts: [{ text: `Öneri uygulanamadı: ${out.problem} Düzeltip aynı JSON biçiminde tekrar yanıt ver.` }] });
@@ -303,7 +354,7 @@ async function propose(user: { id: string; full_name: string }, prompt: string, 
 
   const provider = aiProvider();
   if (!provider) throw new HttpError(503, "Yapay zekâ anahtarı tanımlı değil. \"Metinleri düzenle\" sekmesinden doğrudan düzenleyebilirsin.");
-  const out = provider === "gemini" ? await runGemini(history, filesText, files) : await runClaude(history, filesText, files);
+  const out = provider === "gemini" ? await runGemini(history, files) : await runClaude(history, filesText, files);
 
   const row = {
     session_id: sessionId, user_id: user.id, user_name: user.full_name, prompt, reply: out.reply,

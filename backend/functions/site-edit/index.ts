@@ -14,7 +14,7 @@
 //   { action: "status" }                       -> { ai: "gemini" | "claude" | null }
 //
 // Gerekli secret: GITHUB_TOKEN (yalnızca bu depoya "Contents: read and write" yetkili).
-// İsteğe bağlı: GEMINI_API_KEY (ücretsiz katman, öncelikli) ya da ANTHROPIC_API_KEY; GEMINI_MODEL (varsayılan gemini-3.8-flash).
+// İsteğe bağlı: ANTHROPIC_API_KEY (öncelikli) ya da GEMINI_API_KEY (ücretsiz katman); AI_PROVIDER ile seçim zorlanabilir; GEMINI_MODEL (varsayılan gemini-3.8-flash).
 // SUPABASE_URL, SUPABASE_ANON_KEY ve SUPABASE_SERVICE_ROLE_KEY Supabase tarafından otomatik verilir.
 
 import Anthropic from "npm:@anthropic-ai/sdk";
@@ -158,7 +158,13 @@ const TOOL = {
 // ---------------------------------------------------------------- Yapay zekâ sağlayıcıları
 // GEMINI_API_KEY varsa Google Gemini (ücretsiz katman), yoksa ANTHROPIC_API_KEY ile Claude kullanılır.
 type AiOut = { reply: string; edits: Edit[]; problem: string | null; model: string; inTok: number; outTok: number };
-const aiProvider = () => Deno.env.get("GEMINI_API_KEY") ? "gemini" : Deno.env.get("ANTHROPIC_API_KEY") ? "claude" : null;
+// AI_PROVIDER secret'ı ("claude" | "gemini") seçimi zorlar; yoksa Claude anahtarı varsa Claude, yoksa Gemini.
+const aiProvider = () => {
+  const want = (Deno.env.get("AI_PROVIDER") || "").toLowerCase();
+  if (want === "gemini" && Deno.env.get("GEMINI_API_KEY")) return "gemini";
+  if (Deno.env.get("ANTHROPIC_API_KEY")) return "claude";
+  return Deno.env.get("GEMINI_API_KEY") ? "gemini" : null;
+};
 const cleanEdits = (x: unknown): Edit[] => Array.isArray(x)
   ? (x as Edit[]).filter(e => e && typeof e.file === "string" && typeof e.old_str === "string" && typeof e.new_str === "string").map(e => ({ file: e.file, old_str: e.old_str, new_str: e.new_str }))
   : [];

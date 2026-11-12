@@ -687,6 +687,14 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 .docs li .doc-soon span{font-size:.85rem;font-weight:500}
 .fam .fam-n{font-weight:800;color:var(--ink)}
 .ticket-body p.m-title{font-size:1.08rem;font-weight:800;line-height:1.25;letter-spacing:-.025em;margin:0;color:var(--ink);text-wrap:balance}
+.board[hidden],.committees[hidden]{display:none}
+
+.req{color:var(--cran-deep)}
+.opt{color:var(--muted);font-weight:400;font-size:.88em}
+.req-note{grid-column:1/-1;margin:0;font-size:.86rem;color:var(--muted)}
+.f-err{display:block;margin-top:6px;color:#B0083C;font-weight:700;font-size:.86rem}
+.apply-form [aria-invalid="true"],form.cf [aria-invalid="true"]{border-color:#C0103F!important;box-shadow:0 0 0 3px rgba(192,16,63,.15)}
+@media (min-width:1201px){.fab,.fab-login{display:none}}
 </style>
 
 <div class="progress" id="progress" aria-hidden="true"></div>
@@ -729,7 +737,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
         <h1>30 years of fellowship through service.</h1>
         <p class="lead">Ankara Anıttepe Rotaract is a Rotary club where people aged 18–30 serve their community through volunteering, leadership and friendship. Our goal for the 2026–27 term: Create Lasting Impact.</p>
         <div class="hero-actions">
-          <a class="btn btn-cran" href="#basvuru">Apply to visit as a guest</a>
+          <a class="btn btn-cran" href="#basvuru">Visit as a guest</a>
           <a class="btn btn-line" href="#projeler">Our signature projects</a>
         </div>
         <div class="ticket">
@@ -737,7 +745,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
           <div class="ticket-body">
             <span class="ticket-no" id="mNo">610th meeting · 11th of the term</span>
             <p class="m-title" id="mTitle">Next meeting: Thursday 19 November, 7:30 pm</p>
-            <p>Hybrid Hub, Ankara · <a href="#basvuru" style="color:#A30C4D;font-weight:700">Join this meeting as a guest</a></p>
+            <p>Hybrid Hub, Ankara</p>
             <div class="cd tn">
               <div><b id="cD">–</b><span>days</span></div>
               <div><b id="cH">–</b><span>hours</span></div>
@@ -775,13 +783,14 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
       </div>
       <form class="apply-form" id="gf" novalidate>
         <div class="gf-fields" id="gfFields">
-          <label>Full name<input id="g-name" name="name" required autocomplete="name" autocapitalize="words"></label>
-          <label>Email<input id="g-mail" name="email" type="email" required autocomplete="email"></label>
-          <label>Phone<input id="g-tel" name="tel" type="tel" autocomplete="tel" inputmode="tel" required placeholder="05xx xxx xx xx"></label>
+          <p class="req-note"><span class="req" aria-hidden="true">*</span> marks required fields.</p>
+          <label><span class="lbl">Full name<span class="req" aria-hidden="true"> *</span></span><input id="g-name" name="name" required autocomplete="name" autocapitalize="words"></label>
+          <label><span class="lbl">Email<span class="req" aria-hidden="true"> *</span></span><input id="g-mail" name="email" type="email" required autocomplete="email"></label>
+          <label><span class="lbl">Phone<span class="req" aria-hidden="true"> *</span></span><input id="g-tel" name="tel" type="tel" autocomplete="tel" inputmode="tel" required placeholder="05xx xxx xx xx"></label>
           <label>Currently
             <select id="g-status" name="status"><option>University student</option><option>Working</option><option>Graduated, looking for work</option><option>Other</option></select>
           </label>
-          <label class="full">School or profession<input id="g-school" name="school" autocomplete="organization" placeholder="For example METU Architecture, software developer"></label>
+          <label class="full"><span class="lbl">School or profession <span class="opt">(optional)</span></span><input id="g-school" name="school" autocomplete="organization" placeholder="For example METU Architecture, software developer"></label>
           <fieldset class="full">
             <legend>Which meeting will you come to?</legend>
             <div class="date-pick" id="gDates"></div>
@@ -855,7 +864,23 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
         <button class="chip" aria-pressed="false" data-f="kulup">Club life</button>
       </div>
     </div>
-    <div class="rail" id="rail" tabindex="0" role="region" aria-label="Project cards"></div>
+    <div class="rail" id="rail" tabindex="0" role="region" aria-label="Project cards">
+      <article class="proj" data-cat="kulup">
+      <div class="proj-art has-img" style="background:linear-gradient(135deg,#D41367,#F7A81B)"><img class="proj-img" style="object-position:center 12%" src="../assets/projeler/doneme-merhaba.jpg" alt="Hello New Term Party photo" loading="lazy" decoding="async"><span class="when">Every September</span><span class="big">Opening the term for 20 years</span></div>
+      <div class="proj-body"><h3>Hello New Term Party</h3><p>The first big get-together of the new term. Every year we celebrate with Rotaractors from other clubs under a new theme: Matrix, G.O.R.A., Sunset Soirée…</p><small>Döneme Merhaba · 2026 theme: Vogue</small></div></article><article class="proj" data-cat="farkindalik">
+      <div class="proj-art has-img" style="background:linear-gradient(135deg,#1F8A4C,#7CC88F)"><img class="proj-img" style="object-position:center" src="../assets/projeler/yesili-fark-et.jpg" alt="Notice the Green! photo" loading="lazy" decoding="async"><span class="when">Every 6 October</span><span class="big">Wearing green for cerebral palsy</span></div>
+      <div class="proj-body"><h3>Notice the Green!</h3><p>On 6 October we wear green, put on green accessories and share our photos to raise awareness of cerebral palsy online.</p><small>Yeşili Fark Et · World Cerebral Palsy Day</small></div></article><article class="proj" data-cat="hizmet">
+      <div class="proj-art has-img" style="background:linear-gradient(160deg,#E30A17 0 60%,#B00812 60% 100%)"><img class="proj-img" style="object-position:center" src="../assets/projeler/yer-gok-kirmizi-beyaz.jpg" alt="Red and White Everywhere photo" loading="lazy" decoding="async"><span class="when">Week of 29 October</span><span class="big">103 flags with children</span></div>
+      <div class="proj-body"><h3>Red and White Everywhere</h3><p>During Republic Day week we visit the first Grand National Assembly building and the Republic Museum with schoolchildren and dress the streets in red and white.</p><small>Yer Gök Kırmızı Beyaz · 2026: 103 Turkish + 103 Atatürk flags</small></div></article><article class="proj" data-cat="kaynak">
+      <div class="proj-art has-img" style="background:linear-gradient(135deg,#6D0F2A,#A30C4D)"><img class="proj-img" style="object-position:center" src="../assets/projeler/bordo.jpg" alt="Bordo photo" loading="lazy" decoding="async"><span class="when">Every February</span><span class="big">Proceeds fund our service projects</span></div>
+      <div class="proj-body"><h3>Bordo</h3><p>Rotaractors and Rotarians meet over wine; the proceeds of a night of Paint&Drink and a trivia quiz with prizes go to our projects.</p><small>Rotaractor–Rotarian get-together</small></div></article><article class="proj" data-cat="hizmet">
+      <div class="proj-art has-img" style="background:linear-gradient(135deg,#F7A81B,#F2C14E)"><img class="proj-img" style="object-position:center 8%" src="../assets/projeler/balon-perileri.jpg" alt="Balloon Fairies photo" loading="lazy" decoding="async"><span class="when">Week of 23 April</span><span class="big">Granting children's wishes</span></div>
+      <div class="proj-body"><h3>Balloon Fairies</h3><p>We collect wish lists from children in need and deliver their gifts at their school in the week of 23 April, Children's Day.</p><small>Balon Perileri · school visits and a donation drive</small></div></article><article class="proj" data-cat="farkindalik">
+      <div class="proj-art" style="background:linear-gradient(135deg,#A30C4D,#D41367)"><span class="when">Every 24 October</span><span class="big">Ending polio for good</span></div>
+      <div class="proj-body"><h3>World Polio Day</h3><p>We support vaccine access and awareness for a world without polio.</p><small>Rotary's global campaign</small></div></article><article class="proj" data-cat="kulup">
+      <div class="proj-art" style="background:linear-gradient(135deg,#D41367,#F78FB8)"><span class="when">Every November</span><span class="big">Since November 1996</span></div>
+      <div class="proj-body"><h3>Club anniversary</h3><p>Our club's birthday month. In 2026 we celebrate turning 30.</p><small>Since November 1996</small></div></article>
+    </div>
     <div class="wrap"><div class="rail-progress" aria-hidden="true"><i id="railBar"></i></div></div>
   </section>
 
@@ -948,8 +973,10 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
           <button type="button" aria-pressed="false" data-term="2025">2025–26</button>
         </div>
       </div>
-      <div class="board" id="board"></div>
-      <div class="committees" id="committees"></div>
+      <div class="board" data-term="2026"><div class="person lead-p"><div class="avatar"><img src="../assets/uyeler/simay-oguzkurt.jpg" alt="Simay Oğuzkurt" loading="lazy"></div><div><b>Simay Oğuzkurt</b><span>President</span></div></div><div class="person"><div class="avatar"><img src="../assets/uyeler/selva-tuluy.jpg" alt="Selva Tuluy" loading="lazy"></div><div><b>Selva Tuluy</b><span>Vice President</span></div></div><div class="person"><div class="avatar"><img src="../assets/uyeler/ogulcan-gorgulu.jpg" alt="Oğulcan Görgülü" loading="lazy"></div><div><b>Oğulcan Görgülü</b><span>Secretary</span></div></div><div class="person"><div class="avatar"><img src="../assets/uyeler/umut-ekin-akkus.jpg" alt="Umut Ekin Akkuş" loading="lazy"></div><div><b>Umut Ekin Akkuş</b><span>Treasurer</span></div></div><div class="person"><div class="avatar"><img src="../assets/uyeler/can-kilicaslan.jpg" alt="Can Kılıçaslan" loading="lazy"></div><div><b>Can Kılıçaslan</b><span>Board Member</span></div></div></div>
+      <div class="committees" data-term="2026"><h3>Committee chairs</h3><ul class="cm"><li><img class="mini" src="../assets/uyeler/melishan-ozkan-agca.jpg" alt="" loading="lazy"><div><b>Melishan Özkan Ağca</b><span>Service Projects Committee</span></div></li><li><img class="mini" src="../assets/uyeler/begum-gozupek.jpg" alt="" loading="lazy"><div><b>Begüm Gözüpek</b><span>Membership and Membership Development Committee</span></div></li><li><img class="mini" src="../assets/uyeler/muhammed-alperen-celik.jpg" alt="" loading="lazy"><div><b>Muhammed Alperen Çelik</b><span>International Service Committee</span></div></li><li><img class="mini" src="../assets/uyeler/muhammed-alperen-celik.jpg" alt="" loading="lazy"><div><b>Muhammed Alperen Çelik</b><span>Public Relations Committee</span></div></li><li><img class="mini" src="../assets/uyeler/ezgi-erdogan.jpg" alt="" loading="lazy"><div><b>Ezgi Erdoğan</b><span>Club Service Committee</span></div></li><li><img class="mini" src="../assets/uyeler/gizem-hanoglu.jpg" alt="" loading="lazy"><div><b>Gizem Hanoğlu</b><span>Vocational Service Committee</span></div></li><li><img class="mini" src="../assets/uyeler/zehra-cansu-tasanlar.jpg" alt="" loading="lazy"><div><b>Zehra Cansu Taşanlar</b><span>Disaster Response Committee</span></div></li><li><img class="mini" src="../assets/uyeler/ezgi-erdogan.jpg" alt="" loading="lazy"><div><b>Ezgi Erdoğan</b><span>Hobbies Committee</span></div></li></ul></div>
+      <div class="board" data-term="2025" hidden><div class="person lead-p"><div class="avatar"><img src="../assets/uyeler/can-kilicaslan.jpg" alt="Can Kılıçaslan" loading="lazy"></div><div><b>Can Kılıçaslan</b><span>President</span></div></div><div class="person"><div class="avatar"><img src="../assets/uyeler/metehan-can-cirak.jpg" alt="Metehan Can Çırak" loading="lazy"></div><div><b>Metehan Can Çırak</b><span>Vice President</span></div></div><div class="person"><div class="avatar"><img src="../assets/uyeler/selva-tuluy.jpg" alt="Selva Tuluy" loading="lazy"></div><div><b>Selva Tuluy</b><span>Secretary</span></div></div><div class="person"><div class="avatar"><img src="../assets/uyeler/simay-oguzkurt.jpg" alt="Simay Oğuzkurt" loading="lazy"></div><div><b>Simay Oğuzkurt</b><span>Treasurer</span></div></div><div class="person"><div class="avatar"><img src="../assets/uyeler/begum-gozupek.jpg" alt="Begüm Gözüpek" loading="lazy"></div><div><b>Begüm Gözüpek</b><span>Immediate Past President</span></div></div></div>
+      <div class="committees" data-term="2025" hidden></div>
     </div>
   </section>
 
@@ -1062,8 +1089,8 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
         </div>
       </div>
       <form class="cf" id="cf" novalidate>
-        <label>Full name<input id="f-name" name="name" required autocomplete="name" autocapitalize="words"></label>
-        <label>Email<input id="f-mail" name="email" type="email" required autocomplete="email"></label>
+        <label><span class="lbl">Full name<span class="req" aria-hidden="true"> *</span></span><input id="f-name" name="name" required autocomplete="name" autocapitalize="words"></label>
+        <label><span class="lbl">Email<span class="req" aria-hidden="true"> *</span></span><input id="f-mail" name="email" type="email" required autocomplete="email"></label>
         <label class="full">Subject
           <select id="f-subject" name="subject">
             <option>General question</option>
@@ -1072,7 +1099,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
             <option>Other</option>
           </select>
         </label>
-        <label class="full">Your message<textarea id="f-msg" name="message" placeholder="Tell us a little about yourself or your idea"></textarea></label>
+        <label class="full"><span class="lbl">Your message <span class="opt">(optional)</span></span><textarea id="f-msg" name="message" placeholder="Tell us a little about yourself or your idea"></textarea></label>
         <button class="btn btn-cran" type="submit">Send message</button>
         <div class="form-ok" id="formOk" role="status" hidden></div>
       </form>
@@ -1096,7 +1123,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   </div>
 </footer>
 
-<a class="fab" id="fab" href="#basvuru">Guest application</a>
+<a class="fab" id="fab" href="#basvuru">Visit as a guest</a>
 <a class="fab-login" href="https://anitteperotaract.org/uye/">Member login</a>
 <div class="toast" id="toast" hidden></div>
 
@@ -1190,13 +1217,18 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   const sendMail=(subject,body,replyTo,kind,confirm)=>fetch("https://fyjcgfbooajuljebxnil.supabase.co/functions/v1/basvuru",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({kind:kind||(/başvuru|application/i.test(subject)?"misafir":"iletisim"),subject,body,reply_to:replyTo,confirm,page:location.href})})
     .then(r=>r.json()).then(j=>{if(!j.ok)throw new Error(j.error||"not sent");return true})
     .catch(()=>{location.href="mailto:anitteperotaract1996@gmail.com?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(body);return false});
+
+  // Alan bazında hata: mesaj alanın altında, ekran okuyucu alanla birlikte okur.
+  const fErr=(el,msg)=>{const id=el.id+"-err";let s=document.getElementById(id);
+    if(!msg){el.removeAttribute("aria-invalid");el.removeAttribute("aria-describedby");if(s)s.remove();return false}
+    if(!s){s=document.createElement("span");s.className="f-err";s.id=id;el.parentElement.append(s)}
+    s.textContent=msg;el.setAttribute("aria-invalid","true");el.setAttribute("aria-describedby",id);return true};
+  document.querySelectorAll("#gf input,#cf input").forEach(i=>i.addEventListener(i.type==="checkbox"?"change":"input",()=>{if(i.getAttribute("aria-invalid"))fErr(i,"")}));
   $("#gf").addEventListener("submit",e=>{
     e.preventDefault();const err=$("#gErr");
     const name=$("#g-name").value.trim(),mail=$("#g-mail").value.trim();
-    if(!name){err.hidden=false;err.textContent="Please enter your name.";$("#g-name").focus();return}
-    if(!/^\S+@\S+\.\S+$/.test(mail)){err.hidden=false;err.textContent="Please enter a valid email address.";$("#g-mail").focus();return}
-    if($("#g-tel").value.replace(/\D/g,"").length<10){err.hidden=false;err.textContent="Please enter your phone number.";$("#g-tel").focus();return}
-    if(!$("#g-kvkk").checked){err.hidden=false;err.textContent="To continue, please agree to the use of your details.";return}
+    const bad=[["#g-name",!name&&"Please enter your name."],["#g-mail",!/^\S+@\S+\.\S+$/.test(mail)&&"Please enter a valid email address."],["#g-tel",$("#g-tel").value.replace(/\D/g,"").length<10&&"Please enter a phone number with at least 10 digits."],["#g-kvkk",!$("#g-kvkk").checked&&"To continue, please agree to the use of your details."]].filter(([s,msg])=>fErr($(s),msg)).map(([s])=>$(s));
+    if(bad.length){err.hidden=true;bad[0].focus();return}
     err.hidden=true;
     const m=window._gMeetings[+(document.querySelector('input[name="gdate"]:checked')||{value:0}).value];
     const _l={"name":"Name","mail":"Email","tel":"Phone","status":"Status","school":"School / job","source":"Heard about us from","interest":"Interests","date":"Meeting they want to attend"};const _b=[[_l.name,name],[_l.mail,mail],[_l.tel,(($("#g-tel")||{}).value||"").trim()],[_l.status,(($("#g-status")||{}).value||"").trim()],[_l.school,(($("#g-school")||{}).value||"").trim()],[_l.source,(($("#g-source")||{}).value||"").trim()],[_l.interest,$("#gInterest button[aria-pressed=true]").map(b=>b.textContent).join(", ")],[_l.date,m.d.toLocaleDateString(document.documentElement.lang,{day:"numeric",month:"long",weekday:"long"})+" ("+m.no+")"]].filter(x=>x[1]).map(x=>x[0]+": "+x[1]).join("\n");
@@ -1234,9 +1266,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
     {id:"kurulus",cw:"November",t:"Club anniversary",cat:"kulup",m:10,d:15,when:"Every November",big:"Since November 1996",since:"Since November 1996",x:"Our club's birthday month. In 2026 we celebrate turning 30.",bg:"linear-gradient(135deg,#D41367,#F78FB8)"},
   ];
   const rail=$("#rail");
-  rail.innerHTML=PROJECTS.map(p=>`<article class="proj" data-cat="${p.cat}">
-    <div class="proj-art${p.img?" has-img":""}" style="background:${p.bg}">${p.img?`<img class="proj-img" style="object-position:${p.pos||"center"}" src="../assets/projeler/${p.img}" alt="${p.t} photo" loading="lazy" decoding="async">`:""}<span class="when">${p.when}</span><span class="big">${p.big}</span></div>
-    <div class="proj-body"><h3>${p.t}</h3><p>${p.x}</p><small>${p.since}</small></div></article>`).join("");
+  // Kartlar HTML'de statik; burada yalnızca filtre ve kaydırma var.
   $$(".chip").forEach(c=>c.addEventListener("click",()=>{
     $$(".chip").forEach(x=>x.setAttribute("aria-pressed",x===c));
     const f=c.dataset.f;$$(".proj").forEach(p=>p.hidden=!(f==="all"||p.dataset.cat===f));
@@ -1306,7 +1336,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
     $$(".steps button").forEach((b,i)=>{b.setAttribute("aria-selected",i===cur);b.classList.toggle("done",i<cur)});
     panel.innerHTML=`<span class="tag">Step ${cur+1} of 5</span><h3>${s.h}</h3><p>${s.p}</p>`+
       (s.dots?`<div class="meet-dots">${[1,2,3,4,5].map(i=>`<span>${i}</span>`).join("")}</div>`:"")+
-      (s.cta?`<div><a class="btn btn-cran" href="#basvuru">Apply to visit as a guest</a></div>`:"")+
+      (s.cta?`<div><a class="btn btn-cran" href="#basvuru">Visit as a guest</a></div>`:"")+
       `<div class="step-nav">${cur>0?'<button class="btn btn-ghost" type="button" data-go="-1">Previous step</button>':''}${cur<4?'<button class="btn btn-cran" type="button" data-go="1">Next step</button>':''}</div>`;
     panel.classList.remove("swap");void panel.offsetWidth;panel.classList.add("swap");
     clearInterval(dt);
@@ -1327,14 +1357,11 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   const PHOTOS=["begum-gozupek","can-kilicaslan","ezgi-erdogan","gizem-hanoglu","melishan-ozkan-agca","metehan-can-cirak","muhammed-alperen-celik","ogulcan-gorgulu","selva-tuluy","simay-oguzkurt","umut-ekin-akkus","zehra-cansu-tasanlar"];
   const ini=n=>n.split(" ").filter(Boolean).slice(0,2).map(w=>w[0]).join("").toLocaleUpperCase("tr");
   function renderBoard(t){
-    const b=$("#board");
-    b.innerHTML=BOARD[t].map(([n,r],i)=>`<div class="person${i===0?" lead-p":""}"><div class="avatar">${PHOTO(n)?`<img src="${PHOTO(n)}" alt="${n}" loading="lazy">`:`<span aria-hidden="true">${ini(n)}</span>`}</div><div><b>${n}</b><span>${r}</span></div></div>`).join("");
-    b.classList.remove("fade");void b.offsetWidth;b.classList.add("fade");
-    const c=COMMITTEES[t];
-    $("#committees").innerHTML=c?`<h3>Committee chairs</h3><ul class="cm">${c.map(([k,n])=>`<li>${PHOTO(n)?`<img class="mini" src="${PHOTO(n)}" alt="" loading="lazy">`:""}<div><b>${n}</b><span>${k} Committee</span></div></li>`).join("")}</ul>`:"";
+    $$(".board[data-term],.committees[data-term]").forEach(el=>{el.hidden=el.dataset.term!==t});
+    const b=$(`.board[data-term="${t}"]`);b.classList.remove("fade");void b.offsetWidth;b.classList.add("fade");
   }
-  $$(".seg button").forEach(btn=>btn.addEventListener("click",()=>{$$(".seg button").forEach(x=>x.setAttribute("aria-pressed",x===btn));renderBoard(btn.dataset.term)}));
-  renderBoard("2026");
+
+  $$(".seg button[data-term]").forEach(btn=>btn.addEventListener("click",()=>{$$(".seg button[data-term]").forEach(x=>x.setAttribute("aria-pressed",x===btn));renderBoard(btn.dataset.term)}));
 
 
   // ---------- Copy + form ----------
@@ -1345,7 +1372,8 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   }));
   $("#cf").addEventListener("submit",e=>{
     e.preventDefault();const ok=$("#formOk"),name=$("#f-name").value.trim(),mail=$("#f-mail").value.trim();ok.hidden=false;
-    if(!name||!/^\S+@\S+\.\S+$/.test(mail)){ok.textContent="Please enter your name and a valid email address.";return}
+    const cfBad=[["#f-name",!name&&"Please enter your name."],["#f-mail",!/^\S+@\S+\.\S+$/.test(mail)&&"Please enter a valid email address."]].filter(([s,msg])=>fErr($(s),msg)).map(([s])=>$(s));
+    if(cfBad.length){ok.hidden=true;cfBad[0].focus();return}
     ok.textContent="Sending your message…";
     sendMail(((($("#f-subject")||{}).value||"").trim()||"Message from the website")+": "+name,(($("#f-msg")||{}).value||"").trim()+"\n\n"+name+" <"+mail+">",mail,"iletisim",{name,lang:"en",topic:(($("#f-subject")||{}).value||"").trim(),message:(($("#f-msg")||{}).value||"").trim()}).then(sent=>{ok.textContent=sent?`Thank you, ${name.split(" ")[0]}. Your message has reached us; we will get back to you soon.`:`Thank you, ${name.split(" ")[0]}. Your email app opened with your message; press Send and it reaches us.`});
   });

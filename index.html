@@ -687,6 +687,14 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 .docs li .doc-soon span{font-size:.85rem;font-weight:500}
 .fam .fam-n{font-weight:800;color:var(--ink)}
 .ticket-body p.m-title{font-size:1.08rem;font-weight:800;line-height:1.25;letter-spacing:-.025em;margin:0;color:var(--ink);text-wrap:balance}
+.board[hidden],.committees[hidden]{display:none}
+
+.req{color:var(--cran-deep)}
+.opt{color:var(--muted);font-weight:400;font-size:.88em}
+.req-note{grid-column:1/-1;margin:0;font-size:.86rem;color:var(--muted)}
+.f-err{display:block;margin-top:6px;color:#B0083C;font-weight:700;font-size:.86rem}
+.apply-form [aria-invalid="true"],form.cf [aria-invalid="true"]{border-color:#C0103F!important;box-shadow:0 0 0 3px rgba(192,16,63,.15)}
+@media (min-width:1201px){.fab,.fab-login{display:none}}
 </style>
 
 <div class="progress" id="progress" aria-hidden="true"></div>
@@ -710,12 +718,12 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
       <a href="#yonetim">Yönetim</a>
       <a href="#haberler">Haberler</a>
       <a href="#iletisim">İletişim</a>
-      <a class="nav-extra nav-cta" href="#basvuru">Misafir üye ol</a>
+      <a class="nav-extra nav-cta" href="#basvuru">Misafir olarak katıl</a>
       <a class="nav-extra nav-login" href="https://anitteperotaract.org/uye/">Üye girişi</a>
     </nav>
     <div class="lang-sw" role="group" aria-label="Dil seçimi"><a href="https://anitteperotaract.org/" hreflang="tr" lang="tr" data-lang="tr" aria-current="true" aria-label="Türkçe">TR</a><a href="https://anitteperotaract.org/en/" hreflang="en" lang="en" data-lang="en" aria-label="English">EN</a></div>
     <a class="mlogin" href="https://anitteperotaract.org/uye/">Üye girişi</a>
-    <a class="btn btn-cran" href="#basvuru">Misafir üye ol</a>
+    <a class="btn btn-cran" href="#basvuru">Misafir olarak katıl</a>
     <button class="menu-btn" id="menuBtn" type="button" aria-expanded="false" aria-controls="nav" aria-label="Menüyü aç">☰</button>
   </div>
 </header>
@@ -729,7 +737,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
         <h1>30 yıldır hizmet yoluyla dostluk.</h1>
         <p class="lead">Ankara Anıttepe Rotaract Kulübü, 18–30 yaş arası gençlerin gönüllülük, liderlik ve dostlukla topluma hizmet ettiği, Rotary ailesinin parçası olan bir Rotaract kulübüdür. 2026–2027 döneminde “Kalıcı Etki Yarat” anlayışıyla çalışıyoruz.</p>
         <div class="hero-actions">
-          <a class="btn btn-cran" href="#basvuru">Misafir üye başvurusu yap</a>
+          <a class="btn btn-cran" href="#basvuru">Misafir olarak katıl</a>
           <a class="btn btn-line" href="#projeler">Geleneksel projelerimiz</a>
         </div>
         <div class="ticket">
@@ -737,7 +745,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
           <div class="ticket-body">
             <span class="ticket-no" id="mNo">610. toplantı · dönemin 11. toplantısı</span>
             <p class="m-title" id="mTitle">Sıradaki toplantı: 19 Kasım Perşembe, 19.30</p>
-            <p>Hybrid Hub, Ankara · <a href="#basvuru" style="color:#A30C4D;font-weight:700">Bu toplantıya misafir olarak gel</a></p>
+            <p>Hybrid Hub, Ankara</p>
             <div class="cd tn">
               <div><b id="cD">–</b><span>gün</span></div>
               <div><b id="cH">–</b><span>saat</span></div>
@@ -775,13 +783,14 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
       </div>
       <form class="apply-form" id="gf" novalidate>
         <div class="gf-fields" id="gfFields">
-          <label>Ad soyad<input id="g-name" name="name" required autocomplete="name" autocapitalize="words"></label>
-          <label>E-posta<input id="g-mail" name="email" type="email" required autocomplete="email"></label>
-          <label>Telefon<input id="g-tel" name="tel" type="tel" autocomplete="tel" inputmode="tel" required placeholder="05xx xxx xx xx"></label>
+          <p class="req-note"><span class="req" aria-hidden="true">*</span> işaretli alanlar zorunlu.</p>
+          <label><span class="lbl">Ad soyad<span class="req" aria-hidden="true"> *</span></span><input id="g-name" name="name" required autocomplete="name" autocapitalize="words"></label>
+          <label><span class="lbl">E-posta<span class="req" aria-hidden="true"> *</span></span><input id="g-mail" name="email" type="email" required autocomplete="email"></label>
+          <label><span class="lbl">Telefon<span class="req" aria-hidden="true"> *</span></span><input id="g-tel" name="tel" type="tel" autocomplete="tel" inputmode="tel" required placeholder="05xx xxx xx xx"></label>
           <label>Şu an
             <select id="g-status" name="status"><option>Üniversite öğrencisiyim</option><option>Çalışıyorum</option><option>Mezun oldum, iş arıyorum</option><option>Diğer</option></select>
           </label>
-          <label class="full">Okul ya da meslek<input id="g-school" name="school" autocomplete="organization" placeholder="Örneğin ODTÜ Mimarlık, yazılım geliştirici"></label>
+          <label class="full"><span class="lbl">Okul ya da meslek <span class="opt">(isteğe bağlı)</span></span><input id="g-school" name="school" autocomplete="organization" placeholder="Örneğin ODTÜ Mimarlık, yazılım geliştirici"></label>
           <fieldset class="full">
             <legend>Hangi toplantıya geleceksin?</legend>
             <div class="date-pick" id="gDates"></div>
@@ -855,7 +864,23 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
         <button class="chip" aria-pressed="false" data-f="kulup">Kulüp hayatı</button>
       </div>
     </div>
-    <div class="rail" id="rail" tabindex="0" role="region" aria-label="Proje kartları"></div>
+    <div class="rail" id="rail" tabindex="0" role="region" aria-label="Proje kartları">
+      <article class="proj" data-cat="kulup">
+      <div class="proj-art has-img" style="background:linear-gradient(135deg,#D41367,#F7A81B)"><img class="proj-img" style="object-position:center 12%" src="assets/projeler/doneme-merhaba.jpg" alt="Döneme Merhaba Partisi fotoğrafı" loading="lazy" decoding="async"><span class="when">Her yıl eylülde</span><span class="big">20 yıldır yeni dönemi açıyoruz</span></div>
+      <div class="proj-body"><h3>Döneme Merhaba Partisi</h3><p>Yeni dönemin ilk büyük buluşması. Farklı kulüplerden Rotaractörlerle her yıl başka bir temayla kutluyoruz: Matrix, G.O.R.A., Sunset Soirée…</p><small>2026 teması: Vogue</small></div></article><article class="proj" data-cat="farkindalik">
+      <div class="proj-art has-img" style="background:linear-gradient(135deg,#1F8A4C,#7CC88F)"><img class="proj-img" style="object-position:center" src="assets/projeler/yesili-fark-et.jpg" alt="Yeşili Fark Et! fotoğrafı" loading="lazy" decoding="async"><span class="when">Her yıl 6 Ekim'de</span><span class="big">Serebral palsi için yeşil giyiyoruz</span></div>
+      <div class="proj-body"><h3>Yeşili Fark Et!</h3><p>6 Ekim'de yeşil giyiyor, yeşil aksesuar takıyor ve fotoğraflarımızı paylaşarak serebral palsi farkındalığını sosyal medyaya taşıyoruz.</p><small>Dünya Serebral Palsi Farkındalık Günü</small></div></article><article class="proj" data-cat="hizmet">
+      <div class="proj-art has-img" style="background:linear-gradient(160deg,#E30A17 0 60%,#B00812 60% 100%)"><img class="proj-img" style="object-position:center" src="assets/projeler/yer-gok-kirmizi-beyaz.jpg" alt="Yer Gök Kırmızı Beyaz fotoğrafı" loading="lazy" decoding="async"><span class="when">29 Ekim haftası</span><span class="big">Çocuklarla 103 bayrak taşıdık</span></div>
+      <div class="proj-body"><h3>Yer Gök Kırmızı Beyaz</h3><p>Cumhuriyet Bayramı haftasında öğrencilerle birlikte I. TBMM'yi ve Cumhuriyet Müzesini geziyor, sokakları kırmızı beyaza büründürüyoruz.</p><small>2026: 103 Türk + 103 Atatürk bayrağı</small></div></article><article class="proj" data-cat="kaynak">
+      <div class="proj-art has-img" style="background:linear-gradient(135deg,#6D0F2A,#A30C4D)"><img class="proj-img" style="object-position:center" src="assets/projeler/bordo.jpg" alt="Bordo fotoğrafı" loading="lazy" decoding="async"><span class="when">Her yıl şubatta</span><span class="big">Geliri hizmet projelerine</span></div>
+      <div class="proj-body"><h3>Bordo</h3><p>Rotaractörler ve Rotaryenler şarap eşliğinde bir araya geliyor; Paint&Drink ve ödüllü trivia ile geçen gecenin geliri projelerimize aktarılıyor.</p><small>Rotaractör–Rotaryen buluşması</small></div></article><article class="proj" data-cat="hizmet">
+      <div class="proj-art has-img" style="background:linear-gradient(135deg,#F7A81B,#F2C14E)"><img class="proj-img" style="object-position:center 8%" src="assets/projeler/balon-perileri.jpg" alt="Balon Perileri fotoğrafı" loading="lazy" decoding="async"><span class="when">23 Nisan haftası</span><span class="big">Çocukların dileği bizden</span></div>
+      <div class="proj-body"><h3>Balon Perileri</h3><p>İhtiyacı olan çocukların dilek listelerini topluyor, hediyelerini 23 Nisan haftasında okullarında teslim ediyoruz.</p><small>Okul ziyaretleri ve bağış kampanyası</small></div></article><article class="proj" data-cat="farkindalik">
+      <div class="proj-art" style="background:linear-gradient(135deg,#A30C4D,#D41367)"><span class="when">Her yıl 24 Ekim'de</span><span class="big">Çocuk felcine son</span></div>
+      <div class="proj-body"><h3>Dünya Polio Günü</h3><p>Çocuk felcinin olmadığı bir dünya için aşıya erişimi ve farkındalığı destekliyoruz.</p><small>Rotary'nin küresel kampanyası</small></div></article><article class="proj" data-cat="kulup">
+      <div class="proj-art" style="background:linear-gradient(135deg,#D41367,#F78FB8)"><span class="when">Her yıl kasımda</span><span class="big">Kasım 1996'dan beri</span></div>
+      <div class="proj-body"><h3>Kuruluş yıl dönümü</h3><p>Kulübümüzün doğum ayı. 2026'da 30. yaşımızı kutluyoruz.</p><small>Kasım 1996'dan beri</small></div></article>
+    </div>
     <div class="wrap"><div class="rail-progress" aria-hidden="true"><i id="railBar"></i></div></div>
   </section>
 
@@ -948,8 +973,10 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
           <button type="button" aria-pressed="false" data-term="2025">2025–26</button>
         </div>
       </div>
-      <div class="board" id="board"></div>
-      <div class="committees" id="committees"></div>
+      <div class="board" data-term="2026"><div class="person lead-p"><div class="avatar"><img src="assets/uyeler/simay-oguzkurt.jpg" alt="Simay Oğuzkurt" loading="lazy"></div><div><b>Simay Oğuzkurt</b><span>Başkan</span></div></div><div class="person"><div class="avatar"><img src="assets/uyeler/selva-tuluy.jpg" alt="Selva Tuluy" loading="lazy"></div><div><b>Selva Tuluy</b><span>Asbaşkan</span></div></div><div class="person"><div class="avatar"><img src="assets/uyeler/ogulcan-gorgulu.jpg" alt="Oğulcan Görgülü" loading="lazy"></div><div><b>Oğulcan Görgülü</b><span>Sekreter</span></div></div><div class="person"><div class="avatar"><img src="assets/uyeler/umut-ekin-akkus.jpg" alt="Umut Ekin Akkuş" loading="lazy"></div><div><b>Umut Ekin Akkuş</b><span>Sayman</span></div></div><div class="person"><div class="avatar"><img src="assets/uyeler/can-kilicaslan.jpg" alt="Can Kılıçaslan" loading="lazy"></div><div><b>Can Kılıçaslan</b><span>Yönetim Kurulu Üyesi</span></div></div></div>
+      <div class="committees" data-term="2026"><h3>Komite başkanları</h3><ul class="cm"><li><img class="mini" src="assets/uyeler/melishan-ozkan-agca.jpg" alt="" loading="lazy"><div><b>Melishan Özkan Ağca</b><span>Hizmet Projeleri Komitesi</span></div></li><li><img class="mini" src="assets/uyeler/begum-gozupek.jpg" alt="" loading="lazy"><div><b>Begüm Gözüpek</b><span>Üyelik ve Üyeliği Geliştirme Komitesi</span></div></li><li><img class="mini" src="assets/uyeler/muhammed-alperen-celik.jpg" alt="" loading="lazy"><div><b>Muhammed Alperen Çelik</b><span>Uluslararası Hizmetler Komitesi</span></div></li><li><img class="mini" src="assets/uyeler/muhammed-alperen-celik.jpg" alt="" loading="lazy"><div><b>Muhammed Alperen Çelik</b><span>Halkla İlişkiler ve Tanıtım Komitesi</span></div></li><li><img class="mini" src="assets/uyeler/ezgi-erdogan.jpg" alt="" loading="lazy"><div><b>Ezgi Erdoğan</b><span>Kulüp Hizmetleri Komitesi</span></div></li><li><img class="mini" src="assets/uyeler/gizem-hanoglu.jpg" alt="" loading="lazy"><div><b>Gizem Hanoğlu</b><span>Meslek Hizmetleri Komitesi</span></div></li><li><img class="mini" src="assets/uyeler/zehra-cansu-tasanlar.jpg" alt="" loading="lazy"><div><b>Zehra Cansu Taşanlar</b><span>Afet Komitesi</span></div></li><li><img class="mini" src="assets/uyeler/ezgi-erdogan.jpg" alt="" loading="lazy"><div><b>Ezgi Erdoğan</b><span>Hobi Komitesi</span></div></li></ul></div>
+      <div class="board" data-term="2025" hidden><div class="person lead-p"><div class="avatar"><img src="assets/uyeler/can-kilicaslan.jpg" alt="Can Kılıçaslan" loading="lazy"></div><div><b>Can Kılıçaslan</b><span>Başkan</span></div></div><div class="person"><div class="avatar"><img src="assets/uyeler/metehan-can-cirak.jpg" alt="Metehan Can Çırak" loading="lazy"></div><div><b>Metehan Can Çırak</b><span>Asbaşkan</span></div></div><div class="person"><div class="avatar"><img src="assets/uyeler/selva-tuluy.jpg" alt="Selva Tuluy" loading="lazy"></div><div><b>Selva Tuluy</b><span>Sekreter</span></div></div><div class="person"><div class="avatar"><img src="assets/uyeler/simay-oguzkurt.jpg" alt="Simay Oğuzkurt" loading="lazy"></div><div><b>Simay Oğuzkurt</b><span>Sayman</span></div></div><div class="person"><div class="avatar"><img src="assets/uyeler/begum-gozupek.jpg" alt="Begüm Gözüpek" loading="lazy"></div><div><b>Begüm Gözüpek</b><span>Geçmiş Dönem Başkanı</span></div></div></div>
+      <div class="committees" data-term="2025" hidden></div>
     </div>
   </section>
 
@@ -1062,8 +1089,8 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
         </div>
       </div>
       <form class="cf" id="cf" novalidate>
-        <label>Ad soyad<input id="f-name" name="name" required autocomplete="name" autocapitalize="words"></label>
-        <label>E-posta<input id="f-mail" name="email" type="email" required autocomplete="email"></label>
+        <label><span class="lbl">Ad soyad<span class="req" aria-hidden="true"> *</span></span><input id="f-name" name="name" required autocomplete="name" autocapitalize="words"></label>
+        <label><span class="lbl">E-posta<span class="req" aria-hidden="true"> *</span></span><input id="f-mail" name="email" type="email" required autocomplete="email"></label>
         <label class="full">Konu
           <select id="f-subject" name="subject">
             <option>Genel soru</option>
@@ -1072,7 +1099,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
             <option>Diğer</option>
           </select>
         </label>
-        <label class="full">Mesajın<textarea id="f-msg" name="message" placeholder="Kendinden ya da fikrinden kısaca bahset"></textarea></label>
+        <label class="full"><span class="lbl">Mesajın <span class="opt">(isteğe bağlı)</span></span><textarea id="f-msg" name="message" placeholder="Kendinden ya da fikrinden kısaca bahset"></textarea></label>
         <button class="btn btn-cran" type="submit">Mesajı gönder</button>
         <div class="form-ok" id="formOk" role="status" hidden></div>
       </form>
@@ -1096,7 +1123,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   </div>
 </footer>
 
-<a class="fab" id="fab" href="#basvuru">Misafir üye başvurusu</a>
+<a class="fab" id="fab" href="#basvuru">Misafir olarak katıl</a>
 <a class="fab-login" href="https://anitteperotaract.org/uye/">Üye girişi</a>
 <div class="toast" id="toast" hidden></div>
 
@@ -1189,13 +1216,18 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   const sendMail=(subject,body,replyTo,kind,confirm)=>fetch("https://fyjcgfbooajuljebxnil.supabase.co/functions/v1/basvuru",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({kind:kind||(/başvuru|application/i.test(subject)?"misafir":"iletisim"),subject,body,reply_to:replyTo,confirm,page:location.href})})
     .then(r=>r.json()).then(j=>{if(!j.ok)throw new Error(j.error||"not sent");return true})
     .catch(()=>{location.href="mailto:anitteperotaract1996@gmail.com?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(body);return false});
+
+  // Alan bazında hata: mesaj alanın altında, ekran okuyucu alanla birlikte okur.
+  const fErr=(el,msg)=>{const id=el.id+"-err";let s=document.getElementById(id);
+    if(!msg){el.removeAttribute("aria-invalid");el.removeAttribute("aria-describedby");if(s)s.remove();return false}
+    if(!s){s=document.createElement("span");s.className="f-err";s.id=id;el.parentElement.append(s)}
+    s.textContent=msg;el.setAttribute("aria-invalid","true");el.setAttribute("aria-describedby",id);return true};
+  document.querySelectorAll("#gf input,#cf input").forEach(i=>i.addEventListener(i.type==="checkbox"?"change":"input",()=>{if(i.getAttribute("aria-invalid"))fErr(i,"")}));
   $("#gf").addEventListener("submit",e=>{
     e.preventDefault();const err=$("#gErr");
     const name=$("#g-name").value.trim(),mail=$("#g-mail").value.trim();
-    if(!name){err.hidden=false;err.textContent="Adını yazman gerekiyor.";$("#g-name").focus();return}
-    if(!/^\S+@\S+\.\S+$/.test(mail)){err.hidden=false;err.textContent="Geçerli bir e-posta adresi yazman gerekiyor.";$("#g-mail").focus();return}
-    if($("#g-tel").value.replace(/\D/g,"").length<10){err.hidden=false;err.textContent="Telefon numaranı yazman gerekiyor.";$("#g-tel").focus();return}
-    if(!$("#g-kvkk").checked){err.hidden=false;err.textContent="Devam etmek için bilgilerinin kullanımını onaylaman gerekiyor.";return}
+    const bad=[["#g-name",!name&&"Adını yazman gerekiyor."],["#g-mail",!/^\S+@\S+\.\S+$/.test(mail)&&"Geçerli bir e-posta adresi yazman gerekiyor."],["#g-tel",$("#g-tel").value.replace(/\D/g,"").length<10&&"Telefon numaranı en az 10 haneli yaz."],["#g-kvkk",!$("#g-kvkk").checked&&"Devam etmek için bilgilerinin kullanımını onaylaman gerekiyor."]].filter(([s,msg])=>fErr($(s),msg)).map(([s])=>$(s));
+    if(bad.length){err.hidden=true;bad[0].focus();return}
     err.hidden=true;
     const m=window._gMeetings[+(document.querySelector('input[name="gdate"]:checked')||{value:0}).value];
     const _l={"name":"Ad soyad","mail":"E-posta","tel":"Telefon","status":"Durum","school":"Okul / meslek","source":"Bizi nereden duydu","interest":"İlgi alanları","date":"Gelmek istediği toplantı"};const _b=[[_l.name,name],[_l.mail,mail],[_l.tel,(($("#g-tel")||{}).value||"").trim()],[_l.status,(($("#g-status")||{}).value||"").trim()],[_l.school,(($("#g-school")||{}).value||"").trim()],[_l.source,(($("#g-source")||{}).value||"").trim()],[_l.interest,$("#gInterest button[aria-pressed=true]").map(b=>b.textContent).join(", ")],[_l.date,m.d.toLocaleDateString(document.documentElement.lang,{day:"numeric",month:"long",weekday:"long"})+" ("+m.no+")"]].filter(x=>x[1]).map(x=>x[0]+": "+x[1]).join("\n");
@@ -1233,9 +1265,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
     {id:"kurulus",cw:"Kasım",t:"Kuruluş yıl dönümü",cat:"kulup",m:10,d:15,when:"Her yıl kasımda",big:"Kasım 1996'dan beri",since:"Kasım 1996'dan beri",x:"Kulübümüzün doğum ayı. 2026'da 30. yaşımızı kutluyoruz.",bg:"linear-gradient(135deg,#D41367,#F78FB8)"},
   ];
   const rail=$("#rail");
-  rail.innerHTML=PROJECTS.map(p=>`<article class="proj" data-cat="${p.cat}">
-    <div class="proj-art${p.img?" has-img":""}" style="background:${p.bg}">${p.img?`<img class="proj-img" style="object-position:${p.pos||"center"}" src="assets/projeler/${p.img}" alt="${p.t} fotoğrafı" loading="lazy" decoding="async">`:""}<span class="when">${p.when}</span><span class="big">${p.big}</span></div>
-    <div class="proj-body"><h3>${p.t}</h3><p>${p.x}</p><small>${p.since}</small></div></article>`).join("");
+  // Kartlar HTML'de statik; burada yalnızca filtre ve kaydırma var.
   $$(".chip").forEach(c=>c.addEventListener("click",()=>{
     $$(".chip").forEach(x=>x.setAttribute("aria-pressed",x===c));
     const f=c.dataset.f;$$(".proj").forEach(p=>p.hidden=!(f==="all"||p.dataset.cat===f));
@@ -1305,7 +1335,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
     $$(".steps button").forEach((b,i)=>{b.setAttribute("aria-selected",i===cur);b.classList.toggle("done",i<cur)});
     panel.innerHTML=`<span class="tag">Adım ${cur+1} / 5</span><h3>${s.h}</h3><p>${s.p}</p>`+
       (s.dots?`<div class="meet-dots">${[1,2,3,4,5].map(i=>`<span>${i}</span>`).join("")}</div>`:"")+
-      (s.cta?`<div><a class="btn btn-cran" href="#basvuru">Misafir üye başvurusu yap</a></div>`:"")+
+      (s.cta?`<div><a class="btn btn-cran" href="#basvuru">Misafir olarak katıl</a></div>`:"")+
       `<div class="step-nav">${cur>0?'<button class="btn btn-ghost" type="button" data-go="-1">Önceki adım</button>':''}${cur<4?'<button class="btn btn-cran" type="button" data-go="1">Sonraki adım</button>':''}</div>`;
     panel.classList.remove("swap");void panel.offsetWidth;panel.classList.add("swap");
     clearInterval(dt);
@@ -1326,14 +1356,11 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   const PHOTOS=["begum-gozupek","can-kilicaslan","ezgi-erdogan","gizem-hanoglu","melishan-ozkan-agca","metehan-can-cirak","muhammed-alperen-celik","ogulcan-gorgulu","selva-tuluy","simay-oguzkurt","umut-ekin-akkus","zehra-cansu-tasanlar"];
   const ini=n=>n.split(" ").filter(Boolean).slice(0,2).map(w=>w[0]).join("").toLocaleUpperCase("tr");
   function renderBoard(t){
-    const b=$("#board");
-    b.innerHTML=BOARD[t].map(([n,r],i)=>`<div class="person${i===0?" lead-p":""}"><div class="avatar">${PHOTO(n)?`<img src="${PHOTO(n)}" alt="${n}" loading="lazy">`:`<span aria-hidden="true">${ini(n)}</span>`}</div><div><b>${n}</b><span>${r}</span></div></div>`).join("");
-    b.classList.remove("fade");void b.offsetWidth;b.classList.add("fade");
-    const c=COMMITTEES[t];
-    $("#committees").innerHTML=c?`<h3>Komite başkanları</h3><ul class="cm">${c.map(([k,n])=>`<li>${PHOTO(n)?`<img class="mini" src="${PHOTO(n)}" alt="" loading="lazy">`:""}<div><b>${n}</b><span>${k} Komitesi</span></div></li>`).join("")}</ul>`:"";
+    $$(".board[data-term],.committees[data-term]").forEach(el=>{el.hidden=el.dataset.term!==t});
+    const b=$(`.board[data-term="${t}"]`);b.classList.remove("fade");void b.offsetWidth;b.classList.add("fade");
   }
-  $$(".seg button").forEach(btn=>btn.addEventListener("click",()=>{$$(".seg button").forEach(x=>x.setAttribute("aria-pressed",x===btn));renderBoard(btn.dataset.term)}));
-  renderBoard("2026");
+
+  $$(".seg button[data-term]").forEach(btn=>btn.addEventListener("click",()=>{$$(".seg button[data-term]").forEach(x=>x.setAttribute("aria-pressed",x===btn));renderBoard(btn.dataset.term)}));
 
 
   // ---------- Copy + form ----------
@@ -1344,7 +1371,8 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   }));
   $("#cf").addEventListener("submit",e=>{
     e.preventDefault();const ok=$("#formOk"),name=$("#f-name").value.trim(),mail=$("#f-mail").value.trim();ok.hidden=false;
-    if(!name||!/^\S+@\S+\.\S+$/.test(mail)){ok.textContent="Adını ve geçerli bir e-posta adresini yazman gerekiyor.";return}
+    const cfBad=[["#f-name",!name&&"Adını yazman gerekiyor."],["#f-mail",!/^\S+@\S+\.\S+$/.test(mail)&&"Geçerli bir e-posta adresi yazman gerekiyor."]].filter(([s,msg])=>fErr($(s),msg)).map(([s])=>$(s));
+    if(cfBad.length){ok.hidden=true;cfBad[0].focus();return}
     ok.textContent="Mesajın gönderiliyor…";
     sendMail(((($("#f-subject")||{}).value||"").trim()||"Web sitesinden mesaj")+": "+name,(($("#f-msg")||{}).value||"").trim()+"\n\n"+name+" <"+mail+">",mail,"iletisim",{name,lang:"tr",topic:(($("#f-subject")||{}).value||"").trim(),message:(($("#f-msg")||{}).value||"").trim()}).then(sent=>{ok.textContent=sent?`Teşekkürler ${name.split(" ")[0]}. Mesajın bize ulaştı; en kısa sürede dönüş yapacağız.`:`Teşekkürler ${name.split(" ")[0]}. E-posta uygulaman mesajınla açıldı; Gönder'e bastığında bize ulaşır.`});
   });

@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611130002";
-import { can, hasRole } from "./roles.js?v=202611130002";
+import { CONFIG } from "./config.js?v=202611130051";
+import { can, hasRole } from "./roles.js?v=202611130051";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -553,9 +553,12 @@ async function supabaseStore() {
       try { return await fn("caption", input); }
       catch (e) { return { caption: templateCaption(input), source: "sablon", error: e.message }; }
     },
-    async publishInstagram({ blob, caption, post_id }) {
-      const image_base64 = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1]); r.onerror = rej; r.readAsDataURL(blob); });
-      const j = await fn("instagram-publish", { image_base64, caption, post_id });
+    async publishInstagram({ blob, blobs, caption, post_id }) {
+      const b64 = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1]); r.onerror = rej; r.readAsDataURL(b); });
+      const list = blobs && blobs.length ? blobs : [blob];
+      // Birden fazla sayfa varsa kaydırmalı (carousel) gönderi olarak paylaşılır.
+      const body = list.length > 1 ? { images_base64: await Promise.all(list.map(b64)), caption, post_id } : { image_base64: await b64(list[0]), caption, post_id };
+      const j = await fn("instagram-publish", body);
       return { ok: true, ...j };
     }
   };

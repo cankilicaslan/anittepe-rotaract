@@ -7,6 +7,7 @@
 // Body (iki seçenek):
 //   a) multipart/form-data: image (JPEG dosyası/Blob), caption, post_id (isteğe bağlı)
 //   b) application/json:   { image_base64 (JPEG, "data:image/jpeg;base64," öneki olabilir), caption, post_id? }
+//      ya da kaydırmalı gönderi için { images_base64: [JPEG, ...] (2–10 sayfa), caption, post_id? }
 // Yanıt: 200 { ok: true, media_id, permalink, image_url }  |  4xx/5xx { ok: false, error: "<Türkçe mesaj>" }
 //
 // Gerekli secret'lar: IG_USER_ID, IG_ACCESS_TOKEN
@@ -78,9 +79,12 @@ function isJpeg(bytes: Uint8Array): boolean {
   return bytes.length > 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
 }
 
-async function readInput(req: Request): Promise<{ bytes: Uint8Array; caption: string; postId: string | null }> {
+const MAX_CAROUSEL = 10; // Instagram kaydırmalı gönderi sınırı
+
+async function readInput(req: Request): Promise<{ images: Uint8Array[]; caption: string; postId: string | null }> {
   const ct = req.headers.get("content-type") ?? "";
   let bytes: Uint8Array | null = null;
+  let images: Uint8Array[] = [];
   let caption = "";
   let postId: string | null = null;
 
@@ -102,25 +106,32 @@ async function readInput(req: Request): Promise<{ bytes: Uint8Array; caption: st
     } catch {
       throw new HttpError(400, "İstek gövdesi geçerli değil (JSON veya multipart bekleniyor).");
     }
-    if (typeof body.image_base64 === "string") {
-      try {
+    try {
+      if (Array.isArray(body.images_base64)) {
+        images = (body.images_base64 as unknown[]).filter((x): x is string => typeof x === "string").map(base64ToBytes);
+      } else if (typeof body.image_base64 === "string") {
         bytes = base64ToBytes(body.image_base64);
-      } catch {
-        throw new HttpError(400, "Görsel verisi (base64) çözülemedi.");
       }
+    } catch {
+      throw new HttpError(400, "Görsel verisi (base64) çözülemedi.");
     }
     caption = typeof body.caption === "string" ? body.caption : "";
     postId = typeof body.post_id === "string" && body.post_id ? body.post_id : null;
   }
 
-  if (!bytes || bytes.length === 0) throw new HttpError(400, "Görsel bulunamadı.");
-  if (!isJpeg(bytes)) throw new HttpError(400, "Instagram yalnızca JPEG görsel kabul ediyor. Görseli JPEG olarak gönderin.");
-  if (bytes.length > MAX_IMAGE_BYTES) throw new HttpError(400, "Görsel 8 MB'tan büyük olamaz.");
+  if (!images.length && bytes) images = [bytes];
+  if (!images.length || images.some((b) => b.length === 0)) throw new HttpError(400, "Görsel bulunamadı.");
+  if (images.length > MAX_CAROUSEL) throw new HttpError(400, `Bir gönderide en fazla ${MAX_CAROUSEL} sayfa olabilir.`);
+  for (const [i, b] of images.entries()) {
+    const which = images.length > 1 ? `${i + 1}. sayfa: ` : "";
+    if (!isJpeg(b)) throw new HttpError(400, `${which}Instagram yalnızca JPEG görsel kabul ediyor.`);
+    if (b.length > MAX_IMAGE_BYTES) throw new HttpError(400, `${which}Görsel 8 MB'tan büyük olamaz.`);
+  }
   caption = caption.trim();
   if (caption.length > MAX_CAPTION_CHARS) {
     throw new HttpError(400, `Açıklama en fazla ${MAX_CAPTION_CHARS} karakter olabilir.`);
   }
-  return { bytes, caption, postId };
+  return { images, caption, postId };
 }
 
 type GraphResult = Record<string, unknown> & { error?: { message?: string; code?: number; error_user_msg?: string } };
@@ -174,41 +185,60 @@ Deno.serve(async (req: Request) => {
       throw new HttpError(500, "Instagram ayarları (IG_USER_ID / IG_ACCESS_TOKEN) tanımlı değil.");
     }
 
-    // 1) Görseli Storage'a yükle (Instagram görseli herkese açık bir URL'den çeker)
+    // 1) Görselleri Storage'a yükle (Instagram görseli herkese açık bir URL'den çeker)
     const now = new Date();
-    const path = `ig/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}/${crypto.randomUUID()}.jpg`;
-    const { error: upErr } = await admin.storage.from("posts").upload(path, input.bytes, {
-      contentType: "image/jpeg",
-      upsert: false,
-    });
-    if (upErr) {
-      console.error("Storage yükleme hatası", upErr);
-      throw new HttpError(500, "Görsel depolamaya yüklenemedi.");
-    }
-    imageUrl = admin.storage.from("posts").getPublicUrl(path).data.publicUrl;
-
-    // 2) Medya kapsayıcısı oluştur
-    const container = await graph("POST", `${igUserId}/media`, {
-      image_url: imageUrl,
-      caption: input.caption,
-      access_token: igToken,
-    });
-    const creationId = String(container.id ?? "");
-    if (!creationId) throw new HttpError(502, "Instagram medya kapsayıcısı oluşturulamadı.");
-
-    // 3) Hazır olana kadar bekle (en fazla ~30 sn)
-    let statusCode = "";
-    for (let i = 0; i < 15; i++) {
-      const st = await graph("GET", creationId, { fields: "status_code", access_token: igToken });
-      statusCode = String(st.status_code ?? "");
-      if (statusCode === "FINISHED") break;
-      if (statusCode === "ERROR" || statusCode === "EXPIRED") {
-        throw new HttpError(502, "Instagram görseli işleyemedi. Görselin JPEG olduğundan ve oranının 4:5 ile 1.91:1 arasında olduğundan emin olun.");
+    const dir = `ig/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+    const urls: string[] = [];
+    for (const bytes of input.images) {
+      const path = `${dir}/${crypto.randomUUID()}.jpg`;
+      const { error: upErr } = await admin.storage.from("posts").upload(path, bytes, { contentType: "image/jpeg", upsert: false });
+      if (upErr) {
+        console.error("Storage yükleme hatası", upErr);
+        throw new HttpError(500, "Görsel depolamaya yüklenemedi.");
       }
-      await sleep(2000);
+      urls.push(admin.storage.from("posts").getPublicUrl(path).data.publicUrl);
     }
-    if (statusCode !== "FINISHED") {
-      throw new HttpError(504, "Instagram görseli zamanında hazırlayamadı. Birkaç dakika sonra tekrar deneyin.");
+    imageUrl = urls[0];
+
+    // Kapsayıcı hazır olana kadar bekler (en fazla ~30 sn)
+    const waitReady = async (id: string, what: string) => {
+      for (let i = 0; i < 15; i++) {
+        const st = await graph("GET", id, { fields: "status_code", access_token: igToken });
+        const code = String(st.status_code ?? "");
+        if (code === "FINISHED") return;
+        if (code === "ERROR" || code === "EXPIRED") {
+          throw new HttpError(502, `Instagram ${what} işleyemedi. Görselin JPEG olduğundan ve oranının 4:5 ile 1.91:1 arasında olduğundan emin olun.`);
+        }
+        await sleep(2000);
+      }
+      throw new HttpError(504, `Instagram ${what} zamanında hazırlayamadı. Birkaç dakika sonra tekrar deneyin.`);
+    };
+
+    // 2) Medya kapsayıcısı: tek görselde doğrudan, birden fazlasında kaydırmalı (CAROUSEL)
+    let creationId = "";
+    if (urls.length === 1) {
+      const container = await graph("POST", `${igUserId}/media`, { image_url: urls[0], caption: input.caption, access_token: igToken });
+      creationId = String(container.id ?? "");
+      if (!creationId) throw new HttpError(502, "Instagram medya kapsayıcısı oluşturulamadı.");
+      await waitReady(creationId, "görseli");
+    } else {
+      const children: string[] = [];
+      for (const [i, url] of urls.entries()) {
+        const item = await graph("POST", `${igUserId}/media`, { image_url: url, is_carousel_item: "true", access_token: igToken });
+        const id = String(item.id ?? "");
+        if (!id) throw new HttpError(502, `Instagram ${i + 1}. sayfanın kapsayıcısını oluşturamadı.`);
+        children.push(id);
+      }
+      for (const [i, id] of children.entries()) await waitReady(id, `${i + 1}. sayfayı`);
+      const carousel = await graph("POST", `${igUserId}/media`, {
+        media_type: "CAROUSEL",
+        children: children.join(","),
+        caption: input.caption,
+        access_token: igToken,
+      });
+      creationId = String(carousel.id ?? "");
+      if (!creationId) throw new HttpError(502, "Instagram kaydırmalı gönderi kapsayıcısı oluşturulamadı.");
+      await waitReady(creationId, "kaydırmalı gönderiyi");
     }
 
     // 4) Yayınla

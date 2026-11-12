@@ -348,3 +348,29 @@
   .cmp-btn-sm { min-height: 44px; }
   .cmp input[type="range"] { min-height: 32px; }
 }
+
+/* ---------- ek sayfalar (kaydırmalı gönderi) ---------- */
+.cmp-extra { margin-top: 16px; padding: 14px; border: 1px solid var(--_line); border-radius: var(--_radius); background: var(--_surface); display: grid; gap: 10px; }
+.cmp-extra.is-over { border-color: var(--_cran); background: var(--_soft); }
+.cmp-extra-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.cmp-extra-head strong { color: var(--_deep); }
+.cmp-extra-count { font-size: .8125rem; color: var(--_muted); font-weight: 600; }
+.cmp-extra .cmp-hint { margin: 0; }
+.cmp-extra-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+.cmp-extra-list:empty { display: none; }
+.cmp-extra-item { position: relative; display: grid; gap: 4px; }
+.cmp-extra-thumb { aspect-ratio: 4 / 5; width: 100%; border: 2px solid var(--_line); border-radius: 10px; background: var(--_bg2) center / cover no-repeat; cursor: pointer; padding: 0; }
+.cmp-extra-thumb[aria-pressed="true"] { border-color: var(--_cran); box-shadow: 0 0 0 3px color-mix(in srgb, var(--_cran) 22%, transparent); }
+.cmp-extra-thumb:focus-visible, .cmp-icon-btn:focus-visible { outline: 2px solid var(--_cran); outline-offset: 2px; }
+.cmp-extra-no { position: absolute; top: 6px; left: 6px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: rgba(30, 20, 32, .7); color: #fff; font-size: .75rem; font-weight: 700; display: grid; place-items: center; pointer-events: none; }
+.cmp-extra-btns { display: flex; justify-content: space-between; gap: 4px; }
+.cmp-icon-btn { flex: 1; min-height: 32px; border: 1px solid var(--_line); border-radius: 8px; background: var(--_surface); color: var(--_ink); font: 700 .9rem/1 inherit; cursor: pointer; }
+.cmp-icon-btn:hover:not(:disabled) { border-color: var(--_cran); color: var(--_cran); }
+.cmp-icon-btn:disabled { opacity: .35; cursor: default; }
+.cmp-icon-del:hover:not(:disabled) { background: #FDECEE; color: #B0083C; border-color: #B0083C; }
+.cmp-extra > .cmp-btn { justify-self: start; }
+.cmp-pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 10px; }
+.cmp-pager[hidden] { display: none; }
+.cmp-pager-label { font-weight: 700; font-size: .875rem; min-width: 120px; text-align: center; }
+.cmp-pager .cmp-btn { min-width: 44px; min-height: 40px; font-size: 1.2rem; }
+@media (pointer: coarse) { .cmp-icon-btn { min-height: 40px; } }

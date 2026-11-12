@@ -234,6 +234,9 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     photo: null, // { img, url, name }
     pos: { x: 0.5, y: 0.5 },
     zoom: 1,
+    // Kaydırmalı gönderi: kapaktan sonraki sayfalar [{ img, url, name, pos, zoom }]
+    extra: [],
+    cur: 0, // önizlemedeki sayfa: 0 = kapak, 1.. = ek sayfalar
     logo: null,
     fontsReady: false,
     busy: false,
@@ -269,7 +272,18 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   );
   const photoHint = el('p', { class: 'cmp-hint', text: 'Konumu ayarlamak için önizlemedeki fotoğrafı sürükleyin (ya da önizlemeye odaklanıp ok tuşlarını kullanın).' });
 
-  const photoSection = el('section', { class: 'cmp-photo', 'aria-label': 'Fotoğraf' }, dropzone, photoTools, photoHint, fileInput);
+  // Ek sayfalar (kaydırmalı gönderi)
+  const extraInput = el('input', { type: 'file', accept: 'image/*', multiple: true, class: 'cmp-file', tabindex: '-1', 'aria-hidden': 'true' });
+  const extraList = el('ul', { class: 'cmp-extra-list', 'aria-label': 'Ek sayfalar' });
+  const extraAdd = el('button', { type: 'button', class: 'cmp-btn cmp-btn-soft cmp-btn-sm', text: '+ Sayfa ekle' });
+  const extraCount = el('span', { class: 'cmp-extra-count', text: '' });
+  const extraSection = el('div', { class: 'cmp-extra' },
+    el('div', { class: 'cmp-extra-head' }, el('strong', { text: 'Ek sayfalar' }), extraCount),
+    el('p', { class: 'cmp-hint', text: 'Kaydırmalı gönderi için kapaktan sonra en fazla 9 fotoğraf ekleyin; her biri ayrı sayfa olur. Birden fazla fotoğrafı aynı anda seçebilir ya da buraya sürükleyebilirsiniz.' }),
+    extraList, extraAdd, extraInput,
+  );
+
+  const photoSection = el('section', { class: 'cmp-photo', 'aria-label': 'Fotoğraf' }, dropzone, photoTools, photoHint, fileInput, extraSection);
 
   // Tür seçici
   const typeBtns = TYPES.map((t) =>
@@ -359,9 +373,15 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     'aria-label': 'Gönderi önizlemesi (1080×1350)',
   });
   const ctx = canvas.getContext('2d');
+  const pagePrev = el('button', { type: 'button', class: 'cmp-btn cmp-btn-ghost cmp-btn-sm', 'aria-label': 'Önceki sayfa', text: '‹' });
+  const pageNext = el('button', { type: 'button', class: 'cmp-btn cmp-btn-ghost cmp-btn-sm', 'aria-label': 'Sonraki sayfa', text: '›' });
+  const pageLabel = el('span', { class: 'cmp-pager-label', 'aria-live': 'polite', text: '' });
+  const pager = el('div', { class: 'cmp-pager', hidden: true }, pagePrev, pageLabel, pageNext);
+  const previewCap = el('p', { class: 'cmp-preview-cap', text: '1080 × 1350 · Instagram dikey gönderi' });
   const preview = el('aside', { class: 'cmp-preview', 'aria-label': 'Canlı önizleme' },
     el('div', { class: 'cmp-preview-frame' }, canvas),
-    el('p', { class: 'cmp-preview-cap', text: '1080 × 1350 · Instagram dikey gönderi' }),
+    pager,
+    previewCap,
   );
 
   // Geçmiş
@@ -390,16 +410,60 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     raf = requestAnimationFrame(() => { raf = 0; draw(); });
   }
 
-  function photoGeom() {
-    const { img } = state.photo;
+  // Önizlemedeki sayfanın fotoğrafı: kapakta üst alan (PHOTO_H), ek sayfalarda alt marka şeridine kadar tüm alan.
+  const EXTRA_H = H - 14;
+  function active() {
+    if (state.cur === 0) {
+      return state.photo ? { img: state.photo.img, h: PHOTO_H, pos: state.pos, get zoom() { return state.zoom; }, set zoom(v) { state.zoom = v; }, reset() { state.pos = { x: 0.5, y: 0.5 }; state.zoom = 1; } } : null;
+    }
+    const s = state.extra[state.cur - 1];
+    return s ? { img: s.img, h: EXTRA_H, pos: s.pos, get zoom() { return s.zoom; }, set zoom(v) { s.zoom = v; }, reset() { s.pos = { x: 0.5, y: 0.5 }; s.zoom = 1; } } : null;
+  }
+
+  function photoGeom(a = active()) {
+    const { img } = a;
     const iw = img.naturalWidth || img.width;
     const ih = img.naturalHeight || img.height;
-    const s = Math.max(W / iw, PHOTO_H / ih) * state.zoom;
+    const s = Math.max(W / iw, a.h / ih) * a.zoom;
     const dw = iw * s;
     const dh = ih * s;
     const ox = dw - W;
-    const oy = dh - PHOTO_H;
-    return { dw, dh, ox, oy, dx: -ox * state.pos.x, dy: -oy * state.pos.y };
+    const oy = dh - a.h;
+    return { dw, dh, ox, oy, dx: -ox * a.pos.x, dy: -oy * a.pos.y };
+  }
+
+  // Ek sayfa: fotoğraf tam sayfa, altta kapakla aynı marka şeridi ve küçük sayfa numarası.
+  function drawExtra(s, index, total) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    setSpacing(ctx, 0);
+    ctx.fillStyle = C.ink;
+    ctx.fillRect(0, 0, W, H);
+    const g = photoGeom({ img: s.img, h: EXTRA_H, pos: s.pos, zoom: s.zoom });
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, W, EXTRA_H);
+    ctx.clip();
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(s.img, g.dx, g.dy, g.dw, g.dh);
+    ctx.restore();
+    // sayfa numarası (sağ üst, yarı saydam hap)
+    const label = `${index + 1}/${total}`;
+    ctx.font = `700 28px ${FONT}`;
+    const tw = ctx.measureText(label).width;
+    ctx.fillStyle = 'rgba(30,20,32,0.55)';
+    roundRect(ctx, W - M - tw - 36, M - 10, tw + 36, 52, 26);
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, W - M - (tw + 36) / 2, M + 16);
+    ctx.fillStyle = C.cran;
+    ctx.fillRect(0, H - 14, W, 14);
+    ctx.fillStyle = C.gold;
+    ctx.fillRect(W - M - 120, H - 14, 120, 14);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
   }
 
   function drawPhoto() {
@@ -408,7 +472,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     ctx.rect(0, 0, W, PHOTO_H);
     ctx.clip();
     if (state.photo) {
-      const g = photoGeom();
+      const g = photoGeom({ img: state.photo.img, h: PHOTO_H, pos: state.pos, zoom: state.zoom });
       ctx.fillStyle = C.ink;
       ctx.fillRect(0, 0, W, PHOTO_H);
       ctx.imageSmoothingQuality = 'high';
@@ -484,6 +548,10 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   }
 
   function draw() {
+    if (state.cur > 0 && state.extra[state.cur - 1]) {
+      drawExtra(state.extra[state.cur - 1], state.cur, state.extra.length + 1);
+      return;
+    }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, W, H);
     setSpacing(ctx, 0);
@@ -623,8 +691,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
       state.pos = { x: 0.5, y: 0.5 };
       state.zoom = 1;
       zoomInput.value = '1';
-      updatePhotoUI();
-      scheduleRender();
+      showPage(0);
     } catch {
       URL.revokeObjectURL(url);
       toast('Bu görsel açılamadı. Farklı bir dosya deneyin (HEIC desteklenmeyebilir).', 'error');
@@ -644,12 +711,13 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
 
   function updatePhotoUI() {
     const has = !!state.photo;
+    const act = !!active();
     dropzone.classList.toggle('has-photo', has);
-    zoomInput.disabled = !has;
-    centerBtn.disabled = !has;
+    zoomInput.disabled = !act;
+    centerBtn.disabled = !act;
     removeBtn.disabled = !has;
-    photoHint.hidden = !has;
-    canvas.classList.toggle('can-drag', has);
+    photoHint.hidden = !act;
+    canvas.classList.toggle('can-drag', act);
     dzThumb.style.backgroundImage = has ? `url("${state.photo.url}")` : '';
     dzTitle.textContent = has ? 'Fotoğrafı değiştir' : 'Fotoğrafı buraya sürükleyin';
     dzSub.textContent = has
@@ -712,12 +780,14 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   document.addEventListener('paste', onPaste);
 
   zoomInput.addEventListener('input', () => {
-    state.zoom = clamp(parseFloat(zoomInput.value) || 1, 1, 3);
+    const a = active();
+    if (!a) return;
+    a.zoom = clamp(parseFloat(zoomInput.value) || 1, 1, 3);
     scheduleRender();
   });
   centerBtn.addEventListener('click', () => {
-    state.pos = { x: 0.5, y: 0.5 };
-    state.zoom = 1;
+    const a = active();
+    if (a) a.reset();
     zoomInput.value = '1';
     scheduleRender();
   });
@@ -731,26 +801,27 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   };
   canvas.addEventListener('pointerdown', (e) => {
     const p = canvasPoint(e);
-    if (p.y > PHOTO_H) return;
-    if (!state.photo) return; // boşsa click ile seçici açılır
+    if (state.cur === 0 && p.y > PHOTO_H) return;
+    if (!active()) return; // boşsa click ile seçici açılır
     e.preventDefault();
     canvas.setPointerCapture(e.pointerId);
     drag = { id: e.pointerId, lx: e.clientX, ly: e.clientY, k: p.k };
     canvas.classList.add('is-dragging');
   });
   canvas.addEventListener('pointermove', (e) => {
-    if (drag && e.pointerId === drag.id && state.photo) {
-      const g = photoGeom();
+    const a = active();
+    if (drag && e.pointerId === drag.id && a) {
+      const g = photoGeom(a);
       const dx = (e.clientX - drag.lx) * drag.k;
       const dy = (e.clientY - drag.ly) * drag.k;
       drag.lx = e.clientX;
       drag.ly = e.clientY;
-      if (g.ox > 0) state.pos.x = clamp(state.pos.x - dx / g.ox, 0, 1);
-      if (g.oy > 0) state.pos.y = clamp(state.pos.y - dy / g.oy, 0, 1);
+      if (g.ox > 0) a.pos.x = clamp(a.pos.x - dx / g.ox, 0, 1);
+      if (g.oy > 0) a.pos.y = clamp(a.pos.y - dy / g.oy, 0, 1);
       scheduleRender();
     } else {
       const p = canvasPoint(e);
-      canvas.classList.toggle('over-photo', p.y <= PHOTO_H);
+      canvas.classList.toggle('over-photo', state.cur > 0 || p.y <= PHOTO_H);
     }
   });
   const endDrag = (e) => {
@@ -762,29 +833,115 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   canvas.addEventListener('pointerup', endDrag);
   canvas.addEventListener('pointercancel', endDrag);
   canvas.addEventListener('click', (e) => {
-    if (state.photo) return;
+    if (state.cur !== 0 || state.photo) return;
     if (canvasPoint(e).y <= PHOTO_H) openPicker();
   });
   canvas.addEventListener('keydown', (e) => {
-    if (!state.photo) {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPicker(); }
+    const a = active();
+    if (!a) {
+      if (state.cur === 0 && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openPicker(); }
       return;
     }
     const step = e.shiftKey ? 0.1 : 0.02;
     const map = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
     if (map[e.key]) {
       e.preventDefault();
-      state.pos.x = clamp(state.pos.x + map[e.key][0], 0, 1);
-      state.pos.y = clamp(state.pos.y + map[e.key][1], 0, 1);
+      a.pos.x = clamp(a.pos.x + map[e.key][0], 0, 1);
+      a.pos.y = clamp(a.pos.y + map[e.key][1], 0, 1);
       scheduleRender();
     } else if (e.key === '+' || e.key === '=') {
       e.preventDefault();
-      state.zoom = clamp(state.zoom + 0.1, 1, 3); zoomInput.value = String(state.zoom); scheduleRender();
+      a.zoom = clamp(a.zoom + 0.1, 1, 3); zoomInput.value = String(a.zoom); scheduleRender();
     } else if (e.key === '-') {
       e.preventDefault();
-      state.zoom = clamp(state.zoom - 0.1, 1, 3); zoomInput.value = String(state.zoom); scheduleRender();
+      a.zoom = clamp(a.zoom - 0.1, 1, 3); zoomInput.value = String(a.zoom); scheduleRender();
     }
   });
+
+  // ----- ek sayfalar (kaydırmalı gönderi) -----
+
+  const MAX_EXTRA = 9;
+  async function addExtraFiles(files) {
+    const list = [...files].filter((f) => /^image\//.test(f.type));
+    if (!list.length) return;
+    const room = MAX_EXTRA - state.extra.length;
+    if (room <= 0) { toast('En fazla 10 sayfa olabilir (kapak + 9).', 'error'); return; }
+    if (list.length > room) toast(`İlk ${room} fotoğraf eklendi; Instagram en fazla 10 sayfaya izin veriyor.`, 'error');
+    for (const f of list.slice(0, room)) {
+      const url = URL.createObjectURL(f);
+      try {
+        const img = await loadImage(url);
+        if (destroyed) { URL.revokeObjectURL(url); return; }
+        state.extra.push({ img, url, name: f.name || 'gorsel', pos: { x: 0.5, y: 0.5 }, zoom: 1 });
+      } catch {
+        URL.revokeObjectURL(url);
+        toast(`${f.name || 'Bir görsel'} açılamadı (HEIC desteklenmeyebilir).`, 'error');
+      }
+    }
+    renderExtra();
+    showPage(state.extra.length);
+  }
+
+  function moveExtra(i, d) {
+    const j = i + d;
+    if (j < 0 || j >= state.extra.length) return;
+    [state.extra[i], state.extra[j]] = [state.extra[j], state.extra[i]];
+    renderExtra();
+    showPage(j + 1);
+  }
+
+  function removeExtra(i) {
+    const [s] = state.extra.splice(i, 1);
+    if (s) URL.revokeObjectURL(s.url);
+    renderExtra();
+    showPage(Math.min(state.cur, state.extra.length));
+  }
+
+  function renderExtra() {
+    extraCount.textContent = state.extra.length ? `${state.extra.length + 1} sayfa` : '';
+    extraAdd.disabled = state.extra.length >= MAX_EXTRA;
+    extraList.replaceChildren(...state.extra.map((s, i) => {
+      const thumb = el('button', { type: 'button', class: 'cmp-extra-thumb', 'aria-label': `${i + 2}. sayfayı önizle`, 'aria-pressed': String(state.cur === i + 1) });
+      thumb.style.backgroundImage = `url("${s.url}")`;
+      thumb.addEventListener('click', () => showPage(i + 1));
+      const left = el('button', { type: 'button', class: 'cmp-icon-btn', 'aria-label': `${i + 2}. sayfayı öne al`, disabled: i === 0, text: '←' });
+      const right = el('button', { type: 'button', class: 'cmp-icon-btn', 'aria-label': `${i + 2}. sayfayı geriye al`, disabled: i === state.extra.length - 1, text: '→' });
+      const del = el('button', { type: 'button', class: 'cmp-icon-btn cmp-icon-del', 'aria-label': `${i + 2}. sayfayı kaldır`, text: '×' });
+      left.addEventListener('click', () => moveExtra(i, -1));
+      right.addEventListener('click', () => moveExtra(i, 1));
+      del.addEventListener('click', () => removeExtra(i));
+      return el('li', { class: 'cmp-extra-item' }, thumb, el('span', { class: 'cmp-extra-no', text: `${i + 2}` }), el('div', { class: 'cmp-extra-btns' }, left, right, del));
+    }));
+    if (readOnly) extraSection.querySelectorAll('button').forEach((b) => { if (!b.classList.contains('cmp-extra-thumb')) b.disabled = true; });
+  }
+
+  function showPage(i) {
+    state.cur = clamp(i, 0, state.extra.length);
+    const total = state.extra.length + 1;
+    pager.hidden = total < 2;
+    pageLabel.textContent = state.cur === 0 ? `Kapak · 1 / ${total}` : `Sayfa ${state.cur + 1} / ${total}`;
+    pagePrev.disabled = state.cur === 0;
+    pageNext.disabled = state.cur >= total - 1;
+    previewCap.textContent = total > 1 ? `1080 × 1350 · ${total} sayfalı kaydırmalı gönderi` : '1080 × 1350 · Instagram dikey gönderi';
+    downloadBtn.textContent = total > 1 ? `Görselleri indir (${total})` : 'Görseli indir';
+    extraList.querySelectorAll('.cmp-extra-thumb').forEach((b, k) => b.setAttribute('aria-pressed', String(state.cur === k + 1)));
+    const a = active();
+    zoomInput.value = String(a ? a.zoom : 1);
+    updatePhotoUI();
+    scheduleRender();
+  }
+
+  extraAdd.addEventListener('click', () => extraInput.click());
+  extraInput.addEventListener('change', () => { const fs = extraInput.files ? [...extraInput.files] : []; extraInput.value = ''; addExtraFiles(fs); });
+  pagePrev.addEventListener('click', () => showPage(state.cur - 1));
+  pageNext.addEventListener('click', () => showPage(state.cur + 1));
+  {
+    let depth = 0;
+    extraSection.addEventListener('dragenter', (e) => { if (!hasFiles(e)) return; e.preventDefault(); depth++; extraSection.classList.add('is-over'); });
+    extraSection.addEventListener('dragover', (e) => { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+    extraSection.addEventListener('dragleave', () => { depth = Math.max(0, depth - 1); if (!depth) extraSection.classList.remove('is-over'); });
+    extraSection.addEventListener('drop', (e) => { if (!hasFiles(e)) return; e.preventDefault(); e.stopPropagation(); depth = 0; extraSection.classList.remove('is-over'); addExtraFiles(e.dataTransfer.files); });
+  }
 
   // ----- tür & alanlar -----
 
@@ -877,21 +1034,34 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     return `anittepe-rotaract-${t}${no ? `-${no}` : ''}-${state.date}.jpg`;
   }
 
-  async function renderBlob() {
+  // Tüm sayfaları sırayla çizip JPEG olarak döndürür (kapak + ek sayfalar).
+  async function renderBlobs() {
     if (raf) { cancelAnimationFrame(raf); raf = 0; }
-    draw();
-    return canvasToBlob(canvas);
+    const keep = state.cur;
+    const blobs = [];
+    try {
+      for (let i = 0; i <= state.extra.length; i++) {
+        state.cur = i;
+        draw();
+        blobs.push(await canvasToBlob(canvas));
+      }
+    } finally {
+      state.cur = keep;
+      draw();
+    }
+    return blobs;
   }
 
   async function downloadImage() {
     try {
-      const blob = await renderBlob();
-      const url = URL.createObjectURL(blob);
-      const a = el('a', { href: url, download: fileName() });
-      document.body.append(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      const blobs = await renderBlobs();
+      const base = fileName().replace(/\.jpg$/, '');
+      blobs.forEach((blob, i) => {
+        const url = URL.createObjectURL(blob);
+        const a = el('a', { href: url, download: blobs.length > 1 ? `${base}-${i + 1}.jpg` : `${base}.jpg` });
+        document.body.append(a);
+        setTimeout(() => { a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); }, i * 350);
+      });
     } catch (e) {
       toast(e.message || 'Görsel indirilemedi.', 'error');
     }
@@ -1000,8 +1170,9 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     publishBtn.textContent = 'Paylaşılıyor…';
     const fields = postFields();
     try {
-      const blob = await renderBlob();
-      const res = await store.publishInstagram({ blob, caption: state.caption });
+      const blobs = await renderBlobs();
+      if (blobs.length > 1) publishBtn.textContent = `${blobs.length} sayfa paylaşılıyor…`;
+      const res = await store.publishInstagram({ blobs, blob: blobs[0], caption: state.caption });
       if (res && res.ok) {
         await savePostSafe({ ...fields, caption: state.caption, status: 'paylasildi', ig_media_id: res.media_id || null, image_url: res.image_url || null });
         toast(res.permalink ? `Instagram’da paylaşıldı: ${res.permalink}` : 'Instagram’da paylaşıldı.', 'success');
@@ -1104,7 +1275,8 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     await Promise.all([fontsP, logoP]);
   }
 
-  updatePhotoUI();
+  renderExtra();
+  showPage(0);
   const ready = init().catch((e) => toast(e.message || 'Hazırlayıcı yüklenemedi.', 'error'));
 
   return {
@@ -1114,6 +1286,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
       if (raf) cancelAnimationFrame(raf);
       document.removeEventListener('paste', onPaste);
       if (state.photo) URL.revokeObjectURL(state.photo.url);
+      state.extra.forEach((s) => URL.revokeObjectURL(s.url));
       root.replaceChildren();
       root.classList.remove('cmp');
     },

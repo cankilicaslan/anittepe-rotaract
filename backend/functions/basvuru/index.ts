@@ -114,7 +114,7 @@ function confirmMail(kind: string, c: Confirm): { subject: string; html: string;
         : p("Mesajın bize ulaştı. Kulüpten biri en kısa sürede, genellikle birkaç gün içinde sana dönüş yapacak.")) +
     box([[en ? "Topic" : "Konu", topic], ...(msg ? [[en ? "Your message" : "Mesajın", msg] as [string, string]] : [])]) +
     (en ? p("Want to see us in person? Our meetings are every other Thursday at 7:30 pm at Hybrid Hub, Ankara.")
-        : p("Bizi yakından tanımak istersen toplantılarımız iki haftada bir Perşembe 19.30'da Hybrid Hub'da.")) +
+        : p("Bizi yakından tanımak istersen toplantılarımız iki haftada bir perşembe 19.30'da Hybrid Hub'da.")) +
     btn("https://anitteperotaract.org/#basvuru", en ? "Come as a guest" : "Misafir olarak gel"), c.lang);
   const text = en
     ? `Thanks, ${c.name}! Your message reached us and we'll get back to you soon.\nTopic: ${c.topic}\n\nAnkara Anıttepe Rotaract Kulübü`

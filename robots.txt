@@ -1,0 +1,3 @@
+User-agent: *
+Disallow: /uye/
+Sitemap: https://anitteperotaract.org/sitemap.xml

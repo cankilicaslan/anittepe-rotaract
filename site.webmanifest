@@ -1,0 +1,12 @@
+{
+  "name": "Ankara Anıttepe Rotaract Kulübü",
+  "short_name": "Anıttepe Rotaract",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#FFF7FA",
+  "theme_color": "#D41367",
+  "icons": [
+    { "src": "/assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/assets/icons/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}

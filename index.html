@@ -3,20 +3,35 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Ankara Anıttepe Rotaract Kulübü</title>
+<title>Ankara Anıttepe Rotaract Kulübü | Ankara'da gönüllülük ve liderlik</title>
+<link rel="canonical" href="https://anitteperotaract.org/">
 <link rel="alternate" hreflang="tr" href="https://anitteperotaract.org/">
 <link rel="alternate" hreflang="en" href="https://anitteperotaract.org/en/">
+<link rel="alternate" hreflang="x-default" href="https://anitteperotaract.org/">
+<link rel="manifest" href="https://anitteperotaract.org/site.webmanifest">
 <link rel="icon" type="image/png" sizes="32x32" href="https://anitteperotaract.org/assets/icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="64x64" href="https://anitteperotaract.org/assets/icons/favicon-64.png">
 <link rel="icon" type="image/png" sizes="512x512" href="https://anitteperotaract.org/assets/icons/icon-512.png">
 <link rel="apple-touch-icon" href="https://anitteperotaract.org/assets/icons/apple-touch-icon.png">
 <meta name="theme-color" content="#D41367">
 <meta name="description" content="Ankara Anıttepe Rotaract Kulübü 1996'dan beri Ankara'da. 18–30 yaş arası gençlerle gönüllülük, liderlik ve dostluk. Toplantılar, projeler ve üyelik.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Ankara Anıttepe Rotaract Kulübü">
+<meta property="og:title" content="Ankara Anıttepe Rotaract Kulübü">
+<meta property="og:description" content="1996'dan beri Ankara'da 18–30 yaş arası gençlerle gönüllülük, liderlik ve dostluk. Bir sonraki toplantımıza misafir olarak gel.">
+<meta property="og:url" content="https://anitteperotaract.org/">
+<meta property="og:image" content="https://anitteperotaract.org/assets/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Ankara Anıttepe Rotaract Kulübü logosu">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:locale:alternate" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"NGO","name":"Ankara Anıttepe Rotaract Kulübü","alternateName":"Anıttepe Rotaract","url":"https://anitteperotaract.org/","logo":"https://anitteperotaract.org/assets/logo-cranberry.webp","email":"anitteperotaract1996@gmail.com","foundingDate":"1996-11","areaServed":"Ankara","sameAs":["https://www.instagram.com/anitteperotaract/","https://www.facebook.com/AnittepeRotaractKulubu/","https://www.linkedin.com/company/anittepe-rotaract/"],"parentOrganization":{"@type":"Organization","name":"Rotary International","url":"https://www.rotary.org"}}
+{"@context":"https://schema.org","@type":"NGO","name":"Ankara Anıttepe Rotaract Kulübü","alternateName":"Anıttepe Rotaract","url":"https://anitteperotaract.org/","@id":"https://anitteperotaract.org/#org","logo":"https://anitteperotaract.org/assets/icons/icon-512.png","image":"https://anitteperotaract.org/assets/og-image.jpg","address":{"@type":"PostalAddress","addressLocality":"Ankara","addressCountry":"TR"},"email":"anitteperotaract1996@gmail.com","foundingDate":"1996-11","areaServed":"Ankara","sameAs":["https://www.instagram.com/anitteperotaract/","https://www.facebook.com/AnittepeRotaractKulubu/","https://www.linkedin.com/company/anittepe-rotaract/"],"parentOrganization":{"@type":"Organization","name":"Rotary International","url":"https://www.rotary.org"}}
 </script>
 <style>
 /* Layout: kızılcık hero → kayan şerit → sabitlenen yatay 30 yıl çizelgesi → sayaçlar → sürüklenebilir projeler → Rotary yılı çarkı → üyelik → kurul → haberler → iletişim. Tek cesur öğe: pembe disk üzerinde beyaz Rotary çarkı (marka kuralı: çark asla döndürülmez/animasyonla döndürülmez, üzerine yazı konmaz). */
@@ -655,17 +670,35 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 .proj-art .proj-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .proj-art.has-img::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(25,6,15,.72),rgba(25,6,15,.05) 60%)}
 .proj-art.has-img>span{position:relative;z-index:1}
+
+/* UI/UX denetimi: erişilebilirlik, kontrast, mobil */
+.skip{position:absolute;left:12px;top:-80px;z-index:300;background:var(--cran-deep);color:#fff;padding:10px 16px;border-radius:12px;font-weight:700;text-decoration:none}
+.skip:focus{top:calc(12px + env(safe-area-inset-top,0px))}
+.fab:not(.show),.fab:not(.show) + .fab-login{visibility:hidden}
+#wheel .today-t{fill:var(--cran-deep)}
+#wheel .mlabel{fill:var(--ink)}
+@media (max-width:600px){#wheel .mlabel,#wheel .today-t{font-size:19px}}
+.tl-card.hl p,.stats div:nth-child(1) span,.date-pick input:checked + .dp span{color:#fff}
+.ev-list button.active .d,#degerler .kicker{color:var(--cran-deep)}
+.apply-form input:not([type=checkbox]),.apply-form select,form.cf input,form.cf select,form.cf textarea{border-color:#B9A0AD}
+.marquee:hover .marquee-track,.marquee:focus-within .marquee-track{animation-play-state:paused}
+@media (max-width:640px){html{scroll-padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}}
+.docs li .doc-soon{display:flex;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--line);font-weight:600;color:var(--muted)}
+.docs li .doc-soon span{font-size:.85rem;font-weight:500}
+.fam .fam-n{font-weight:800;color:var(--ink)}
+.ticket-body p.m-title{font-size:1.08rem;font-weight:800;line-height:1.25;letter-spacing:-.025em;margin:0;color:var(--ink);text-wrap:balance}
 </style>
 
 <div class="progress" id="progress" aria-hidden="true"></div>
 
+<a class="skip" href="#top">İçeriğe atla</a>
 <header class="site" id="hdr">
   <div class="wrap hdr">
     <a class="brand" href="#top" aria-label="Ankara Anıttepe Rotaract Kulübü ana sayfa">
       <span class="lg on-top"><img src="assets/logo-cranberry.webp" alt="Ankara Anıttepe Rotaract Kulübü logosu"></span>
       <span class="on-scroll">
         <span class="lg l-cran"><img src="assets/logo-cranberry.webp" alt="Ankara Anıttepe Rotaract Kulübü logosu"></span>
-        <span class="lg l-white"><img src="assets/logo-beyaz.webp" alt="" aria-hidden="true" width="2000" height="541" loading="lazy"></span>
+        
       </span>
     </a>
     <nav class="main" id="nav" aria-label="Ana menü">
@@ -699,11 +732,11 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
           <a class="btn btn-cran" href="#basvuru">Misafir üye başvurusu yap</a>
           <a class="btn btn-line" href="#projeler">Geleneksel projelerimiz</a>
         </div>
-        <div class="ticket" aria-live="polite">
+        <div class="ticket">
           <div class="ticket-date"><div><b id="mDay">19</b><span id="mMon">Kasım</span></div></div>
           <div class="ticket-body">
             <span class="ticket-no" id="mNo">610. toplantı · dönemin 11. toplantısı</span>
-            <h3 id="mTitle">Sıradaki toplantı: 19 Kasım Perşembe, 19.30</h3>
+            <p class="m-title" id="mTitle">Sıradaki toplantı: 19 Kasım Perşembe, 19.30</p>
             <p>Hybrid Hub, Ankara · <a href="#basvuru" style="color:#A30C4D;font-weight:700">Bu toplantıya misafir olarak gel</a></p>
             <div class="cd tn">
               <div><b id="cD">–</b><span>gün</span></div>
@@ -715,7 +748,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
         </div>
       </div>
       <div class="hero-wheel" aria-hidden="true">
-        <img class="rw" src="assets/rotary-carki.webp" alt="" width="1500" height="1500" fetchpriority="high">
+        <img class="rw" src="assets/rotary-carki-600.webp" alt="" width="600" height="600" decoding="async">
       </div>
     </div>
   </section>
@@ -822,7 +855,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
         <button class="chip" aria-pressed="false" data-f="kulup">Kulüp hayatı</button>
       </div>
     </div>
-    <div class="rail" id="rail" tabindex="0" aria-label="Proje kartları"></div>
+    <div class="rail" id="rail" tabindex="0" role="region" aria-label="Proje kartları"></div>
     <div class="wrap"><div class="rail-progress" aria-hidden="true"><i id="railBar"></i></div></div>
   </section>
 
@@ -887,7 +920,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
       <div class="sec-head rv">
         <span class="kicker">Üyelik</span>
         <h2>Gelerek başlıyor</h2>
-        <p class="lead">Form doldurman gerekmiyor. İlk toplantıya misafir olarak gelmen yeterli; gerisi beş adımda ilerliyor.</p>
+        <p class="lead">Kısa formu doldurup ilk toplantıya misafir olarak gelmen yeterli; gerisi beş adımda ilerliyor.</p>
       </div>
       <div class="journey">
         <ol class="steps" role="tablist" aria-label="Üyelik adımları">
@@ -963,8 +996,8 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
         <div class="fam"><small>1905'ten beri · 1 milyon+ üye</small><a href="https://www.rotary.org/tr" target="_blank" rel="noopener">Rotary International</a></div>
         <div class="fam"><small>Türkiye, Azerbaycan ve Orta Asya</small><a href="https://rotary2430.org.tr" target="_blank" rel="noopener">Rotary 2430. Bölge</a></div>
         <div class="fam"><small>60 kulüp · BRT Alper Abacıgil</small><a href="http://2430rotaract.org/" target="_blank" rel="noopener">Rotaract 2430</a></div>
-        <div class="fam"><small>Sponsor kulübümüz</small><a href="#top">Ankara Anıttepe Rotary</a></div>
-        <div class="fam"><small>Kasım 1996'dan beri</small><a href="#top">Anıttepe Rotaract</a></div>
+        <div class="fam"><small>Sponsor kulübümüz</small><span class="fam-n">Ankara Anıttepe Rotary</span></div>
+        <div class="fam"><small>Kasım 1996'dan beri</small><span class="fam-n">Anıttepe Rotaract</span></div>
       </div>
       <nav class="qlinks" aria-label="Rotary bağlantıları">
         <a href="http://2430rotaract.org/" target="_blank" rel="noopener"><b>Rotaract Bölge 2430</b><span>Bölge etkinlikleri, kulüpler ve duyurular</span><small>2430rotaract.org</small></a>
@@ -984,11 +1017,11 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
       </div>
       <div class="sup-b">
         <ul class="docs">
-          <li><a href="#belgeler">Kulüp tüzüğü <span>PDF</span></a></li>
-          <li><a href="#belgeler">Rotaract el kitabı <span>PDF</span></a></li>
-          <li><a href="#belgeler">Dernekler Kanunu <span>PDF</span></a></li>
-          <li><a href="#belgeler">Dernekler Yönetmeliği <span>PDF</span></a></li>
-          <li><a href="#haberler">Başkan Mektubu arşivi <span>Sayı 1</span></a></li>
+          <li><span class="doc-soon">Kulüp tüzüğü <span>Yakında</span></span></li>
+          <li><span class="doc-soon">Rotaract el kitabı <span>Yakında</span></span></li>
+          <li><a href="https://www.mevzuat.gov.tr/mevzuat?MevzuatNo=5253&MevzuatTur=1&MevzuatTertip=5" target="_blank" rel="noopener">Dernekler Kanunu <span>mevzuat.gov.tr<span class="vh"> (yeni sekmede açılır)</span></span></a></li>
+          <li><span class="doc-soon">Dernekler Yönetmeliği <span>Yakında</span></span></li>
+          <li><a href="https://www.instagram.com/anitteperotaract/p/DdJxMXUiIRR/" target="_blank" rel="noopener">Başkan Mektubu, Sayı 1 <span>Instagram</span></a></li>
         </ul>
       </div>
     </div>
@@ -1104,7 +1137,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
     let diff=Math.max(0,d-t);const D=Math.floor(diff/864e5);diff-=D*864e5;const H=Math.floor(diff/36e5);diff-=H*36e5;const M=Math.floor(diff/6e4);diff-=M*6e4;const S=Math.floor(diff/1e3);
     $("#cD").textContent=D;$("#cH").textContent=pad(H);$("#cM").textContent=pad(M);$("#cS").textContent=pad(S);
   }
-  renderMeeting();setInterval(renderMeeting,1000);
+  renderMeeting();setInterval(()=>{if(!document.hidden)renderMeeting()},1000);
 
   // ---------- Scroll: progress, header, timeline, floating apply button ----------
   const hdr=$("#hdr"),bar=$("#progress"),fab=$("#fab"),apply=$("#basvuru");
@@ -1168,8 +1201,9 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
     const _l={"name":"Ad soyad","mail":"E-posta","tel":"Telefon","status":"Durum","school":"Okul / meslek","source":"Bizi nereden duydu","interest":"İlgi alanları","date":"Gelmek istediği toplantı"};const _b=[[_l.name,name],[_l.mail,mail],[_l.tel,(($("#g-tel")||{}).value||"").trim()],[_l.status,(($("#g-status")||{}).value||"").trim()],[_l.school,(($("#g-school")||{}).value||"").trim()],[_l.source,(($("#g-source")||{}).value||"").trim()],[_l.interest,$("#gInterest button[aria-pressed=true]").map(b=>b.textContent).join(", ")],[_l.date,m.d.toLocaleDateString(document.documentElement.lang,{day:"numeric",month:"long",weekday:"long"})+" ("+m.no+")"]].filter(x=>x[1]).map(x=>x[0]+": "+x[1]).join("\n");
     const _sent=sendMail("Misafir üye başvurusu"+": "+name,_b,mail,"misafir",{name,lang:"tr",meeting:m.d.getDate()+" "+MONTHS[m.d.getMonth()]+" "+DAYS[m.d.getDay()],meeting_no:String(m.no)});
     $("#gfFields").hidden=true;const done=$("#gDone");done.hidden=false;
-    done.innerHTML=`<div class="ok" aria-hidden="true">✓</div><h3>Başvurun alındı, ${name.split(" ")[0]}.</h3>
-      <p>Seni <b>${m.d.getDate()} ${MONTHS[m.d.getMonth()]} ${DAYS[m.d.getDay()]} 19.30</b>'da Hybrid Hub'daki ${m.no}. toplantımızda bekliyoruz. Ayrıntıları ${mail} adresine göndereceğiz.</p>
+    const _e=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"})[c]);
+    done.innerHTML=`<div class="ok" aria-hidden="true">✓</div><h3>Başvurun alındı, ${_e(name.split(" ")[0])}.</h3>
+      <p>Seni <b>${m.d.getDate()} ${MONTHS[m.d.getMonth()]} ${DAYS[m.d.getDay()]} 19.30</b>'da Hybrid Hub'daki ${m.no}. toplantımızda bekliyoruz. Ayrıntıları ${_e(mail)} adresine göndereceğiz.</p>
       <p style="font-size:.85rem" id="gNote" role="status">Başvurun gönderiliyor…</p>
       <button class="btn btn-ghost" type="button" id="gAgain" style="justify-self:start">Yeni başvuru</button>`;
     _sent.then(ok=>{const n=$("#gNote");if(n)n.textContent=ok?"Başvurun kulübümüze ulaştı.":"E-posta uygulaman başvurunla açıldı; Gönder'e bastığında bize ulaşır."});
@@ -1190,13 +1224,13 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 
   // ---------- Projects ----------
   const PROJECTS=[
-    {id:"merhaba",t:"Döneme Merhaba Partisi",cat:"kulup",m:8,d:19,when:"Her yıl eylülde",big:"20 yıldır yeni dönemi açıyoruz",since:"2026 teması: Vogue",x:"Yeni dönemin ilk büyük buluşması. Farklı kulüplerden Rotaractörlerle her yıl başka bir temayla kutluyoruz: Matrix, G.O.R.A., Sunset Soirée…",bg:"linear-gradient(135deg,#D41367,#F7A81B)",img:"doneme-merhaba.jpg",pos:"center 12%"},
-    {id:"yesil",t:"Yeşili Fark Et!",cat:"farkindalik",m:9,d:6,when:"Her yıl 6 Ekim'de",big:"Serebral palsi için yeşil giyiyoruz",since:"Dünya Serebral Palsi Farkındalık Günü",x:"6 Ekim'de yeşil giyiyor, yeşil aksesuar takıyor ve fotoğraflarımızı paylaşarak serebral palsi farkındalığını sosyal medyaya taşıyoruz.",bg:"linear-gradient(135deg,#1F8A4C,#7CC88F)",img:"yesili-fark-et.jpg"},
-    {id:"kirmizi",t:"Yer Gök Kırmızı Beyaz",cat:"hizmet",m:9,d:29,when:"29 Ekim haftası",big:"Çocuklarla 103 bayrak taşıdık",since:"2026: 103 Türk + 103 Atatürk bayrağı",x:"Cumhuriyet Bayramı haftasında öğrencilerle birlikte I. TBMM'yi ve Cumhuriyet Müzesini geziyor, sokakları kırmızı beyaza büründürüyoruz.",bg:"linear-gradient(160deg,#E30A17 0 60%,#B00812 60% 100%)",img:"yer-gok-kirmizi-beyaz.jpg"},
-    {id:"bordo",t:"Bordo",cat:"kaynak",m:1,d:22,when:"Her yıl şubatta",big:"Geliri hizmet projelerine",since:"Rotaractör–Rotaryen buluşması",x:"Rotaractörler ve Rotaryenler şarap eşliğinde bir araya geliyor; Paint&Drink ve ödüllü trivia ile geçen gecenin geliri projelerimize aktarılıyor.",bg:"linear-gradient(135deg,#6D0F2A,#A30C4D)",img:"bordo.jpg"},
-    {id:"balon",t:"Balon Perileri",cat:"hizmet",m:3,d:23,when:"23 Nisan haftası",big:"Çocukların dileği bizden",since:"Okul ziyaretleri ve bağış kampanyası",x:"İhtiyacı olan çocukların dilek listelerini topluyor, hediyelerini 23 Nisan haftasında okullarında teslim ediyoruz.",bg:"linear-gradient(135deg,#F7A81B,#F2C14E)",img:"balon-perileri.jpg",pos:"center 8%"},
-    {id:"polio",t:"Dünya Polio Günü",cat:"farkindalik",m:9,d:24,when:"Her yıl 24 Ekim'de",big:"Çocuk felcine son",since:"Rotary'nin küresel kampanyası",x:"Çocuk felcinin olmadığı bir dünya için aşıya erişimi ve farkındalığı destekliyoruz.",bg:"linear-gradient(135deg,#A30C4D,#D41367)"},
-    {id:"kurulus",t:"Kuruluş yıl dönümü",cat:"kulup",m:10,d:15,when:"Her yıl kasımda",big:"Kasım 1996'dan beri",since:"Kasım 1996'dan beri",x:"Kulübümüzün doğum ayı. 2026'da 30. yaşımızı kutluyoruz.",bg:"linear-gradient(135deg,#D41367,#F78FB8)"},
+    {id:"merhaba",cw:"Eylül",t:"Döneme Merhaba Partisi",cat:"kulup",m:8,d:19,when:"Her yıl eylülde",big:"20 yıldır yeni dönemi açıyoruz",since:"2026 teması: Vogue",x:"Yeni dönemin ilk büyük buluşması. Farklı kulüplerden Rotaractörlerle her yıl başka bir temayla kutluyoruz: Matrix, G.O.R.A., Sunset Soirée…",bg:"linear-gradient(135deg,#D41367,#F7A81B)",img:"doneme-merhaba.jpg",pos:"center 12%"},
+    {id:"yesil",cw:"6 Ekim",t:"Yeşili Fark Et!",cat:"farkindalik",m:9,d:6,when:"Her yıl 6 Ekim'de",big:"Serebral palsi için yeşil giyiyoruz",since:"Dünya Serebral Palsi Farkındalık Günü",x:"6 Ekim'de yeşil giyiyor, yeşil aksesuar takıyor ve fotoğraflarımızı paylaşarak serebral palsi farkındalığını sosyal medyaya taşıyoruz.",bg:"linear-gradient(135deg,#1F8A4C,#7CC88F)",img:"yesili-fark-et.jpg"},
+    {id:"kirmizi",cw:"29 Ekim haftası",t:"Yer Gök Kırmızı Beyaz",cat:"hizmet",m:9,d:29,when:"29 Ekim haftası",big:"Çocuklarla 103 bayrak taşıdık",since:"2026: 103 Türk + 103 Atatürk bayrağı",x:"Cumhuriyet Bayramı haftasında öğrencilerle birlikte I. TBMM'yi ve Cumhuriyet Müzesini geziyor, sokakları kırmızı beyaza büründürüyoruz.",bg:"linear-gradient(160deg,#E30A17 0 60%,#B00812 60% 100%)",img:"yer-gok-kirmizi-beyaz.jpg"},
+    {id:"bordo",cw:"Şubat",t:"Bordo",cat:"kaynak",m:1,d:22,when:"Her yıl şubatta",big:"Geliri hizmet projelerine",since:"Rotaractör–Rotaryen buluşması",x:"Rotaractörler ve Rotaryenler şarap eşliğinde bir araya geliyor; Paint&Drink ve ödüllü trivia ile geçen gecenin geliri projelerimize aktarılıyor.",bg:"linear-gradient(135deg,#6D0F2A,#A30C4D)",img:"bordo.jpg"},
+    {id:"balon",cw:"23 Nisan haftası",t:"Balon Perileri",cat:"hizmet",m:3,d:23,when:"23 Nisan haftası",big:"Çocukların dileği bizden",since:"Okul ziyaretleri ve bağış kampanyası",x:"İhtiyacı olan çocukların dilek listelerini topluyor, hediyelerini 23 Nisan haftasında okullarında teslim ediyoruz.",bg:"linear-gradient(135deg,#F7A81B,#F2C14E)",img:"balon-perileri.jpg",pos:"center 8%"},
+    {id:"polio",cw:"24 Ekim",t:"Dünya Polio Günü",cat:"farkindalik",m:9,d:24,when:"Her yıl 24 Ekim'de",big:"Çocuk felcine son",since:"Rotary'nin küresel kampanyası",x:"Çocuk felcinin olmadığı bir dünya için aşıya erişimi ve farkındalığı destekliyoruz.",bg:"linear-gradient(135deg,#A30C4D,#D41367)"},
+    {id:"kurulus",cw:"Kasım",t:"Kuruluş yıl dönümü",cat:"kulup",m:10,d:15,when:"Her yıl kasımda",big:"Kasım 1996'dan beri",since:"Kasım 1996'dan beri",x:"Kulübümüzün doğum ayı. 2026'da 30. yaşımızı kutluyoruz.",bg:"linear-gradient(135deg,#D41367,#F78FB8)"},
   ];
   const rail=$("#rail");
   rail.innerHTML=PROJECTS.map(p=>`<article class="proj" data-cat="${p.cat}">
@@ -1247,12 +1281,12 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   const dots={},items={};
   sorted.forEach(e=>{
     const[x,y]=pt(e.a,132);
-    const g=el("g",{class:"ev",tabindex:0,role:"button","aria-label":`${e.when}: ${e.t}`});
+    const g=el("g",{class:"ev",tabindex:-1,role:"button","aria-label":`${e.cw||e.when}: ${e.t}`});
     el("circle",{cx:x,cy:y,r:20,fill:"transparent"},g);el("circle",{cx:x,cy:y,r:8,class:"dot"},g);
     dots[e.id]=g;g.addEventListener("click",()=>pick(e.id));
     g.addEventListener("keydown",k=>{if(k.key==="Enter"||k.key===" "){k.preventDefault();pick(e.id)}});
   });
-  $("#evList").innerHTML=sorted.map(e=>`<li><button type="button" data-id="${e.id}"><span class="d">${e.when}</span><span><span class="t">${e.t}</span><span class="x">${e.x}</span></span></button></li>`).join("");
+  $("#evList").innerHTML=sorted.map(e=>`<li><button type="button" data-id="${e.id}"><span class="d">${e.cw||e.when}</span><span><span class="t">${e.t}</span><span class="x">${e.x}</span></span></button></li>`).join("");
   $$("#evList button").forEach(b=>{items[b.dataset.id]=b;b.addEventListener("click",()=>pick(b.dataset.id))});
   function pick(id){Object.values(dots).forEach(g=>g.classList.remove("active"));Object.values(items).forEach(b=>b.classList.remove("active"));dots[id].classList.add("active");items[id].classList.add("active")}
   pick((sorted.find(e=>e.a>=ta)||sorted[0]).id);
@@ -1347,7 +1381,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   // first visit: suggest the other language if the browser prefers it
   const pref=get(localStorage,KEY), nav=(navigator.language||"").slice(0,2).toLowerCase();
   if(!pref&&!raw&&nav&&nav!==CUR&&(nav==="en"||nav==="tr")){
-    const h=document.createElement("div");h.className="lang-hint";h.setAttribute("role","status");
+    const h=document.createElement("div");h.className="lang-hint";h.setAttribute("role","status");h.lang=CUR==="tr"?"en":"tr";
     h.innerHTML=CUR==="tr"?'<span>This site is also available in English.</span><a href="https://anitteperotaract.org/en/" hreflang="en" data-lang="en">English</a><button type="button" aria-label="Close">×</button>'
                           :'<span>Bu sitenin Türkçesi de var.</span><a href="https://anitteperotaract.org/" hreflang="tr" data-lang="tr">Türkçe</a><button type="button" aria-label="Kapat">×</button>';
     document.body.prepend(h);

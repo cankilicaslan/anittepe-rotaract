@@ -3,20 +3,35 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Rotaract Club of Ankara Anıttepe</title>
+<title>Rotaract Club of Ankara Anıttepe | Volunteering in Ankara</title>
+<link rel="canonical" href="https://anitteperotaract.org/en/">
 <link rel="alternate" hreflang="tr" href="https://anitteperotaract.org/">
 <link rel="alternate" hreflang="en" href="https://anitteperotaract.org/en/">
+<link rel="alternate" hreflang="x-default" href="https://anitteperotaract.org/">
+<link rel="manifest" href="https://anitteperotaract.org/site.webmanifest">
 <link rel="icon" type="image/png" sizes="32x32" href="https://anitteperotaract.org/assets/icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="64x64" href="https://anitteperotaract.org/assets/icons/favicon-64.png">
 <link rel="icon" type="image/png" sizes="512x512" href="https://anitteperotaract.org/assets/icons/icon-512.png">
 <link rel="apple-touch-icon" href="https://anitteperotaract.org/assets/icons/apple-touch-icon.png">
 <meta name="theme-color" content="#D41367">
-<meta name="description" content="The Rotaract Club of Ankara Anıttepe has served Ankara since 1996. Volunteering, leadership and friendship for people aged 18–30. Meetings, projects and membership.">
+<meta name="description" content="Rotaract Club of Ankara Anıttepe: volunteering, leadership and friendship for people aged 18–30 in Ankara since 1996. Meetings, projects, membership.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Rotaract Club of Ankara Anıttepe">
+<meta property="og:title" content="Rotaract Club of Ankara Anıttepe">
+<meta property="og:description" content="Volunteering, leadership and friendship for people aged 18–30 in Ankara since 1996. Join our next meeting as a guest.">
+<meta property="og:url" content="https://anitteperotaract.org/en/">
+<meta property="og:image" content="https://anitteperotaract.org/assets/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Rotaract Club of Ankara Anıttepe logo">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="tr_TR">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&display=swap">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"NGO","name":"Ankara Anıttepe Rotaract Kulübü","alternateName":"Anıttepe Rotaract","url":"https://anitteperotaract.org/","logo":"https://anitteperotaract.org/assets/logo-cranberry.webp","email":"anitteperotaract1996@gmail.com","foundingDate":"1996-11","areaServed":"Ankara","sameAs":["https://www.instagram.com/anitteperotaract/","https://www.facebook.com/AnittepeRotaractKulubu/","https://www.linkedin.com/company/anittepe-rotaract/"],"parentOrganization":{"@type":"Organization","name":"Rotary International","url":"https://www.rotary.org"}}
+{"@context":"https://schema.org","@type":"NGO","name":"Rotaract Club of Ankara Anıttepe","alternateName":["Ankara Anıttepe Rotaract Kulübü","Anıttepe Rotaract"],"url":"https://anitteperotaract.org/en/","inLanguage":"en","@id":"https://anitteperotaract.org/#org","logo":"https://anitteperotaract.org/assets/icons/icon-512.png","image":"https://anitteperotaract.org/assets/og-image.jpg","address":{"@type":"PostalAddress","addressLocality":"Ankara","addressCountry":"TR"},"email":"anitteperotaract1996@gmail.com","foundingDate":"1996-11","areaServed":"Ankara","sameAs":["https://www.instagram.com/anitteperotaract/","https://www.facebook.com/AnittepeRotaractKulubu/","https://www.linkedin.com/company/anittepe-rotaract/"],"parentOrganization":{"@type":"Organization","name":"Rotary International","url":"https://www.rotary.org"}}
 </script>
 <style>
 /* Layout: kızılcık hero → kayan şerit → sabitlenen yatay 30 yıl çizelgesi → sayaçlar → sürüklenebilir projeler → Rotary yılı çarkı → üyelik → kurul → haberler → iletişim. Tek cesur öğe: pembe disk üzerinde beyaz Rotary çarkı (marka kuralı: çark asla döndürülmez/animasyonla döndürülmez, üzerine yazı konmaz). */
@@ -655,17 +670,35 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 .proj-art .proj-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .proj-art.has-img::after{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(25,6,15,.72),rgba(25,6,15,.05) 60%)}
 .proj-art.has-img>span{position:relative;z-index:1}
+
+/* UI/UX denetimi: erişilebilirlik, kontrast, mobil */
+.skip{position:absolute;left:12px;top:-80px;z-index:300;background:var(--cran-deep);color:#fff;padding:10px 16px;border-radius:12px;font-weight:700;text-decoration:none}
+.skip:focus{top:calc(12px + env(safe-area-inset-top,0px))}
+.fab:not(.show),.fab:not(.show) + .fab-login{visibility:hidden}
+#wheel .today-t{fill:var(--cran-deep)}
+#wheel .mlabel{fill:var(--ink)}
+@media (max-width:600px){#wheel .mlabel,#wheel .today-t{font-size:19px}}
+.tl-card.hl p,.stats div:nth-child(1) span,.date-pick input:checked + .dp span{color:#fff}
+.ev-list button.active .d,#degerler .kicker{color:var(--cran-deep)}
+.apply-form input:not([type=checkbox]),.apply-form select,form.cf input,form.cf select,form.cf textarea{border-color:#B9A0AD}
+.marquee:hover .marquee-track,.marquee:focus-within .marquee-track{animation-play-state:paused}
+@media (max-width:640px){html{scroll-padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}}
+.docs li .doc-soon{display:flex;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--line);font-weight:600;color:var(--muted)}
+.docs li .doc-soon span{font-size:.85rem;font-weight:500}
+.fam .fam-n{font-weight:800;color:var(--ink)}
+.ticket-body p.m-title{font-size:1.08rem;font-weight:800;line-height:1.25;letter-spacing:-.025em;margin:0;color:var(--ink);text-wrap:balance}
 </style>
 
 <div class="progress" id="progress" aria-hidden="true"></div>
 
+<a class="skip" href="#top">Skip to content</a>
 <header class="site" id="hdr">
   <div class="wrap hdr">
     <a class="brand" href="#top" aria-label="Rotaract Club of Ankara Anıttepe home">
       <span class="lg on-top"><img src="../assets/logo-cranberry.webp" alt="Rotaract Club of Ankara Anıttepe logo"></span>
       <span class="on-scroll">
         <span class="lg l-cran"><img src="../assets/logo-cranberry.webp" alt="Rotaract Club of Ankara Anıttepe logo"></span>
-        <span class="lg l-white"><img src="../assets/logo-beyaz.webp" alt="" aria-hidden="true" width="2000" height="541" loading="lazy"></span>
+        
       </span>
     </a>
     <nav class="main" id="nav" aria-label="Main menu">
@@ -699,11 +732,11 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
           <a class="btn btn-cran" href="#basvuru">Apply to visit as a guest</a>
           <a class="btn btn-line" href="#projeler">Our signature projects</a>
         </div>
-        <div class="ticket" aria-live="polite">
+        <div class="ticket">
           <div class="ticket-date"><div><b id="mDay">19</b><span id="mMon">November</span></div></div>
           <div class="ticket-body">
             <span class="ticket-no" id="mNo">610th meeting · 11th of the term</span>
-            <h3 id="mTitle">Next meeting: Thursday 19 November, 7:30 pm</h3>
+            <p class="m-title" id="mTitle">Next meeting: Thursday 19 November, 7:30 pm</p>
             <p>Hybrid Hub, Ankara · <a href="#basvuru" style="color:#A30C4D;font-weight:700">Join this meeting as a guest</a></p>
             <div class="cd tn">
               <div><b id="cD">–</b><span>days</span></div>
@@ -715,7 +748,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
         </div>
       </div>
       <div class="hero-wheel" aria-hidden="true">
-        <img class="rw" src="../assets/rotary-carki.webp" alt="" width="1500" height="1500" fetchpriority="high">
+        <img class="rw" src="../assets/rotary-carki-600.webp" alt="" width="600" height="600" decoding="async">
       </div>
     </div>
   </section>
@@ -822,7 +855,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
         <button class="chip" aria-pressed="false" data-f="kulup">Club life</button>
       </div>
     </div>
-    <div class="rail" id="rail" tabindex="0" aria-label="Project cards"></div>
+    <div class="rail" id="rail" tabindex="0" role="region" aria-label="Project cards"></div>
     <div class="wrap"><div class="rail-progress" aria-hidden="true"><i id="railBar"></i></div></div>
   </section>
 
@@ -963,8 +996,8 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
         <div class="fam"><small>Since 1905 · 1 million+ members</small><a href="https://www.rotary.org/en" target="_blank" rel="noopener">Rotary International</a></div>
         <div class="fam"><small>Türkiye, Azerbaijan and Central Asia</small><a href="https://rotary2430.org.tr" target="_blank" rel="noopener">Rotary District 2430</a></div>
         <div class="fam"><small>60 clubs · DRR Alper Abacıgil</small><a href="http://2430rotaract.org/" target="_blank" rel="noopener">Rotaract 2430</a></div>
-        <div class="fam"><small>Our sponsor club</small><a href="#top">Rotary Club of Ankara Anıttepe</a></div>
-        <div class="fam"><small>Since November 1996</small><a href="#top">Anıttepe Rotaract</a></div>
+        <div class="fam"><small>Our sponsor club</small><span class="fam-n">Rotary Club of Ankara Anıttepe</span></div>
+        <div class="fam"><small>Since November 1996</small><span class="fam-n">Anıttepe Rotaract</span></div>
       </div>
       <nav class="qlinks" aria-label="Rotary links">
         <a href="http://2430rotaract.org/" target="_blank" rel="noopener"><b>Rotaract District 2430</b><span>District events, clubs and announcements</span><small>2430rotaract.org</small></a>
@@ -984,11 +1017,11 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
       </div>
       <div class="sup-b">
         <ul class="docs">
-          <li><a href="#belgeler">Club bylaws <span>PDF</span></a></li>
-          <li><a href="#belgeler">Rotaract handbook <span>PDF</span></a></li>
-          <li><a href="#belgeler">Law on Associations <span>PDF</span></a></li>
-          <li><a href="#belgeler">Regulation on Associations <span>PDF</span></a></li>
-          <li><a href="#haberler">President's Letter archive <span>Issue 1</span></a></li>
+          <li><span class="doc-soon">Club bylaws <span>Coming soon</span></span></li>
+          <li><span class="doc-soon">Rotaract handbook <span>Coming soon</span></span></li>
+          <li><a href="https://www.mevzuat.gov.tr/mevzuat?MevzuatNo=5253&MevzuatTur=1&MevzuatTertip=5" target="_blank" rel="noopener">Law on Associations <span>mevzuat.gov.tr<span class="vh"> (opens in a new tab)</span></span></a></li>
+          <li><span class="doc-soon">Regulation on Associations <span>Coming soon</span></span></li>
+          <li><a href="https://www.instagram.com/anitteperotaract/p/DdJxMXUiIRR/" target="_blank" rel="noopener">President's Letter, Issue 1 <span>Instagram</span></a></li>
         </ul>
       </div>
     </div>
@@ -1105,7 +1138,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
     let diff=Math.max(0,d-t);const D=Math.floor(diff/864e5);diff-=D*864e5;const H=Math.floor(diff/36e5);diff-=H*36e5;const M=Math.floor(diff/6e4);diff-=M*6e4;const S=Math.floor(diff/1e3);
     $("#cD").textContent=D;$("#cH").textContent=pad(H);$("#cM").textContent=pad(M);$("#cS").textContent=pad(S);
   }
-  renderMeeting();setInterval(renderMeeting,1000);
+  renderMeeting();setInterval(()=>{if(!document.hidden)renderMeeting()},1000);
 
   // ---------- Scroll: progress, header, timeline, floating apply button ----------
   const hdr=$("#hdr"),bar=$("#progress"),fab=$("#fab"),apply=$("#basvuru");
@@ -1169,8 +1202,9 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
     const _l={"name":"Name","mail":"Email","tel":"Phone","status":"Status","school":"School / job","source":"Heard about us from","interest":"Interests","date":"Meeting they want to attend"};const _b=[[_l.name,name],[_l.mail,mail],[_l.tel,(($("#g-tel")||{}).value||"").trim()],[_l.status,(($("#g-status")||{}).value||"").trim()],[_l.school,(($("#g-school")||{}).value||"").trim()],[_l.source,(($("#g-source")||{}).value||"").trim()],[_l.interest,$("#gInterest button[aria-pressed=true]").map(b=>b.textContent).join(", ")],[_l.date,m.d.toLocaleDateString(document.documentElement.lang,{day:"numeric",month:"long",weekday:"long"})+" ("+m.no+")"]].filter(x=>x[1]).map(x=>x[0]+": "+x[1]).join("\n");
     const _sent=sendMail("Guest application"+": "+name,_b,mail,"misafir",{name,lang:"en",meeting:m.d.getDate()+" "+MONTHS[m.d.getMonth()]+" "+DAYS[m.d.getDay()],meeting_no:String(m.no)});
     $("#gfFields").hidden=true;const done=$("#gDone");done.hidden=false;
-    done.innerHTML=`<div class="ok" aria-hidden="true">✓</div><h3>Application received, ${name.split(" ")[0]}.</h3>
-      <p>We'll see you at our ${ord(m.no)} meeting at Hybrid Hub on <b>${DAYS[m.d.getDay()]} ${m.d.getDate()} ${MONTHS[m.d.getMonth()]}, 7:30 pm</b>. We'll send the details to ${mail}.</p>
+    const _e=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"})[c]);
+    done.innerHTML=`<div class="ok" aria-hidden="true">✓</div><h3>Application received, ${_e(name.split(" ")[0])}.</h3>
+      <p>We'll see you at our ${ord(m.no)} meeting at Hybrid Hub on <b>${DAYS[m.d.getDay()]} ${m.d.getDate()} ${MONTHS[m.d.getMonth()]}, 7:30 pm</b>. We'll send the details to ${_e(mail)}.</p>
       <p style="font-size:.85rem" id="gNote" role="status">Sending your application…</p>
       <button class="btn btn-ghost" type="button" id="gAgain" style="justify-self:start">New application</button>`;
     _sent.then(ok=>{const n=$("#gNote");if(n)n.textContent=ok?"Your application has reached the club.":"Your email app opened with your application; press Send and it reaches us."});
@@ -1191,13 +1225,13 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 
   // ---------- Projects ----------
   const PROJECTS=[
-    {id:"merhaba",t:"Hello New Term Party",cat:"kulup",m:8,d:19,when:"Every September",big:"Opening the term for 20 years",since:"Döneme Merhaba · 2026 theme: Vogue",x:"The first big get-together of the new term. Every year we celebrate with Rotaractors from other clubs under a new theme: Matrix, G.O.R.A., Sunset Soirée…",bg:"linear-gradient(135deg,#D41367,#F7A81B)",img:"doneme-merhaba.jpg",pos:"center 12%"},
-    {id:"yesil",t:"Notice the Green!",cat:"farkindalik",m:9,d:6,when:"Every 6 October",big:"Wearing green for cerebral palsy",since:"Yeşili Fark Et · World Cerebral Palsy Day",x:"On 6 October we wear green, put on green accessories and share our photos to raise awareness of cerebral palsy online.",bg:"linear-gradient(135deg,#1F8A4C,#7CC88F)",img:"yesili-fark-et.jpg"},
-    {id:"kirmizi",t:"Red and White Everywhere",cat:"hizmet",m:9,d:29,when:"Week of 29 October",big:"103 flags with children",since:"Yer Gök Kırmızı Beyaz · 2026: 103 Turkish + 103 Atatürk flags",x:"During Republic Day week we visit the first Grand National Assembly building and the Republic Museum with schoolchildren and dress the streets in red and white.",bg:"linear-gradient(160deg,#E30A17 0 60%,#B00812 60% 100%)",img:"yer-gok-kirmizi-beyaz.jpg"},
-    {id:"bordo",t:"Bordo",cat:"kaynak",m:1,d:22,when:"Every February",big:"Proceeds fund our service projects",since:"Rotaractor–Rotarian get-together",x:"Rotaractors and Rotarians meet over wine; the proceeds of a night of Paint&Drink and a trivia quiz with prizes go to our projects.",bg:"linear-gradient(135deg,#6D0F2A,#A30C4D)",img:"bordo.jpg"},
-    {id:"balon",t:"Balloon Fairies",cat:"hizmet",m:3,d:23,when:"Week of 23 April",big:"Granting children's wishes",since:"Balon Perileri · school visits and a donation drive",x:"We collect wish lists from children in need and deliver their gifts at their school in the week of 23 April, Children's Day.",bg:"linear-gradient(135deg,#F7A81B,#F2C14E)",img:"balon-perileri.jpg",pos:"center 8%"},
-    {id:"polio",t:"World Polio Day",cat:"farkindalik",m:9,d:24,when:"Every 24 October",big:"Ending polio for good",since:"Rotary's global campaign",x:"We support vaccine access and awareness for a world without polio.",bg:"linear-gradient(135deg,#A30C4D,#D41367)"},
-    {id:"kurulus",t:"Club anniversary",cat:"kulup",m:10,d:15,when:"Every November",big:"Since November 1996",since:"Since November 1996",x:"Our club's birthday month. In 2026 we celebrate turning 30.",bg:"linear-gradient(135deg,#D41367,#F78FB8)"},
+    {id:"merhaba",cw:"September",t:"Hello New Term Party",cat:"kulup",m:8,d:19,when:"Every September",big:"Opening the term for 20 years",since:"Döneme Merhaba · 2026 theme: Vogue",x:"The first big get-together of the new term. Every year we celebrate with Rotaractors from other clubs under a new theme: Matrix, G.O.R.A., Sunset Soirée…",bg:"linear-gradient(135deg,#D41367,#F7A81B)",img:"doneme-merhaba.jpg",pos:"center 12%"},
+    {id:"yesil",cw:"6 October",t:"Notice the Green!",cat:"farkindalik",m:9,d:6,when:"Every 6 October",big:"Wearing green for cerebral palsy",since:"Yeşili Fark Et · World Cerebral Palsy Day",x:"On 6 October we wear green, put on green accessories and share our photos to raise awareness of cerebral palsy online.",bg:"linear-gradient(135deg,#1F8A4C,#7CC88F)",img:"yesili-fark-et.jpg"},
+    {id:"kirmizi",cw:"Week of 29 October",t:"Red and White Everywhere",cat:"hizmet",m:9,d:29,when:"Week of 29 October",big:"103 flags with children",since:"Yer Gök Kırmızı Beyaz · 2026: 103 Turkish + 103 Atatürk flags",x:"During Republic Day week we visit the first Grand National Assembly building and the Republic Museum with schoolchildren and dress the streets in red and white.",bg:"linear-gradient(160deg,#E30A17 0 60%,#B00812 60% 100%)",img:"yer-gok-kirmizi-beyaz.jpg"},
+    {id:"bordo",cw:"February",t:"Bordo",cat:"kaynak",m:1,d:22,when:"Every February",big:"Proceeds fund our service projects",since:"Rotaractor–Rotarian get-together",x:"Rotaractors and Rotarians meet over wine; the proceeds of a night of Paint&Drink and a trivia quiz with prizes go to our projects.",bg:"linear-gradient(135deg,#6D0F2A,#A30C4D)",img:"bordo.jpg"},
+    {id:"balon",cw:"Week of 23 April",t:"Balloon Fairies",cat:"hizmet",m:3,d:23,when:"Week of 23 April",big:"Granting children's wishes",since:"Balon Perileri · school visits and a donation drive",x:"We collect wish lists from children in need and deliver their gifts at their school in the week of 23 April, Children's Day.",bg:"linear-gradient(135deg,#F7A81B,#F2C14E)",img:"balon-perileri.jpg",pos:"center 8%"},
+    {id:"polio",cw:"24 October",t:"World Polio Day",cat:"farkindalik",m:9,d:24,when:"Every 24 October",big:"Ending polio for good",since:"Rotary's global campaign",x:"We support vaccine access and awareness for a world without polio.",bg:"linear-gradient(135deg,#A30C4D,#D41367)"},
+    {id:"kurulus",cw:"November",t:"Club anniversary",cat:"kulup",m:10,d:15,when:"Every November",big:"Since November 1996",since:"Since November 1996",x:"Our club's birthday month. In 2026 we celebrate turning 30.",bg:"linear-gradient(135deg,#D41367,#F78FB8)"},
   ];
   const rail=$("#rail");
   rail.innerHTML=PROJECTS.map(p=>`<article class="proj" data-cat="${p.cat}">
@@ -1248,12 +1282,12 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   const dots={},items={};
   sorted.forEach(e=>{
     const[x,y]=pt(e.a,132);
-    const g=el("g",{class:"ev",tabindex:0,role:"button","aria-label":`${e.when}: ${e.t}`});
+    const g=el("g",{class:"ev",tabindex:-1,role:"button","aria-label":`${e.cw||e.when}: ${e.t}`});
     el("circle",{cx:x,cy:y,r:20,fill:"transparent"},g);el("circle",{cx:x,cy:y,r:8,class:"dot"},g);
     dots[e.id]=g;g.addEventListener("click",()=>pick(e.id));
     g.addEventListener("keydown",k=>{if(k.key==="Enter"||k.key===" "){k.preventDefault();pick(e.id)}});
   });
-  $("#evList").innerHTML=sorted.map(e=>`<li><button type="button" data-id="${e.id}"><span class="d">${e.when}</span><span><span class="t">${e.t}</span><span class="x">${e.x}</span></span></button></li>`).join("");
+  $("#evList").innerHTML=sorted.map(e=>`<li><button type="button" data-id="${e.id}"><span class="d">${e.cw||e.when}</span><span><span class="t">${e.t}</span><span class="x">${e.x}</span></span></button></li>`).join("");
   $$("#evList button").forEach(b=>{items[b.dataset.id]=b;b.addEventListener("click",()=>pick(b.dataset.id))});
   function pick(id){Object.values(dots).forEach(g=>g.classList.remove("active"));Object.values(items).forEach(b=>b.classList.remove("active"));dots[id].classList.add("active");items[id].classList.add("active")}
   pick((sorted.find(e=>e.a>=ta)||sorted[0]).id);
@@ -1348,7 +1382,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   // first visit: suggest the other language if the browser prefers it
   const pref=get(localStorage,KEY), nav=(navigator.language||"").slice(0,2).toLowerCase();
   if(!pref&&!raw&&nav&&nav!==CUR&&(nav==="en"||nav==="tr")){
-    const h=document.createElement("div");h.className="lang-hint";h.setAttribute("role","status");
+    const h=document.createElement("div");h.className="lang-hint";h.setAttribute("role","status");h.lang=CUR==="tr"?"en":"tr";
     h.innerHTML=CUR==="tr"?'<span>This site is also available in English.</span><a href="https://anitteperotaract.org/en/" hreflang="en" data-lang="en">English</a><button type="button" aria-label="Close">×</button>'
                           :'<span>Bu sitenin Türkçesi de var.</span><a href="https://anitteperotaract.org/" hreflang="tr" data-lang="tr">Türkçe</a><button type="button" aria-label="Kapat">×</button>';
     document.body.prepend(h);

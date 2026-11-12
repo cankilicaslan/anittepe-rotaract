@@ -370,9 +370,25 @@ form.cf .btn{justify-self:start}
 
 /* ---------- Footer ---------- */
 footer.site{background:var(--blush-2);color:var(--ink);padding-block:56px 32px;position:relative;overflow:hidden}
-.foot{display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1.2fr;gap:32px;position:relative;z-index:1}
+.foot{display:grid;grid-template-columns:1.4fr 1fr 1fr 1.1fr;gap:32px;position:relative;z-index:1}
+.foot h2{line-height:1.3;letter-spacing:0;text-wrap:wrap}
+.foot-brand{display:grid;gap:18px;align-content:start;justify-items:start}
+.foot .lg{display:block}
+.foot-meet{margin:0;display:grid;gap:2px;font-size:.92rem;color:var(--muted)}
+.foot-meet b{color:var(--ink);font-weight:700}
+.foot .foot-social{list-style:none;margin:0;padding:0;display:flex;gap:10px}
+.foot .foot-social a{width:44px;height:44px;padding:0;border-radius:50%;display:grid;place-items:center;background:#fff;color:var(--cran-deep);border:1px solid #F3C6D9;transition:background-color .2s,color .2s,border-color .2s}
+.foot .foot-social a:hover{background:var(--cran);border-color:var(--cran);color:#fff}
+.foot-social svg{width:20px;height:20px}
+.foot .ext{width:.75em;height:.75em;margin-left:4px;vertical-align:-.05em;opacity:.55}
+.foot a:focus-visible{outline:2px solid var(--cran);outline-offset:3px;border-radius:6px}
+.foot .foot-social a:focus-visible{border-radius:50%}
+.vh{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:760px){.foot-ext{grid-column:1/-1}}
+.foot .ext{display:inline-block}
+.foot a:has(.ext){white-space:nowrap}
 .foot .lg{width:220px}
-.foot h4{margin:0 0 12px;font-size:.9rem;color:var(--cran-deep);font-weight:700}
+.foot h2{margin:0 0 12px;font-size:.9rem;color:var(--cran-deep);font-weight:700}
 .foot ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .foot a{text-decoration:none;color:var(--ink)}
 .foot a:hover{color:var(--cran)}
@@ -616,7 +632,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   .foot{gap:20px 16px}
   .foot .lg{width:170px}
   .foot p{margin-top:8px}
-  .foot h4{margin-bottom:2px}
+  .foot h2{margin-bottom:2px}
   .foot li a{padding-block:10px}
   .foot-bottom{margin-top:24px}
   /* Alt çağrı çubuğu: başvuru + üye girişi */
@@ -1034,13 +1050,14 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 <footer class="site">
   <div class="wrap">
     <div class="foot">
-      <div>
-        <span class="lg"><img src="assets/logo-cranberry.webp" alt="Ankara Anıttepe Rotaract Kulübü logosu"></span>
+      <div class="foot-brand">
+        <a class="lg" href="#top" aria-label="Sayfanın başına dön"><img src="assets/logo-cranberry.webp" alt="Ankara Anıttepe Rotaract Kulübü logosu"></a>
+        <p class="foot-meet"><b>İki haftada bir perşembe, 19.30</b><span>Hybrid Hub, Ankara</span></p>
+        <ul class="foot-social" aria-label="Sosyal medya"><li><a href="https://www.instagram.com/anitteperotaract/" target="_blank" rel="noopener" aria-label="Instagram (yeni sekmede açılır)"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6" fill="currentColor"/></svg></a></li><li><a href="https://www.linkedin.com/company/anittepe-rotaract/" target="_blank" rel="noopener" aria-label="LinkedIn (yeni sekmede açılır)"><svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5ZM3 9.75h4v11H3v-11Zm6.5 0h3.8v1.5h.06c.53-.95 1.83-1.95 3.77-1.95 4.03 0 4.77 2.5 4.77 5.75v5.7h-4v-5.05c0-1.2-.02-2.75-1.75-2.75-1.75 0-2.02 1.3-2.02 2.66v5.14h-4V9.75Z"/></svg></a></li><li><a href="https://www.facebook.com/AnittepeRotaractKulubu/" target="_blank" rel="noopener" aria-label="Facebook (yeni sekmede açılır)"><svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M13.5 21v-7.5h2.6l.4-3h-3V8.6c0-.87.25-1.46 1.5-1.46H16.6V4.46A21 21 0 0 0 14.3 4.3c-2.3 0-3.8 1.4-3.8 3.95v2.25H8v3h2.5V21h3Z"/></svg></a></li></ul>
       </div>
-      <div><h4>Kulüp</h4><ul><li><a href="#hikaye">30 yıl</a></li><li><a href="#yonetim">Yönetim</a></li><li><a href="#belgeler">Belgeler</a></li></ul></div>
-      <div><h4>Katıl</h4><ul><li><a href="#basvuru">Misafir üye başvurusu</a></li><li><a href="#uyelik">Üyelik süreci</a></li><li><a href="#projeler">Geleneksel projeler</a></li></ul></div>
-      <div><h4>Rotary bağlantıları</h4><ul><li><a href="https://anitteperotaract.org/uye/">Üye paneli</a></li><li><a href="http://2430rotaract.org/" target="_blank" rel="noopener">Rotaract Bölge 2430</a></li><li><a href="https://rotary2430.org.tr" target="_blank" rel="noopener">Rotary Bölge 2430</a></li><li><a href="https://my.rotary.org/tr" target="_blank" rel="noopener">My Rotary</a></li></ul></div>
-      <div><h4>Takip et</h4><ul><li><a href="https://www.instagram.com/anitteperotaract/" target="_blank" rel="noopener">Instagram</a></li><li><a href="https://www.linkedin.com/company/anittepe-rotaract/" target="_blank" rel="noopener">LinkedIn</a></li><li><a href="https://www.facebook.com/AnittepeRotaractKulubu/" target="_blank" rel="noopener">Facebook</a></li></ul></div>
+      <nav aria-label="Kulüp"><h2>Kulüp</h2><ul><li><a href="#hikaye">30 yıl</a></li><li><a href="#yonetim">Yönetim</a></li><li><a href="#belgeler">Belgeler</a></li><li><a href="https://anitteperotaract.org/uye/">Üye paneli</a></li></ul></nav>
+      <nav aria-label="Katıl"><h2>Katıl</h2><ul><li><a href="#basvuru">Misafir üye başvurusu</a></li><li><a href="#uyelik">Üyelik süreci</a></li><li><a href="#projeler">Geleneksel projeler</a></li></ul></nav>
+      <nav class="foot-ext" aria-label="Rotary ailesi"><h2>Rotary ailesi</h2><ul><li><a href="http://2430rotaract.org/" target="_blank" rel="noopener">Rotaract Bölge 2430<svg class="ext" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg><span class="vh"> (yeni sekmede açılır)</span></a></li><li><a href="https://rotary2430.org.tr" target="_blank" rel="noopener">Rotary Bölge 2430<svg class="ext" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg><span class="vh"> (yeni sekmede açılır)</span></a></li><li><a href="https://my.rotary.org/tr" target="_blank" rel="noopener">My Rotary<svg class="ext" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg><span class="vh"> (yeni sekmede açılır)</span></a></li></ul></nav>
     </div>
     <div class="foot-bottom"><span>© <span id="yr">2026</span> Ankara Anıttepe Rotaract Kulübü · 1996'dan beri</span><span>Hizmet yoluyla dostluk</span></div>
   </div>

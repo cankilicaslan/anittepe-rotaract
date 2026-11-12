@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611112136";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611112136";
+import { createStore, trDate } from "./store.js?v=202611121500";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611121500";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -487,7 +487,7 @@ async function viewProfile(v) {
 /* ---------------------------- Üye listesi ---------------------------- */
 async function viewMembers(v) {
   const admin = hasRole(me, "baskan");
-  const seeDebt = can(me, "aidat", "view");
+  const seeDebt = false; // Üye listesinde aidat borcu gösterilmez (Aidat sayfasında var)
   const [members, charges, dues, accounts] = await Promise.all([store.listMembers(), seeDebt ? store.listCharges() : [], seeDebt ? store.listDues() : [], store.listAccounts()]);
   // Hesap belirteci: şifresini oluşturmuş mu? (yalnızca yetkili kişiler görür; veri yoksa hiç gösterilmez)
   const acc = accounts ? new Map(accounts.map(a => [a.id, a])) : null;
@@ -1127,7 +1127,7 @@ function editProject(p, v, after = viewProjects) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611112136");
+  const { mountComposer } = await import("./composer.js?v=202611121500");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 

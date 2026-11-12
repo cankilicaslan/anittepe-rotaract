@@ -264,32 +264,41 @@ async function runGemini(history: { role: "user" | "assistant"; text: string }[]
     if (backups) return backups;
     try {
       const lj = await (await fetch(`${BASE}/models?pageSize=200`, { headers: { "x-goog-api-key": key } })).json();
+      // Yalnızca standart "gemini-<sürüm>-flash(-lite)" ve "gemini-flash(-lite)-latest" modelleri: ücretsiz katmanı olanlar bunlar.
+      // "omni", önizleme vb. modellerin ücretsiz kotası 0 olabiliyor. Lite modeller önce (daha az yoğun, daha hızlı), sonra yeni sürüm önce.
+      const ver = (n: string) => parseFloat((n.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1] || "99");
       backups = ((lj.models ?? []) as { name: string; supportedGenerationMethods?: string[] }[])
-        .filter(m => /flash/i.test(m.name) && !/image|tts|audio|live|embed|thinking-exp/i.test(m.name) && (m.supportedGenerationMethods ?? []).includes("generateContent"))
-        .map(m => m.name.replace(/^models\//, "")).filter(n => n !== model).sort().reverse().slice(0, 3);
+        .filter(m => (m.supportedGenerationMethods ?? []).includes("generateContent"))
+        .map(m => m.name.replace(/^models\//, ""))
+        .filter(n => n !== model && (/^gemini-\d+(\.\d+)?-flash(-lite)?(-\d{3})?$/.test(n) || /^gemini-flash(-lite)?-latest$/.test(n)))
+        .sort((a, b) => Number(b.includes("lite")) - Number(a.includes("lite")) || ver(b) - ver(a))
+        .slice(0, 4);
+      console.log("Gemini yedek modelleri", backups.join(", "));
     } catch { backups = []; }
     return backups;
   };
-  // Yoğunlukta (503) ve dakikalık sınırda (429) kısa beklemelerle tekrar dener, olmazsa yedek modele geçer.
+  // Önce ana model; yoğunsa (503) hemen yedeklere geçer, en sonda ana modeli bir kez daha dener.
+  // Ücretsiz kotası olmayan (limit: 0) modeller beklemeden atlanır.
   const call = async (body: string) => {
-    const tries = [out.model, out.model, out.model];
+    const seen = new Set<number>();
     let last = { status: 0, j: {} as Record<string, unknown> };
-    for (let i = 0; i < 6; i++) {
-      const m = tries[i] ?? (await loadBackups())[i - tries.length];
-      if (!m) break;
+    const order = [out.model, ...(await loadBackups()), out.model];
+    for (const [i, m] of order.entries()) {
+      if (i === order.length - 1 && !seen.has(503)) break; // ana model yoğun değildi; tekrar denemeye gerek yok
+      if (i === order.length - 1) await sleep(1200);
       const r = await fetch(`${BASE}/models/${m}:generateContent`, { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body });
       const j = await r.json().catch(() => ({}));
       if (r.ok) { out.model = m; return j; }
-      console.error("Gemini API hatası", m, r.status, JSON.stringify(j).slice(0, 400));
-      last = { status: r.status, j };
+      console.error("Gemini API hatası", m, r.status, JSON.stringify(j).slice(0, 300));
+      const zeroQuota = r.status === 429 && /limit: 0\b/.test(JSON.stringify(j));
+      if (!zeroQuota) { seen.add(r.status); last = { status: r.status, j }; }
       if (![429, 500, 503, 404].includes(r.status)) break;
-      if (r.status === 404 && i < tries.length) { i = tries.length - 1; continue; } // model yoksa doğrudan yedeklere geç
-      if (i < tries.length - 1) await sleep(700 * (i + 1));
     }
-    throw new HttpError(502, last.status === 429 ? "Yapay zekânın ücretsiz kullanım sınırı doldu. Biraz sonra tekrar dene ya da \"Metinleri düzenle\" sekmesini kullan."
-      : last.status === 503 || last.status === 500 ? "Yapay zekâ servisi şu an çok yoğun. Birkaç dakika sonra tekrar dene ya da \"Metinleri düzenle\" sekmesini kullan."
+    const msg = seen.has(503) || seen.has(500) ? "Yapay zekâ servisi şu an çok yoğun. Birkaç dakika sonra tekrar dene ya da \"Metinleri düzenle\" sekmesini kullan."
+      : seen.has(429) ? "Yapay zekânın ücretsiz kullanım sınırı doldu (dakikalık ya da günlük). Biraz sonra tekrar dene ya da \"Metinleri düzenle\" sekmesini kullan."
       : last.status === 401 || last.status === 403 || /api key/i.test(JSON.stringify(last.j)) ? "Yapay zekâ anahtarı (GEMINI_API_KEY) geçersiz. Yöneticiye haber ver."
-      : "Yapay zekâ servisine ulaşılamadı. Tekrar dene.");
+      : "Yapay zekâ servisine ulaşılamadı. Tekrar dene.";
+    throw new HttpError(502, msg);
   };
   for (let attempt = 0; attempt < 3; attempt++) {
     const j = await call(JSON.stringify({

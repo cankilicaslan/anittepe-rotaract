@@ -1168,3 +1168,21 @@ alter table public.meetings add column if not exists label text;   -- ör. "Rota
 -- 2026-27 için uygulanan veri düzeltmeleri (yalnızca bu dönem):
 --   600 eklendi (5 Temmuz), 601 23 Tem, 602 6 Ağu, 603 20 Ağu, 604 3 Eyl, 605 17 Eyl, 606 15 Eyl,
 --   607 1 Eki, 608 15 Eki, 609 27 Eki, 610 7 Kas, 611 19 Kas; meeting_count = toplantı satırı sayısı.
+
+-- =====================================================================
+-- v23: Kulüp geneli ayarlar (ör. aidat hatırlatmasındaki ödeme bilgisi: key = 'wa_pay')
+-- =====================================================================
+create table if not exists public.app_settings (
+  key        text primary key,
+  value      text,
+  updated_at timestamptz not null default now(),
+  updated_by uuid
+);
+alter table public.app_settings enable row level security;
+drop policy if exists app_settings_select on public.app_settings;
+create policy app_settings_select on public.app_settings for select to authenticated using (public.is_active());
+drop policy if exists app_settings_write on public.app_settings;
+create policy app_settings_write on public.app_settings for all to authenticated
+  using (public.has_role('sayman') or public.is_admin())
+  with check (public.has_role('sayman') or public.is_admin());
+-- Değer panelden (Aidat hatırlatma → Ödeme bilgisi → Değiştir) girilir; kişisel bilgi olduğu için burada tutulmaz.

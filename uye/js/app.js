@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611131209";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611131209";
+import { createStore, trDate } from "./store.js?v=202611131213";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611131213";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1258,7 +1258,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611131209");
+  const { mountComposer } = await import("./composer.js?v=202611131213");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1647,7 +1647,7 @@ async function viewWaMeeting(v) {
 
 /* ---------------- Sayman: WhatsApp aidat / ödeme hatırlatma ---------------- */
 async function viewWaDues(v) {
-  const [members, charges, dues] = await Promise.all([store.listMembers(), store.listCharges(), store.listDues()]);
+  const [members, charges, dues, payInfo] = await Promise.all([store.listMembers(), store.listCharges(), store.listDues(), store.getSetting("wa_pay").catch(() => null)]);
   const active = members.filter(m => m.status === "active");
   // Yalnızca vadesi geçmiş ya da 15 gün içinde dolacak aidatlar hatırlatılır (ileriki ayların aidatı borç sayılmaz).
   const soon = (() => { const d = new Date(); d.setDate(d.getDate() + 15); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
@@ -1661,7 +1661,8 @@ async function viewWaDues(v) {
   v.innerHTML = header("Aidat hatırlatma", "Aidat ve ödeme hatırlatmalarını WhatsApp'tan gruba ya da kişiye özel gönder.") + roBanner("wa-aidat") + `
   <div class="card">
     <h2>Ödeme bilgisi</h2>
-    <label class="f">IBAN ve ödeme açıklaması <small>Mesajlara eklenir; yalnızca bu tarayıcıda saklanır</small><textarea id="pay" rows="3" placeholder="IBAN: TR.. .... .... ....\nAlıcı: ...\nAçıklamaya adını ve ayı yaz.">${esc(lsGet("ar-wa-pay"))}</textarea></label>
+    <label class="f">IBAN ve ödeme açıklaması <small>Grup ve kişiye özel mesajlara eklenir; kulüp genelinde kayıtlıdır</small><textarea id="pay" rows="3" readonly placeholder="IBAN: TR.. .... .... ....\nAlıcı: ...">${esc(payInfo ?? lsGet("ar-wa-pay"))}</textarea></label>
+    <div class="row" style="margin-top:10px"><button type="button" class="btn ghost sm" id="pay-edit">Değiştir</button><button type="button" class="btn sm" id="pay-save" hidden>Kaydet</button><button type="button" class="btn ghost sm" id="pay-cancel" hidden>Vazgeç</button></div>
   </div>
   <div class="grid g2 wa-grid">
     <div class="card">
@@ -1687,7 +1688,22 @@ async function viewWaDues(v) {
   </div>`;
   const pay = document.getElementById("pay"), ptpl = document.getElementById("ptpl");
   const roWa = !can(me, "wa-aidat", "edit");
-  pay.oninput = () => { lsSet("ar-wa-pay", pay.value); gfill(); };
+  pay.oninput = () => gfill();
+  // Ödeme bilgisi kilitli durur; "Değiştir" ile düzenlenir, "Kaydet" ile herkes için güncellenir.
+  {
+    const ed = document.getElementById("pay-edit"), sv = document.getElementById("pay-save"), cn = document.getElementById("pay-cancel");
+    let before = pay.value;
+    const mode = on => { pay.readOnly = !on; ed.hidden = on; sv.hidden = !on; cn.hidden = !on; if (on) pay.focus(); };
+    ed.onclick = () => { before = pay.value; mode(true); };
+    cn.onclick = () => { pay.value = before; mode(false); gfill(); };
+    sv.onclick = async () => {
+      sv.disabled = true;
+      try { await store.setSetting("wa_pay", pay.value.trim()); before = pay.value; mode(false); toast("Ödeme bilgisi kaydedildi.", "ok"); }
+      catch (e) { toast(esc(e.message), "bad"); }
+      finally { sv.disabled = false; }
+    };
+    if (roWa) ed.hidden = true;
+  }
   ptpl.oninput = () => lsSet("ar-wa-ptpl", ptpl.value);
   document.getElementById("preset").onclick = () => { ptpl.value = DEF_PERSONAL; lsSet("ar-wa-ptpl", DEF_PERSONAL); };
   const gsel = document.getElementById("gdue"), gtext = document.getElementById("gtext");

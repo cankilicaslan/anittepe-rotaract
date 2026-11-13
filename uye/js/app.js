@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611130051";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611130051";
+import { createStore, trDate } from "./store.js?v=202611131158";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611131158";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -678,10 +678,11 @@ async function viewAttendance(v) {
   <div class="card">
     <div class="row" style="margin-bottom:14px">
       <label class="f" style="min-width:260px;flex:1">Toplantı
-        <select id="msel">${meetings.map(m => `<option value="${m.id}" ${m.id === cur.id ? "selected" : ""}>${m.term_no}. toplantı (kulübün ${m.club_no}.) · ${trDate(m.date)}${m.date > today() ? " · ileride" : ""}</option>`).join("")}</select>
+        <select id="msel">${meetings.map(m => `<option value="${m.id}" ${m.id === cur.id ? "selected" : ""}>${m.term_no}. toplantı${m.label ? ` (${esc(m.label)})` : ""} · kulübün ${m.club_no}. · ${trDate(m.date)}${m.date > today() ? " · ileride" : ""}</option>`).join("")}</select>
       </label>
       <fieldset ${ro ? "disabled" : ""} class="row" style="align-items:flex-end">
         <label class="f">Tarih<input type="date" id="mdate" value="${cur.date}"></label>
+        <label class="f" style="min-width:160px">Tür<input type="text" id="mlabel" value="${esc(cur.label || "")}" placeholder="ör. Rotary ortak" list="mlabels"><datalist id="mlabels"><option value="Rotary ortak"><option value="Yaz ortak"><option value="BRT ziyareti"><option value="Grup ortak"></datalist></label>
         <label class="f" style="min-width:200px">Not<input type="text" id="mnote" value="${esc(cur.note)}" placeholder="Konuk, konu…"></label>
         <button class="btn ghost sm" id="msave" style="margin-bottom:4px">Kaydet</button>
       </fieldset>
@@ -715,7 +716,7 @@ async function viewAttendance(v) {
   </div>
   <details class="card"><summary style="cursor:pointer;font-weight:700">Dönemin tamamı (${term.meeting_count} toplantı tablosu)</summary>
     <div class="legend" style="margin:12px 0"><span><span class="cell geldi">✓</span>Geldi</span><span><span class="cell gelmedi">✕</span>Gelmedi</span><span><span class="cell mazeretli">M</span>Mazeretli</span><span><span class="cell">·</span>İşaretsiz</span><span><span class="cell pre">–</span>Henüz üye değil</span>${ro ? "" : "<span>Hücreye tıklayınca durum değişir.</span>"}</div>
-    <div class="tbl-wrap"><table class="matrix"><thead><tr><th>Üye</th>${meetings.map(m => `<th class="${m.date > today() ? "future" : ""}" title="${trDate(m.date)}">${m.term_no}</th>`).join("")}</tr></thead><tbody>
+    <div class="tbl-wrap"><table class="matrix"><thead><tr><th>Üye</th>${meetings.map(m => `<th class="${m.date > today() ? "future" : ""}" title="${trDate(m.date)}${m.label ? " · " + esc(m.label) : ""}">${m.term_no}${m.label ? `<br><small class="mlabel">(${esc(m.label)})</small>` : ""}</th>`).join("")}</tr></thead><tbody>
     ${members.map(p => matrixRow(p, amap, "cp")).join("")}
     ${guestList.length ? `<tr><th colspan="${meetings.length + 1}" style="text-align:left;padding-top:14px">Misafirler</th></tr>${guestList.map(g => matrixRow(g, gmap, "cg")).join("")}` : ""}
     </tbody></table></div>
@@ -724,7 +725,7 @@ async function viewAttendance(v) {
   document.getElementById("msel").onchange = e => { selMeeting = e.target.value; refreshKeep(v, viewAttendance); };
   if (ro) return;
   const run = async (fn, keep = false) => { try { await fn(); refreshKeep(v, viewAttendance, keep); } catch (e) { fail(e); } };
-  document.getElementById("msave").onclick = () => run(async () => { await store.updateMeeting(cur.id, { date: document.getElementById("mdate").value, note: document.getElementById("mnote").value }); toast("Toplantı bilgisi kaydedildi."); });
+  document.getElementById("msave").onclick = () => run(async () => { await store.updateMeeting(cur.id, { date: document.getElementById("mdate").value, note: document.getElementById("mnote").value, label: document.getElementById("mlabel").value.trim() || null }); toast("Toplantı bilgisi kaydedildi."); });
   v.querySelectorAll(".seg button").forEach(b => b.onclick = () => {
     const was = b.getAttribute("aria-pressed") === "true", val = was ? null : b.dataset.v;
     run(() => b.dataset.g ? store.setGuestAttendance(cur.id, b.dataset.g, val) : store.setAttendance(cur.id, b.dataset.m, val));
@@ -1257,7 +1258,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611130051");
+  const { mountComposer } = await import("./composer.js?v=202611131158");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1275,7 +1276,7 @@ async function calendarItems() {
     store.listMeetings(), store.listCalendarProjects(), store.listDues(), store.listCharges(), store.listClubEvents(), store.listRsvps()
   ]);
   const items = [];
-  meetings.forEach(m => items.push({ date: m.date, type: "toplanti", time: "19.30", title: `${m.term_no}. toplantı`, sub: `Kulübümüzün ${m.club_no}. toplantısı · Hybrid Hub${m.note ? " · " + m.note : ""}`, ref: m }));
+  meetings.forEach(m => items.push({ date: m.date, type: "toplanti", time: "19.30", title: `${m.term_no}. toplantı${m.label ? ` (${m.label})` : ""}`, sub: `Kulübümüzün ${m.club_no}. toplantısı · Hybrid Hub${m.note ? " · " + m.note : ""}`, ref: m }));
   projects.filter(p => p.date && p.status !== "iptal").forEach(p => items.push({ date: p.date, type: CAL_TYPES[p.kind] ? p.kind : "diger", time: p.time || "", title: p.title, sub: [p.location, p.owner].filter(Boolean).join(" · "), desc: p.description, ref: p, done: p.status === "tamamlandi" }));
   dues.filter(d => d.due_date).forEach(d => {
     const mine = charges.find(c => c.due_id === d.id && c.member_id === me.id);

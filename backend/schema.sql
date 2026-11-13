@@ -1160,3 +1160,11 @@ end $$;
 
 select term_no, club_no, date from public.meetings
  where term_id = (select id from public.terms where is_current) and date between '2026-11-01' and '2026-12-01' order by date;
+
+-- =====================================================================
+-- v22: Toplantı tarihleri (WhatsApp duyurularına göre) ve tür etiketi
+-- =====================================================================
+alter table public.meetings add column if not exists label text;   -- ör. "Rotary ortak", "Yaz ortak", "BRT ziyareti"
+-- 2026-27 için uygulanan veri düzeltmeleri (yalnızca bu dönem):
+--   600 eklendi (5 Temmuz), 601 23 Tem, 602 6 Ağu, 603 20 Ağu, 604 3 Eyl, 605 17 Eyl, 606 15 Eyl,
+--   607 1 Eki, 608 15 Eki, 609 27 Eki, 610 7 Kas, 611 19 Kas; meeting_count = toplantı satırı sayısı.

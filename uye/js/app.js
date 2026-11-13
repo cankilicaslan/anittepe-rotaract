@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611131205";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611131205";
+import { createStore, trDate } from "./store.js?v=202611131207";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611131207";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1258,7 +1258,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611131205");
+  const { mountComposer } = await import("./composer.js?v=202611131207");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1694,7 +1694,17 @@ async function viewWaDues(v) {
   function gfill() {
     if (!gsel) return;
     const d = dues.find(x => x.id === gsel.value);
-    gtext.value = [`*${d.label} hatırlatması*`, "", "Merhaba arkadaşlar,", "", `${d.label} (${TL(d.amount)}) için son ödeme tarihi ${longDate(d.due_date)}.`, ...(pay.value.trim() ? ["", pay.value.trim()] : []), "", "Ödemesini yapanlara teşekkürler 🙏", "", signature("sayman", "Sayman")].join("\n");
+    // Kulübün sabit aidat hatırlatma şablonu: yalnızca taksit numarası, son gün ve tutar aidattan gelir.
+    const no = (d.label.match(/(\d+)\s*\./) || [])[1];
+    const what = no ? `${no}. taksit` : d.label;
+    gtext.value = [
+      "Sevgili Anıttepe Ailesi,", "",
+      `${what} ödemeleri için son tarih ${longDate(d.due_date)} günüdür. ${Math.round(+d.amount)}₺ tutarındaki ödemeyi belirtilen hesaba aktarmanız önemle rica olur.`, "",
+      "En derin Rotaractor sevgi ve saygılarımızla,", "",
+      "Rtc. Umut Ekin Akkuş",
+      "Ankara Anıttepe Rotaract Kulübü",
+      "2026-27 Dönem Saymanı",
+    ].join("\n");
   }
   if (gsel) {
     gsel.onchange = gfill; gfill();

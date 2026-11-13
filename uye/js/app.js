@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611131158";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611131158";
+import { createStore, trDate } from "./store.js?v=202611131200";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611131200";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -678,7 +678,7 @@ async function viewAttendance(v) {
   <div class="card">
     <div class="row" style="margin-bottom:14px">
       <label class="f" style="min-width:260px;flex:1">Toplantı
-        <select id="msel">${meetings.map(m => `<option value="${m.id}" ${m.id === cur.id ? "selected" : ""}>${m.term_no}. toplantı${m.label ? ` (${esc(m.label)})` : ""} · kulübün ${m.club_no}. · ${trDate(m.date)}${m.date > today() ? " · ileride" : ""}</option>`).join("")}</select>
+        <select id="msel">${meetings.map(m => `<option value="${m.id}" ${m.id === cur.id ? "selected" : ""}>${m.term_no}. toplantı · kulübün ${m.club_no}. · ${trDate(m.date)}${m.date > today() ? " · ileride" : ""}${m.label ? ` (${esc(m.label)})` : ""}</option>`).join("")}</select>
       </label>
       <fieldset ${ro ? "disabled" : ""} class="row" style="align-items:flex-end">
         <label class="f">Tarih<input type="date" id="mdate" value="${cur.date}"></label>
@@ -1258,7 +1258,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611131158");
+  const { mountComposer } = await import("./composer.js?v=202611131200");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 

@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611131218";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611131218";
+import { createStore, trDate } from "./store.js?v=202611131221";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611131221";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1258,7 +1258,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611131218");
+  const { mountComposer } = await import("./composer.js?v=202611131221");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1656,7 +1656,7 @@ async function viewWaDues(v) {
     .sort((a, b) => b.d.total - a.d.total || a.m.full_name.localeCompare(b.m.full_name, "tr"));
   const openDues = dues.filter(d => charges.some(c => c.due_id === d.id && !c.paid_at)).sort((a, b) => a.due_date.localeCompare(b.due_date));
   const defDue = openDues.find(d => d.due_date >= today()) || openDues.at(-1) || dues.at(-1);
-  const DEF_PERSONAL = "Sevgili {ad},\n\n{kalemler} için {borc} tutarındaki ödemen henüz bize ulaşmamış görünüyor. Uygun olduğunda aşağıdaki hesaba aktarmanı rica ederim. 🙏\n\n{odeme}\n\nÖdemeyi yaptıysan bu mesajı dikkate alma, teşekkür ederim. 💗\n\nEn derin Rotaractor sevgi ve saygılarımla,\n\n{imza}";
+  const DEF_PERSONAL = "{ad} selamlar,\n\n{kalemler} için {borc} tutarındaki ödemen henüz bize ulaşmamış görünüyor. Uygun olduğunda aşağıdaki hesaba aktarmanı rica ederim. 🙏\n\n{odeme}\n\nÖdemeyi yaptıysan bu mesajı dikkate alma, teşekkür ederim. 💗";
   const sent = new Set();
   v.innerHTML = header("Aidat hatırlatma", "Aidat ve ödeme hatırlatmalarını WhatsApp'tan gruba ya da kişiye özel gönder.") + roBanner("wa-aidat") + `
   <div class="card">
@@ -1675,7 +1675,7 @@ async function viewWaDues(v) {
     <div class="card">
       <h2>Kişiye özel mesaj şablonu</h2>
       <p class="muted" style="margin-top:-6px;font-size:.86rem">Kullanılabilir alanlar: {ad}, {borc}, {kalemler}, {odeme}, {imza}</p>
-      <textarea id="ptpl" rows="9" class="wa-text" aria-label="Kişiye özel mesaj şablonu">${esc(lsGet("ar-wa-ptpl2", DEF_PERSONAL))}</textarea>
+      <textarea id="ptpl" rows="9" class="wa-text" aria-label="Kişiye özel mesaj şablonu">${esc(lsGet("ar-wa-ptpl3", DEF_PERSONAL))}</textarea>
       <div class="row" style="margin-top:8px"><button type="button" class="btn ghost sm" id="preset">Varsayılan şablona dön</button></div>
     </div>
   </div>
@@ -1704,8 +1704,8 @@ async function viewWaDues(v) {
     };
     if (roWa) ed.hidden = true;
   }
-  ptpl.oninput = () => lsSet("ar-wa-ptpl2", ptpl.value);
-  document.getElementById("preset").onclick = () => { ptpl.value = DEF_PERSONAL; lsSet("ar-wa-ptpl2", DEF_PERSONAL); };
+  ptpl.oninput = () => lsSet("ar-wa-ptpl3", ptpl.value);
+  document.getElementById("preset").onclick = () => { ptpl.value = DEF_PERSONAL; lsSet("ar-wa-ptpl3", DEF_PERSONAL); };
   const gsel = document.getElementById("gdue"), gtext = document.getElementById("gtext");
   function gfill() {
     if (!gsel) return;

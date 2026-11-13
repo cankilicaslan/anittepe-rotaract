@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611131200";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611131200";
+import { createStore, trDate } from "./store.js?v=202611131205";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611131205";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1258,7 +1258,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611131200");
+  const { mountComposer } = await import("./composer.js?v=202611131205");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1587,30 +1587,29 @@ const locSuffix = word => {
   const vowels = w.match(/[aıoueiöü]/g) || ["a"], back = "aıou".includes(vowels.at(-1));
   return "’" + ("fstkçşhp".includes(w.at(-1)) ? "t" : "d") + (back ? "a" : "e");
 };
+// Toplantı duyurusu: kulübün sabit WhatsApp şablonu. Yalnızca toplantı numaraları ve tarihler değişir; imzalar sabittir.
+const WA_SIGN = `Rtc. Simay Oğuzkurt
+Ankara Anıttepe Rotaract Kulübü
+2026-27 Dönem Başkanı
+
+Rtc. Oğulcan Görgülü
+Ankara Anıttepe Rotaract Kulübü
+2026-27 Dönem Sekreteri`;
 async function viewWaMeeting(v) {
-  const [term, meetings, members] = await Promise.all([store.getTerm(), store.listMeetings(), store.listMembers()]);
+  const meetings = await store.listMeetings();
   if (!meetings.length) { v.innerHTML = header("Toplantı duyurusu", "WhatsApp") + `<div class="card"><p class="muted" style="margin:0">Bu dönem için henüz toplantı tanımlanmamış.</p></div>`; return; }
   const next = meetings.find(m => m.date >= today()) || meetings.at(-1);
   v.innerHTML = header("Toplantı duyurusu", "Seçtiğin toplantı için WhatsApp grubuna atılacak duyuru metnini hazırlar.") + roBanner("wa-toplanti") + `
   <div class="grid g2 wa-grid">
     <form class="card" id="f-wam">
-      <h2>Toplantı bilgileri</h2>
-      <label class="f">Toplantı<select name="mid">${meetings.map(m => `<option value="${m.id}" ${m.id === next.id ? "selected" : ""}>${m.term_no}. toplantı · ${trDate(m.date)}${m.date < today() ? " · yapıldı" : ""}</option>`).join("")}</select></label>
-      <div class="grid g2" style="margin-top:12px">
-        <label class="f">Saat<input type="text" name="time" value="${esc(lsGet("ar-wa-time", "19:30"))}"></label>
-        <label class="f">Yer<input type="text" name="place" value="${esc(lsGet("ar-wa-place", "HybridHub"))}"></label>
-        <label class="f">Dress code <small>boş bırakılırsa yazılmaz</small><input type="text" name="dress" value="${esc(lsGet("ar-wa-dress", "Smart Casual"))}"></label>
-        <label class="f">Harita linki <small>isteğe bağlı</small><input type="url" name="map" value="${esc(lsGet("ar-wa-map", "https://maps.app.goo.gl/SuKHmR4eTei8gXPK7"))}"></label>
-      </div>
-      <label class="f" style="margin-top:12px">Gündem <small>Her maddeyi ayrı satıra yaz</small><textarea name="agenda" rows="4" placeholder="Proje/Etkinlik/Hobi Etkinliği Takvimleri&#10;Proje tanıtım sunumu&#10;Kulüp içi bildirimler"></textarea></label>
-      <label class="f" style="margin-top:12px">Konuk / konuşmacı <small>isteğe bağlı</small><input type="text" name="guest"></label>
-      <label class="f" style="margin-top:12px">Ek not <small>isteğe bağlı</small><input type="text" name="extra" placeholder="ör. Toplantı sonrası ocakbaşı var"></label>
-      <label class="check" style="margin-top:12px"><input type="checkbox" name="rsvp" checked> Katılım durumunun bir gün önceye kadar bildirilmesini iste</label>
+      <h2>Toplantı</h2>
+      <label class="f">Toplantı<select name="mid">${meetings.map(m => `<option value="${m.id}" ${m.id === next.id ? "selected" : ""}>${m.term_no}. toplantı · kulübün ${m.club_no}. · ${trDate(m.date)}${m.date < today() ? " · yapıldı" : ""}${m.label ? ` (${esc(m.label)})` : ""}</option>`).join("")}</select></label>
+      <p class="muted" style="font-size:.86rem;margin:12px 0 0">Metin kulübün sabit duyuru şablonundan oluşur. Toplantıyı seçtiğinde toplantı numaraları, toplantı tarihi ve katılım için son gün (bir gün öncesi) kendiliğinden değişir. Tarih Yoklama sayfasındaki toplantı tarihinden gelir.</p>
     </form>
     <div class="card">
       <h2>WhatsApp mesajı</h2>
-      <p class="muted" style="margin-top:-6px;font-size:.86rem">Toplantı bilgilerini değiştirdikçe metin yenilenir. İstersen buradan da düzenleyebilirsin.</p>
-      <textarea id="wa-text" rows="16" class="wa-text" aria-label="WhatsApp mesajı"></textarea>
+      <p class="muted" style="margin-top:-6px;font-size:.86rem">Gerekirse buradan düzenleyebilirsin; başka bir toplantı seçince metin yeniden oluşur.</p>
+      <textarea id="wa-text" rows="22" class="wa-text" aria-label="WhatsApp mesajı"></textarea>
       <div class="row" style="margin-top:12px">
         <button type="button" class="btn wa" id="wa-send">WhatsApp grubunda paylaş</button>
         <button type="button" class="btn ghost" id="wa-copy">Metni kopyala</button>
@@ -1619,45 +1618,28 @@ async function viewWaMeeting(v) {
     </div>
   </div>`;
   const f = document.getElementById("f-wam"), out = document.getElementById("wa-text");
-  let edited = false;
   const build = () => {
     const m = meetings.find(x => x.id === f.mid.value);
-    const agenda = f.agenda.value.split("\n").map(s => s.trim().replace(/^[-•*]\s*/, "")).filter(Boolean);
     const d = new Date(m.date + "T12:00:00"), prev = new Date(d); prev.setDate(d.getDate() - 1);
     const fullDate = x => `${x.getDate()} ${MONTHS[x.getMonth()]} ${x.getFullYear()} ${DAYS_TR[x.getDay()]}`;
-    const dotDate = `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()} ${DAYS_TR[d.getDay()]}`;
-    const time = f.time.value.trim(), place = f.place.value.trim(), dress = f.dress.value.trim(), map = f.map.value.trim();
-    // İmza: dönemin aktif başkanı ve sekreteri (Rtc. unvanıyla)
-    const holder = r => members.find(p => p.status === "active" && (p.roles || []).includes(r));
-    const sign = [["baskan", "Dönem Başkanı"], ["sekreter", "Dönem Sekreteri"]].map(([r, l]) => holder(r) && `Rtc. ${holder(r).full_name}\nAnkara Anıttepe Rotaract Kulübü\n${term?.name || ""} ${l}`.replace("\n ", "\n")).filter(Boolean);
+    const p2 = n => String(n).padStart(2, "0");
+    const dotDate = `${p2(d.getDate())}.${p2(d.getMonth() + 1)}.${d.getFullYear()} ${DAYS_TR[d.getDay()]}`;
     return [
       "Kıymetli Anıttepe Rotaract Kulübü Üye ve Misafirleri,", "",
-      `Kulübümüzün ${m.club_no}. ve dönemin ${m.term_no}. toplantısı, ${fullDate(d)} günü, saat ${time}${locSuffix(time)} ${place}${locSuffix(place)} gerçekleştirilecektir.`,
-      ...(agenda.length ? ["", "Toplantı gündemi:", "", ...agenda.map(a => `-${a}`)] : []),
-      ...(f.guest.value.trim() ? ["", `Toplantımızın konuğu: ${f.guest.value.trim()}`] : []),
-      ...(f.rsvp.checked ? ["", `Katılım durumunuzu ve katılamamanız halinde sebebini, ${fullDate(prev)} akşamına kadar bildirmeniz gerekmektedir.`] : []),
-      ...(dress ? ["", `Toplantımızda ${dress.toLocaleLowerCase("tr")} dress code olduğunu hatırlatmak isteriz.`] : []),
-      ...(f.extra.value.trim() ? ["", f.extra.value.trim()] : []),
-      "",
-      `🗓️ : ${dotDate}`,
-      `⏰ : ${time}`,
-      ...(dress ? [`💃🏻 : ${dress}`] : []),
-      `📍 : ${place}`,
-      ...(map ? [map] : []),
-      "", "En derin Rotaract Sevgi ve Saygılarımızla,",
-      ...(sign.length ? sign.flatMap(s => ["", s]) : ["", signature("sekreter", "Sekreter")])
+      `Kulübümüzün *${m.club_no}.* ve dönemin *${m.term_no}. toplantısı,* *${fullDate(d)}* günü, saat *19:30’da HybridHub’da* gerçekleştirilecektir.`, "",
+      `Katılım durumunuzu ve katılamamanız halinde sebebini, *${fullDate(prev)}* akşamına kadar bildirmeniz gerekmektedir.`, "",
+      "Toplantımızda smart casual dress code olduğunu hatırlatmak isteriz.", "",
+      `🗓️ : *${dotDate}*`,
+      "⏰ : *19:30*",
+      "💃🏻 : *Smart Casual*",
+      "📍 : *HybridHub*",
+      "https://maps.app.goo.gl/SuKHmR4eTei8gXPK7", "",
+      "En derin Rotaract Sevgi ve Saygılarımızla,", "",
+      WA_SIGN,
     ].join("\n");
   };
-  const fill = () => {
-    const m = meetings.find(x => x.id === f.mid.value);
-    if (!f.agenda.dataset.touched) f.agenda.value = m?.note || "";
-    if (!edited) out.value = build();
-  };
-  f.agenda.oninput = () => { f.agenda.dataset.touched = "1"; };
-  f.mid.onchange = () => { delete f.agenda.dataset.touched; edited = false; fill(); };
-  f.addEventListener("input", () => { edited = false; out.value = build(); lsSet("ar-wa-time", f.time.value); lsSet("ar-wa-place", f.place.value); lsSet("ar-wa-dress", f.dress.value); lsSet("ar-wa-map", f.map.value); });
-  out.oninput = () => { edited = true; };
-  fill();
+  out.value = build();
+  f.mid.onchange = () => { out.value = build(); };
   if (!can(me, "wa-toplanti", "edit")) { lockView(v); return; }
   document.getElementById("wa-send").onclick = () => { waOpen(out.value); toast("WhatsApp açıldı. Kulüp grubunu seçip gönder."); };
   document.getElementById("wa-copy").onclick = () => copyText(out.value, "Duyuru metni");

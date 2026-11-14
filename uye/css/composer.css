@@ -383,3 +383,4 @@
 .cmp-seg-sm { flex: 1 1 100%; }
 .cmp-seg-sm .cmp-seg-btn { min-height: 36px; padding: 6px 4px; font-size: .8125rem; }
 .cmp-seg-btn:disabled { opacity: .45; cursor: not-allowed; }
+.cmp-extra-cover { justify-content: center; align-items: center; min-height: 32px; font-size: .75rem; font-weight: 600; color: var(--_muted); }

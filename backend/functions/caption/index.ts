@@ -69,6 +69,8 @@ Yazım kuralları:
 - Türkçe yaz. Sıcak, samimi, içten bir ton kullan; kurumsal ve abartılı olma.
 - Toplam 60 ile 120 kelime arası (hashtag'ler hariç).
 - İlk satır güçlü bir kanca olsun: Instagram'da "...devamı" kesiminden önce görünen tek satır budur, tek başına merak uyandırmalı ve yaklaşık 125 karakteri geçmemeli.
+- Üyenin yazdığı notlar ham bilgidir, çoğu zaman kısa ve dağınıktır. Notları olduğu gibi kopyalama ya da madde madde sıralama: içindeki her bilgiyi koruyarak yaratıcı, akıcı ve canlı cümlelerle yeniden kur. Ortamı, duyguyu ve anlamı hissettiren bir anlatım kullan; cümle yapılarını çeşitlendir. Yaratıcılık anlatımda olsun, bilgide değil: notlarda olmayan kişi, sayı, yer veya olay ekleme.
+- "Başlık:" satırı verilmişse etkinliğin ya da projenin adıdır; metinde doğal bir şekilde geçir.
 - Sana verilen somut bilgileri mutlaka ve doğru şekilde kullan (ör. "Dönemimizin 11. ve kulübümüzün 610. toplantısı", tarih, Ocakbaşı numarası). Verilmeyen bilgi, isim, sayı veya olay uydurma.
 - Uzun tire (—) ve kısa tire (–) kullanma. Gerekirse virgül, nokta veya iki nokta kullan.
 - Klişelerden kaçın: "unutulmaz bir gün", "dolu dolu", "harika bir etkinlik", "birlikte daha güçlüyüz", "kelimeler yetersiz" gibi kalıpları kullanma.
@@ -117,7 +119,9 @@ function buildUserPrompt(body: Record<string, unknown>): string {
   if (type === "ocakbasi" && ocakbasiNo) facts.push(`Bu, ${ocakbasiNo}. Ocakbaşı buluşmamız.`);
   else if (ocakbasiNo) facts.push(`Ocakbaşı numarası: ${ocakbasiNo}`);
   if (dateTr) facts.push(`Tarih: ${dateTr}`);
-  facts.push(summary ? `Ne oldu (kısa özet):\n${summary}` : "Özet verilmedi; yalnızca yukarıdaki bilgileri kullan.");
+  facts.push(summary
+    ? `Üyenin notları (ham bilgi; kopyalama, bu bilgilerle yaratıcı ve akıcı cümleler kur):\n${summary}`
+    : "Not verilmedi; yalnızca yukarıdaki bilgileri kullan.");
 
   return `Aşağıdaki bilgilerle bir Instagram açıklaması yaz.\n\n${facts.join("\n")}`;
 }

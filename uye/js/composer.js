@@ -298,8 +298,9 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   const extraList = el('ul', { class: 'cmp-extra-list', 'aria-label': 'Ek sayfalar' });
   const extraAdd = el('button', { type: 'button', class: 'cmp-btn cmp-btn-soft cmp-btn-sm', text: '+ Sayfa ekle' });
   const extraCount = el('span', { class: 'cmp-extra-count', text: '' });
+  const extraTitle = el('strong', { text: 'Ek sayfalar' });
   const extraSection = el('div', { class: 'cmp-extra' },
-    el('div', { class: 'cmp-extra-head' }, el('strong', { text: 'Ek sayfalar' }), extraCount),
+    el('div', { class: 'cmp-extra-head' }, extraTitle, extraCount),
     el('p', { class: 'cmp-hint', text: 'Kaydırmalı gönderi için kapaktan sonra en fazla 9 fotoğraf ekleyin; her biri ayrı sayfa olur. Birden fazla fotoğrafı aynı anda seçebilir ya da buraya sürükleyebilirsiniz.' }),
     extraList, extraAdd, extraInput,
   );
@@ -612,7 +613,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   }
   function titles() {
     const a = autoTitles();
-    if (state.type === 'toplanti') return a; // toplantı başlığı hep listeden
+    if (state.type === 'toplanti' || state.type === 'ocakbasi') return a; // toplantı ve ocakbaşı başlığı otomatik
     return [state.title1.trim() || a[0], state.title2.trim() || a[1]];
   }
 
@@ -829,6 +830,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
       state.zoom = 1;
       state.fit = 'cover';
       zoomInput.value = '1';
+      renderExtra();
       showPage(0);
     } catch {
       URL.revokeObjectURL(url);
@@ -843,6 +845,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     state.fit = 'cover';
     state.pos = { x: 0.5, y: 0.5 };
     zoomInput.value = '1';
+    renderExtra();
     updatePhotoUI();
     scheduleRender();
     dropzone.focus();
@@ -1052,8 +1055,17 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   function renderExtra() {
     extraCount.textContent = state.extra.length ? `${state.extra.length + 1} sayfa` : '';
     extraAdd.disabled = state.extra.length >= MAX_EXTRA;
-    extraList.replaceChildren(...state.extra.map((s, i) => {
-      const thumb = el('button', { type: 'button', class: 'cmp-extra-thumb', 'aria-label': `${i + 2}. sayfayı önizle`, 'aria-pressed': String(state.cur === i + 1) });
+    extraTitle.textContent = state.extra.length ? 'Sayfalar' : 'Ek sayfalar';
+    // Kapak listenin başında görünür; yeri sabit olduğu için ok ve silme düğmesi yok.
+    const cover = [];
+    if (state.extra.length) {
+      const ct = el('button', { type: 'button', class: 'cmp-extra-thumb', 'data-page': '0', 'aria-label': '1. sayfayı (kapak) önizle', 'aria-pressed': String(state.cur === 0) });
+      if (state.photo) ct.style.backgroundImage = `url("${state.photo.url}")`;
+      ct.addEventListener('click', () => showPage(0));
+      cover.push(el('li', { class: 'cmp-extra-item' }, ct, el('span', { class: 'cmp-extra-no', text: '1' }), el('div', { class: 'cmp-extra-btns cmp-extra-cover', text: 'Kapak' })));
+    }
+    extraList.replaceChildren(...cover, ...state.extra.map((s, i) => {
+      const thumb = el('button', { type: 'button', class: 'cmp-extra-thumb', 'data-page': String(i + 1), 'aria-label': `${i + 2}. sayfayı önizle`, 'aria-pressed': String(state.cur === i + 1) });
       thumb.style.backgroundImage = `url("${s.url}")`;
       thumb.addEventListener('click', () => showPage(i + 1));
       const left = el('button', { type: 'button', class: 'cmp-icon-btn', 'aria-label': `${i + 2}. sayfayı öne al`, disabled: i === 0, text: '←' });
@@ -1076,7 +1088,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     pageNext.disabled = state.cur >= total - 1;
     previewCap.textContent = total > 1 ? `1080 × 1350 · ${total} sayfalı kaydırmalı gönderi` : '1080 × 1350 · Instagram dikey gönderi';
     downloadBtn.textContent = total > 1 ? `Görselleri indir (${total})` : 'Görseli indir';
-    extraList.querySelectorAll('.cmp-extra-thumb').forEach((b, k) => b.setAttribute('aria-pressed', String(state.cur === k + 1)));
+    extraList.querySelectorAll('.cmp-extra-thumb').forEach((b) => b.setAttribute('aria-pressed', String(state.cur === +b.dataset.page)));
     const a = active();
     zoomInput.value = String(a ? a.zoom : 1);
     updatePhotoUI();
@@ -1104,7 +1116,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     for (const [k, g] of Object.entries(groups)) g.hidden = k !== t;
     const meet = t === 'toplanti';
     dateField.hidden = meet;
-    tplSection.hidden = meet;
+    tplSection.hidden = meet || t === 'ocakbasi';
     if (meet) { state.dateEdited = false; applyMeeting(state.term_no); }
     if (typeof syncTitles === 'function') syncTitles();
     scheduleRender();

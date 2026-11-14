@@ -71,6 +71,7 @@ Yazım kuralları:
 - Türkçe yaz. Sıcak, samimi, içten bir ton kullan; kurumsal ve abartılı olma.
 - Tek paragraf, 2 ile 4 cümle, toplam 25 ile 55 kelime.
 - Üyenin yazdığı notlar ham bilgidir, çoğu zaman kısa ve dağınıktır. Notları olduğu gibi kopyalama ya da madde madde sıralama: içindeki bilgileri koruyarak yaratıcı, akıcı ve canlı cümlelerle yeniden kur; cümle yapılarını çeşitlendir. Yaratıcılık anlatımda olsun, bilgide değil: notlarda olmayan kişi, sayı, yer veya olay ekleme.
+- "Ocakbaşı", kulübümüzün bir üyenin evinde yaptığı samimi sohbet buluşmasının adıdır; gerçek bir ocakbaşı, mangal ya da restoran değildir. Ocakbaşı gönderilerinde ateş, ızgara, mangal, kebap, ocak, sofra gibi kelimelerin gerçek anlamını çağrıştırma; notlarda geçmiyorsa yemekten söz etme. Ev sahibinden söz etmen gerekirse "…'nın sıcacık sofrasında" gibi ifadeler değil, yalnızca "…'nın ev sahipliğinde" kalıbını kullan.
 - Açılış cümlesindeki bilgileri (toplantı numarası, tarih, mekân, başlık, ev sahibi) tekrar etme.
 - Not verilmediyse yalnızca türe uygun, bilgi uydurmayan tek bir sıcak cümle yaz.
 - Uzun tire (—) ve kısa tire (–) kullanma.
@@ -114,6 +115,17 @@ function parseSummary(summary: string) {
   return { title, host, notes };
 }
 
+// Özel ada tamlayan eki ekler (Kılıçaslan’ın, Gözüpek’in, Oğuzkurt’un, Ayşe’nin).
+function genitive(name: string): string {
+  const w = name.trim().split(/\s+/).pop()!.toLocaleLowerCase("tr");
+  const vowels = "aıoueiöü";
+  const last = [...w].reverse().find((c) => vowels.includes(c)) ?? "e";
+  // ince L ile biten adlar (Kemal’in, Hilal’in, Meral’in)
+  const soft = ["kemal", "cemal", "celal", "hilal", "bilal", "nihal", "meral", "iclal", "ikbal", "hayal", "cemil"].includes(w);
+  const v = soft ? "i" : "aı".includes(last) ? "ı" : "ei".includes(last) ? "i" : "ou".includes(last) ? "u" : "ü";
+  return `${name.trim()}’${vowels.includes(w.slice(-1)) ? "n" : ""}${v}n`;
+}
+
 // Açılış cümlesi her zaman aynı kalıpla, koddan gelir.
 function buildOpening(body: Record<string, unknown>, title: string, host: string): string {
   const type = String(body.type ?? "");
@@ -127,7 +139,7 @@ function buildOpening(body: Record<string, unknown>, title: string, host: string
     return `Dönemimizin ${termNo ?? "?"}. ve kulübümüzün ${clubNo ?? "?"}. toplantısı${when}${hub} gerçekleşti.`;
   }
   if (type === "ocakbasi") {
-    return `Dönemimizin ${ocakNo ?? "?"}. Ocakbaşı buluşması${when}${host ? ` ${host} ev sahipliğinde` : ""} gerçekleşti.`;
+    return `Dönemimizin ${ocakNo ?? "?"}. Ocakbaşı buluşması${when}${host ? ` ${genitive(host)} ev sahipliğinde` : ""} gerçekleşti.`;
   }
   const kind = type === "proje" ? "projemiz" : "etkinliğimiz";
   const name = title ? `${title} ${kind}` : kind.charAt(0).toUpperCase() + kind.slice(1);

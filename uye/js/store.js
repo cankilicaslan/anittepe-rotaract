@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611141512";
-import { can, hasRole } from "./roles.js?v=202611141512";
+import { CONFIG } from "./config.js?v=202611141514";
+import { can, hasRole } from "./roles.js?v=202611141514";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -15,6 +15,17 @@ const MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz"
 export const trDate = iso => { if (!iso) return ""; const d = new Date(iso + "T12:00:00"); return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`; };
 
 // Yapay zekâ bağlı değilken kullanılan şablon. Gerçek modda Edge Function (Claude) yazar.
+// Özel ada tamlayan eki ekler (Kılıçaslan’ın, Gözüpek’in, Oğuzkurt’un, Ayşe’nin).
+function genitive(name) {
+  const w = name.trim().split(/\s+/).pop().toLocaleLowerCase("tr");
+  const vowels = "aıoueiöü";
+  const last = [...w].reverse().find((c) => vowels.includes(c)) ?? "e";
+  // ince L ile biten adlar (Kemal’in, Hilal’in, Meral’in)
+  const soft = ["kemal", "cemal", "celal", "hilal", "bilal", "nihal", "meral", "iclal", "ikbal", "hayal", "cemil"].includes(w);
+  const v = soft ? "i" : "aı".includes(last) ? "ı" : "ei".includes(last) ? "i" : "ou".includes(last) ? "u" : "ü";
+  return `${name.trim()}’${vowels.includes(w.slice(-1)) ? "n" : ""}${v}n`;
+}
+
 export function templateCaption({ type, term_no, club_no, ocakbasi_no, summary, date, hybridhub }) {
   // Özet "Başlık: …", "Ev sahibi: …", "Kısa açıklama: …" satırlarını içerebilir.
   const s = (summary || "").trim();
@@ -28,8 +39,8 @@ export function templateCaption({ type, term_no, club_no, ocakbasi_no, summary, 
     opening = `Dönemimizin ${term_no || "?"}. ve kulübümüzün ${club_no || "?"}. toplantısı${when}${hybridhub ? " HybridHub’da (@hybridhub.tr)" : ""} gerçekleşti.`;
     fallback = "Gündemimizi konuştuk, fikirlerimizi paylaştık. Bir sonraki toplantıda seni de aramızda görmek isteriz.";
   } else if (type === "ocakbasi") {
-    opening = `Dönemimizin ${ocakbasi_no || "?"}. Ocakbaşı buluşması${when}${host ? ` ${host} ev sahipliğinde` : ""} gerçekleşti.`;
-    fallback = "Sohbet, dostluk ve bol kahkaha. Dostluğun en güzel hali, aynı masada.";
+    opening = `Dönemimizin ${ocakbasi_no || "?"}. Ocakbaşı buluşması${when}${host ? ` ${genitive(host)} ev sahipliğinde` : ""} gerçekleşti.`;
+    fallback = "Sohbet, dostluk ve bol kahkaha dolu bir akşamdı.";
     tags += " #Ocakbaşı";
   } else {
     const kind = type === "proje" ? "projemiz" : "etkinliğimiz";

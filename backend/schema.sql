@@ -1199,3 +1199,16 @@ language sql stable security definer set search_path = public as $$
 $$;
 revoke all on function public.public_member_photos(text[]) from public;
 grant execute on function public.public_member_photos(text[]) to anon, authenticated;
+
+-- =====================================================================
+-- v25: Instagram ocakbaşı ev sahibi listesi için misafir adları (telefon/e-posta olmadan)
+-- =====================================================================
+create or replace function public.guest_names()
+returns table(full_name text)
+language sql stable security definer set search_path = public as $$
+  select g.full_name from public.guests g
+   where public.has_role('pr') or public.has_role('sekreter') or public.can_view_all()
+   order by g.full_name;
+$$;
+revoke all on function public.guest_names() from public;
+grant execute on function public.guest_names() to authenticated;

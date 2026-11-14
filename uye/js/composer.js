@@ -240,6 +240,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     host: '', // ocakbaşı ev sahibi (yalnızca açıklamaya gider)
     hybridhub: true, // toplantı HybridHub'da mı yapıldı
     members: [],
+    guests: [],
     date: todayISO(),
     dateEdited: false,
     text: { toplanti: '', ocakbasi: '', proje: '', etkinlik: '' },
@@ -1131,6 +1132,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     state.type = t;
     typeBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.type === t)));
     for (const [k, g] of Object.entries(groups)) g.hidden = k !== t;
+    if (t === 'ocakbasi' || t === 'toplanti') refreshLists();
     const meet = t === 'toplanti';
     dateField.hidden = meet;
     tplSection.hidden = meet || t === 'ocakbasi';
@@ -1432,6 +1434,48 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
 
   // ----- ilk yükleme -----
 
+  // Ev sahibi listesi: güncel aktif üyeler + misafirler (üye listesinden ve yoklamadaki misafirlerden).
+  async function loadHosts() {
+    const tr = (x, y) => x.localeCompare(y, 'tr');
+    const [members, guests] = await Promise.all([
+      store.listMembers().catch(() => null),
+      (store.listGuestNames ? store.listGuestNames() : Promise.resolve([])).catch(() => null),
+    ]);
+    if (destroyed) return;
+    if (members) state.members = members.filter((m) => m.status === 'active' && m.full_name).map((m) => m.full_name).sort(tr);
+    if (guests) state.guests = [...new Set(guests.filter(Boolean))].filter((n) => !state.members.includes(n)).sort(tr);
+    const keep = state.host;
+    const group = (label, names) => (names && names.length ? el('optgroup', { label }, names.map((n) => el('option', { value: n, text: n }))) : null);
+    hostSel.replaceChildren(el('option', { value: '', text: 'Ev sahibini seçin' }), group('Üyeler', state.members), group('Misafirler', state.guests));
+    // seçili kişi listeden çıktıysa seçimi kaldır
+    hostSel.value = keep && [...hostSel.options].some((o) => o.value === keep) ? keep : '';
+    state.host = hostSel.value;
+  }
+
+  // Toplantı listesi: panelde toplantı tarihi/numarası değişirse burada da güncellenir.
+  async function refreshMeetings() {
+    const list = await store.listMeetings().catch(() => null);
+    if (destroyed || !Array.isArray(list)) return;
+    state.meetings = list;
+    applyMeeting(state.term_no);
+    fillMeetings();
+    syncTitles();
+    scheduleRender();
+  }
+
+  // Panelin başka bir bölümünde (üye listesi, yoklama) yapılan değişiklikler: sekmeye/pencereye dönünce
+  // ya da tür değiştirilince listeler yeniden çekilir (en fazla 10 saniyede bir).
+  let lastRefresh = Date.now();
+  function refreshLists() {
+    if (destroyed || !root.isConnected || Date.now() - lastRefresh < 10000) return;
+    lastRefresh = Date.now();
+    loadHosts();
+    refreshMeetings();
+  }
+  const onVisible = () => { if (document.visibilityState === 'visible') refreshLists(); };
+  document.addEventListener('visibilitychange', onVisible);
+  window.addEventListener('focus', refreshLists);
+
   async function init() {
     draw(); // yazı tipi gelmeden de bir şey görünsün
     const fontsP = ensureFonts().then(() => { state.fontsReady = true; scheduleRender(); });
@@ -1460,11 +1504,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     syncTitles();
     dateInput.value = state.date;
 
-    try {
-      const members = await store.listMembers();
-      state.members = (members || []).filter((m) => m.status === 'active' && m.full_name).map((m) => m.full_name).sort((x, y) => x.localeCompare(y, 'tr'));
-    } catch { state.members = []; }
-    hostSel.append(...state.members.map((n) => el('option', { value: n, text: n })));
+    await loadHosts();
     state.ocakbasi_no = state.posts.filter((p) => p.type === 'ocakbasi').length + 1;
     ocakInput.value = String(state.ocakbasi_no);
 
@@ -1485,6 +1525,8 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
       destroyed = true;
       if (raf) cancelAnimationFrame(raf);
       document.removeEventListener('paste', onPaste);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', refreshLists);
       if (state.photo) URL.revokeObjectURL(state.photo.url);
       state.extra.forEach((s) => URL.revokeObjectURL(s.url));
       root.replaceChildren();

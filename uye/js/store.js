@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611141514";
-import { can, hasRole } from "./roles.js?v=202611141514";
+import { CONFIG } from "./config.js?v=202611141520";
+import { can, hasRole } from "./roles.js?v=202611141520";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -269,6 +269,7 @@ function demoStore() {
       save();
     },
     async listGuests() { return can(me(), "yoklama") ? clone(S.guests) : []; },
+    async listGuestNames() { return (S.guests || []).map(g => g.full_name); },
     async getSetting(key) { return (S.settings ||= {})[key] ?? null; },
     async setSetting(key, value) { need("wa-aidat"); (S.settings ||= {})[key] = value; save(); },
     async listSiteEdits() { return clone((S.siteEdits ||= []).slice().sort((a, b) => b.created_at.localeCompare(a.created_at))); },
@@ -502,6 +503,8 @@ async function supabaseStore() {
       else ok(await sb.from("attendance").upsert({ meeting_id, member_id, status, note, updated_at: new Date().toISOString() }));
     },
     async listGuests() { return ok(await sb.from("guests").select("*").order("full_name")); },
+    // Yalnızca adlar (telefon/e-posta yok): HİTK de okuyabilir
+    async listGuestNames() { return (ok(await sb.rpc("guest_names")) || []).map(r => r.full_name); },
     async getSetting(key) { const d = ok(await sb.from("app_settings").select("value").eq("key", key).maybeSingle()); return d ? d.value : null; },
     async setSetting(key, value) { ok(await sb.from("app_settings").upsert({ key, value, updated_at: new Date().toISOString(), updated_by: await meId() })); },
     async listSiteEdits() { return ok(await sb.from("site_edits").select("*").order("created_at", { ascending: false }).limit(300)); },

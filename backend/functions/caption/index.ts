@@ -3,7 +3,7 @@
 //
 // POST ${SUPABASE_URL}/functions/v1/caption
 // Header: Authorization: Bearer <kullanıcının access token'ı>
-// Body:   { type, term_no, club_no, ocakbasi_no, summary, date }
+// Body:   { type, term_no, club_no, ocakbasi_no, summary, date, hybridhub? }
 // Yanıt:  200 { caption, source: "ai" }   |   4xx/5xx { error: "<Türkçe mesaj>" }
 //
 // Gerekli secret: ANTHROPIC_API_KEY  (SUPABASE_URL ve SUPABASE_ANON_KEY Supabase tarafından otomatik verilir)
@@ -67,7 +67,7 @@ Kulüp hakkında: Ankara'da gençlerden oluşan, Rotary'ye bağlı bir gönüll�
 
 Yazım kuralları:
 - Türkçe yaz. Sıcak, samimi, içten bir ton kullan; kurumsal ve abartılı olma.
-- Toplam 60 ile 120 kelime arası (hashtag'ler hariç).
+- Kısa tut: toplam 35 ile 70 kelime arası (hashtag'ler hariç), en fazla 3 kısa paragraf.
 - İlk satır güçlü bir kanca olsun: Instagram'da "...devamı" kesiminden önce görünen tek satır budur, tek başına merak uyandırmalı ve yaklaşık 125 karakteri geçmemeli.
 - Üyenin yazdığı notlar ham bilgidir, çoğu zaman kısa ve dağınıktır. Notları olduğu gibi kopyalama ya da madde madde sıralama: içindeki her bilgiyi koruyarak yaratıcı, akıcı ve canlı cümlelerle yeniden kur. Ortamı, duyguyu ve anlamı hissettiren bir anlatım kullan; cümle yapılarını çeşitlendir. Yaratıcılık anlatımda olsun, bilgide değil: notlarda olmayan kişi, sayı, yer veya olay ekleme.
 - "Başlık:" satırı verilmişse etkinliğin ya da projenin adıdır; metinde doğal bir şekilde geçir.
@@ -119,6 +119,9 @@ function buildUserPrompt(body: Record<string, unknown>): string {
   if (type === "ocakbasi" && ocakbasiNo) facts.push(`Bu, ${ocakbasiNo}. Ocakbaşı buluşmamız.`);
   else if (ocakbasiNo) facts.push(`Ocakbaşı numarası: ${ocakbasiNo}`);
   if (dateTr) facts.push(`Tarih: ${dateTr}`);
+  if (type === "toplanti" && body.hybridhub === true) {
+    facts.push(`Toplantı HybridHub'da yapıldı. Metinde bunu "toplantımızı ${dateTr ? dateTr + " tarihinde " : ""}HybridHub'da" anlamında doğal bir cümleyle söyle ve mekânı @hybridhub.tr etiketiyle an (ör. "HybridHub'da (@hybridhub.tr)").`);
+  }
   facts.push(summary
     ? `Üyenin notları (ham bilgi; kopyalama, bu bilgilerle yaratıcı ve akıcı cümleler kur):\n${summary}`
     : "Not verilmedi; yalnızca yukarıdaki bilgileri kullan.");

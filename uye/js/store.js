@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611141453";
-import { can, hasRole } from "./roles.js?v=202611141453";
+import { CONFIG } from "./config.js?v=202611141505";
+import { can, hasRole } from "./roles.js?v=202611141505";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -15,15 +15,17 @@ const MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz"
 export const trDate = iso => { if (!iso) return ""; const d = new Date(iso + "T12:00:00"); return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`; };
 
 // Yapay zekâ bağlı değilken kullanılan şablon. Gerçek modda Edge Function (Claude) yazar.
-export function templateCaption({ type, term_no, club_no, ocakbasi_no, summary, date }) {
+export function templateCaption({ type, term_no, club_no, ocakbasi_no, summary, date, hybridhub }) {
   const s = (summary || "").trim();
   const when = date ? trDate(date) : "";
   const tags = "#Rotaract #AnıttepeRotaract #Bölge2430 #RotaractAnkara";
   if (type === "toplanti") {
-    return `Dönemimizin ${term_no || "?"}. ve kulübümüzün ${club_no || "?"}. toplantısını${when ? " " + when + " tarihinde" : ""} gerçekleştirdik.\n\n${s || "Bu toplantıda kulüp gündemimizi konuştuk."}\n\nBir sonraki toplantıda seni de aramızda görmek isteriz. Toplantılarımız iki haftada bir perşembe 19.30'da.\n\n${tags}`;
+    return `Dönemimizin ${term_no || "?"}. ve kulübümüzün ${club_no || "?"}. toplantısını${when ? " " + when + " tarihinde" : ""}${hybridhub ? " HybridHub’da (@hybridhub.tr)" : ""} gerçekleştirdik.\n\n${s || "Bu toplantıda kulüp gündemimizi konuştuk."}\n\nBir sonraki toplantıda seni de aramızda görmek isteriz. Toplantılarımız iki haftada bir perşembe 19.30'da.\n\n${tags}`;
   }
   if (type === "ocakbasi") {
-    return `Dönemin ${ocakbasi_no || "?"}. ocakbaşında bir araya geldik.\n\n${s || "Sohbet, dostluk ve bol kahkaha."}\n\nDostluğun en güzel hali, aynı masada.\n\n${tags} #Ocakbaşı`;
+    const host = (s.match(/^Ev sahibi:\s*(.+)$/m) || [])[1];
+    const note = s.replace(/^Ev sahibi:.*$/m, "").trim();
+    return `Dönemin ${ocakbasi_no || "?"}. ocakbaşında bir araya geldik.\n\n${note || "Sohbet, dostluk ve bol kahkaha."}${host ? `\n\nEv sahibimiz ${host}, misafirperverliğin için teşekkürler!` : ""}\n\nDostluğun en güzel hali, aynı masada.\n\n${tags} #Ocakbaşı`;
   }
   // Panel özeti "Başlık: …" ve "Kısa açıklama: …" satırlarıyla gelir; şablonda etiketsiz yazılır.
   const title = (s.match(/^Başlık:\s*(.+)$/m) || [])[1] || "";

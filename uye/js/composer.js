@@ -237,7 +237,8 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     term_no: null,
     club_no: null,
     ocakbasi_no: 1,
-    host: '', // ocakbaşı ev sahibi (üye adı)
+    host: '', // ocakbaşı ev sahibi (yalnızca açıklamaya gider)
+    hybridhub: true, // toplantı HybridHub'da mı yapıldı
     members: [],
     date: todayISO(),
     dateEdited: false,
@@ -319,6 +320,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   const dateId = uid('date');
 
   const termInput = el('select', { id: termId });
+  const hubInput = el('input', { type: 'checkbox', checked: true });
   const ocakInput = el('input', { id: ocakId, type: 'number', min: '1', inputmode: 'numeric' });
   const hostId = uid('host');
   const hostSel = el('select', { id: hostId }, el('option', { value: '', text: 'Ev sahibini seçin' }));
@@ -337,6 +339,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
       el('div', { class: 'cmp-row' },
         el('div', { class: 'cmp-field' }, el('label', { for: termId, text: 'Toplantı' }), termInput,
           el('p', { class: 'cmp-hint', text: 'Kulüp ve dönem numaraları toplantı listesinden otomatik gelir.' })),
+        el('label', { class: 'cmp-check' }, hubInput, el('span', { text: 'Toplantı HybridHub’da mı yapıldı?' })),
       ),
       mkText('toplanti', 'Toplantıda neler yaptık?', 'Kısaca: konuşmacı, konu, alınan kararlar…'),
     ),
@@ -608,7 +611,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     if (t === 'toplanti') {
       return [state.club_no ? `Kulübümüzün ${state.club_no}.` : 'Kulübümüzün', state.term_no ? `Dönemimizin ${state.term_no}. Toplantısı` : 'Toplantısı'];
     }
-    if (t === 'ocakbasi') return [state.ocakbasi_no ? `Dönemimizin ${state.ocakbasi_no}. Ocakbaşı` : 'Ocakbaşı', state.host ? `Ev Sahibi: ${state.host}` : 'Ev Sahibi'];
+    if (t === 'ocakbasi') return ['Dönemin', state.ocakbasi_no ? `${state.ocakbasi_no}. Ocakbaşı` : 'Ocakbaşı'];
     return ['', 'Başlık']; // proje/etkinlik: tür yazısı yok; başlığı kullanıcı yazar
   }
   function titles() {
@@ -824,6 +827,16 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     try {
       const img = await loadImage(url);
       if (destroyed) { URL.revokeObjectURL(url); return; }
+      // ek sayfa seçiliyse o sayfanın fotoğrafı değişir
+      const page = state.cur > 0 ? state.extra[state.cur - 1] : null;
+      if (page) {
+        URL.revokeObjectURL(page.url);
+        Object.assign(page, { img, url, name: file.name || 'gorsel', pos: { x: 0.5, y: 0.5 }, zoom: 1, fit: 'cover' });
+        zoomInput.value = '1';
+        renderExtra();
+        showPage(state.cur);
+        return;
+      }
       if (state.photo) URL.revokeObjectURL(state.photo.url);
       state.photo = { img, url, name: file.name || 'yapistirilan-gorsel' };
       state.pos = { x: 0.5, y: 0.5 };
@@ -852,7 +865,9 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   }
 
   function updatePhotoUI() {
-    const has = !!state.photo;
+    const page = state.cur > 0 ? state.extra[state.cur - 1] : null;
+    const cur = page || state.photo; // üstteki alan seçili sayfayı gösterir
+    const has = !!cur;
     const act = !!active();
     dropzone.classList.toggle('has-photo', has);
     zoomInput.disabled = !act;
@@ -862,10 +877,12 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     removeBtn.disabled = !has;
     photoHint.hidden = !act;
     canvas.classList.toggle('can-drag', act);
-    dzThumb.style.backgroundImage = has ? `url("${state.photo.url}")` : '';
-    dzTitle.textContent = has ? 'Fotoğrafı değiştir' : 'Fotoğrafı buraya sürükleyin';
+    dzThumb.style.backgroundImage = has ? `url("${cur.url}")` : '';
+    const pageName = page ? `${state.cur + 1}. sayfanın` : (state.extra.length ? 'Kapağın' : '');
+    dzTitle.textContent = has ? (pageName ? `${pageName} fotoğrafını değiştir` : 'Fotoğrafı değiştir') : 'Fotoğrafı buraya sürükleyin';
+    removeBtn.textContent = page ? 'Sayfayı kaldır' : 'Fotoğrafı kaldır';
     dzSub.textContent = has
-      ? `${state.photo.name} · yeni bir fotoğraf sürükleyin, seçin ya da yapıştırın`
+      ? `${cur.name} · yeni bir fotoğraf sürükleyin, seçin ya da yapıştırın`
       : 'ya da tıklayıp seçin · panodan yapıştırabilirsiniz (Ctrl+V)';
   }
 
@@ -935,7 +952,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     zoomInput.value = '1';
     scheduleRender();
   });
-  removeBtn.addEventListener('click', clearPhoto);
+  removeBtn.addEventListener('click', () => (state.cur > 0 ? removeExtra(state.cur - 1) : clearPhoto()));
   fitSeg.addEventListener('click', (e) => {
     const b = e.target.closest('[data-fit]');
     const a = active();
@@ -1162,7 +1179,8 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     syncTitles();
     scheduleRender();
   });
-  hostSel.addEventListener('change', () => { state.host = hostSel.value; syncTitles(); scheduleRender(); });
+  hubInput.addEventListener('change', () => { state.hybridhub = hubInput.checked; });
+  hostSel.addEventListener('change', () => { state.host = hostSel.value; });
   ocakInput.addEventListener('input', () => {
     state.ocakbasi_no = toInt(ocakInput.value);
     scheduleRender();
@@ -1260,7 +1278,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     const orig = aiBtn.lastChild.textContent;
     aiBtn.lastChild.textContent = ' Yazılıyor…';
     try {
-      const res = await store.generateCaption({ ...f, date: state.date });
+      const res = await store.generateCaption({ ...f, date: state.date, hybridhub: f.type === 'toplanti' && state.hybridhub });
       state.caption = (res && res.caption) || '';
       state.captionSource = res && res.source;
       captionTa.value = state.caption;

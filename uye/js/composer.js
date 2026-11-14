@@ -36,7 +36,6 @@ const LOGO_URL = new URL('../../assets/logo-cranberry.webp', import.meta.url).hr
 const TEMPLATES = [
   { id: 'kavis', label: 'Kavisli', url: new URL('../../assets/ig/tpl-kavis.webp', import.meta.url).href },
   { id: 'gradyan', label: 'Gradyan', url: new URL('../../assets/ig/tpl-gradyan.webp', import.meta.url).href },
-  { id: 'klasik', label: 'Klasik' },
 ];
 const FITS = [
   { id: 'cover', label: 'Doldur' },
@@ -44,7 +43,6 @@ const FITS = [
   { id: 'h', label: 'Boyuna sığdır' },
 ];
 const ZOOM_MIN = 0.4;
-const TPL_KEY = 'ar-cmp-tpl';
 
 // ---------- küçük yardımcılar ----------
 
@@ -238,7 +236,6 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     posts: [],
     term_no: null,
     club_no: null,
-    clubEdited: false,
     ocakbasi_no: 1,
     date: todayISO(),
     dateEdited: false,
@@ -249,7 +246,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     pos: { x: 0.5, y: 0.5 },
     zoom: 1,
     fit: 'cover', // cover | w (enine sığdır) | h (boyuna sığdır)
-    tpl: (() => { try { const v = localStorage.getItem(TPL_KEY); return TEMPLATES.some((t) => t.id === v) ? v : 'kavis'; } catch { return 'kavis'; } })(),
+    tpl: 'kavis', // kapak hep kavisli, ek sayfalar hep gradyan
     tplImg: {},
     title1: '', // şablon başlıkları; boşsa türden otomatik
     title2: '',
@@ -315,13 +312,10 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
 
   // Türe özel alanlar
   const termId = uid('term');
-  const clubId = uid('club');
   const ocakId = uid('ocak');
   const dateId = uid('date');
 
-  const termInput = el('input', { id: termId, type: 'number', min: '1', inputmode: 'numeric' });
-  const clubInput = el('input', { id: clubId, type: 'number', min: '1', inputmode: 'numeric' });
-  const clubReset = el('button', { type: 'button', class: 'cmp-link', hidden: true, text: 'Otomatik hesapla' });
+  const termInput = el('select', { id: termId });
   const ocakInput = el('input', { id: ocakId, type: 'number', min: '1', inputmode: 'numeric' });
   const dateInput = el('input', { id: dateId, type: 'date' });
 
@@ -336,8 +330,8 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   const groups = {
     toplanti: el('div', { class: 'cmp-group', 'data-for': 'toplanti' },
       el('div', { class: 'cmp-row' },
-        el('div', { class: 'cmp-field' }, el('label', { for: termId, text: 'Dönemin kaçıncı toplantısı' }), termInput),
-        el('div', { class: 'cmp-field' }, el('label', { for: clubId, text: 'Kulübün kaçıncı toplantısı' }), clubInput, clubReset),
+        el('div', { class: 'cmp-field' }, el('label', { for: termId, text: 'Toplantı' }), termInput,
+          el('p', { class: 'cmp-hint', text: 'Kulüp ve dönem numaraları toplantı listesinden otomatik gelir.' })),
       ),
       mkText('toplanti', 'Toplantıda neler yaptık?', 'Kısaca: konuşmacı, konu, alınan kararlar…'),
     ),
@@ -348,7 +342,6 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
       mkText('ocakbasi', 'Kısa açıklama', 'Nerede buluştuk, neler konuştuk…'),
     ),
     proje: el('div', { class: 'cmp-group', 'data-for': 'proje', hidden: true },
-      mkText('proje', 'Proje açıklaması', 'İlk satır görselde başlık olur. Örn: Fidan Dikim Günü'),
     ),
     etkinlik: el('div', { class: 'cmp-group', 'data-for': 'etkinlik', hidden: true },
       mkText('etkinlik', 'Etkinlik açıklaması', 'İlk satır görselde başlık olur. Örn: Kış Buluşması'),
@@ -357,8 +350,6 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   const dateField = el('div', { class: 'cmp-field cmp-field-date' }, el('label', { for: dateId, text: 'Görseldeki tarih' }), dateInput);
 
   // Kapak şablonu ve şablon başlıkları
-  const tplBtns = TEMPLATES.map((t) => el('button', { type: 'button', class: 'cmp-seg-btn', 'data-tpl': t.id, 'aria-pressed': String(t.id === state.tpl), text: t.label }));
-  const tplSeg = el('div', { class: 'cmp-seg', role: 'group', 'aria-label': 'Kapak şablonu' }, tplBtns);
   const t1Id = uid('t1');
   const t2Id = uid('t2');
   const title1Input = el('input', { id: t1Id, type: 'text', maxlength: '40' });
@@ -368,9 +359,8 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     el('div', { class: 'cmp-field' }, el('label', { for: t2Id, text: 'Başlık 2. satır (kalın)' }), title2Input),
   );
   const tplSection = el('div', { class: 'cmp-tpl' },
-    el('div', { class: 'cmp-field' }, el('span', { class: 'cmp-label', text: 'Kapak şablonu' }), tplSeg),
     titleFields,
-    el('p', { class: 'cmp-hint', text: 'Başlıklar boşsa türe göre otomatik yazılır; kendi başlığınızı yazabilirsiniz.' }),
+    el('p', { class: 'cmp-hint', text: 'Kapakta (1. sayfa) kavisli şablon, sonraki sayfalarda gradyan şablon kullanılır. Başlıklar boşsa türe göre otomatik yazılır.' }),
   );
 
   // Açıklama (caption)
@@ -450,7 +440,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   }
 
   // Önizlemedeki sayfanın fotoğrafı: kapakta üst alan (PHOTO_H), ek sayfalarda alt marka şeridine kadar tüm alan.
-  const EXTRA_H = H - 14;
+  const EXTRA_H = H;
   const isTpl = () => state.tpl !== 'klasik';
   // Kapakta fotoğraf çerçevesi: şablonda tüm sayfa, klasikte üst alan.
   const coverH = () => (isTpl() ? H : PHOTO_H);
@@ -518,30 +508,14 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   }
 
   // Ek sayfa: fotoğraf tam sayfa, altta kapakla aynı marka şeridi ve küçük sayfa numarası.
-  function drawExtra(s, index, total) {
+  // Ek sayfa: fotoğraf tam sayfa, üstte gradyan şablon katmanı.
+  function drawExtra(s) {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, W, H);
     setSpacing(ctx, 0);
-    ctx.fillStyle = C.ink;
-    ctx.fillRect(0, 0, W, H);
     drawFramed({ img: s.img, h: EXTRA_H, pos: s.pos, zoom: s.zoom, fit: s.fit });
-    // sayfa numarası (sağ üst, yarı saydam hap)
-    const label = `${index + 1}/${total}`;
-    ctx.font = `700 28px ${FONT}`;
-    const tw = ctx.measureText(label).width;
-    ctx.fillStyle = 'rgba(30,20,32,0.55)';
-    roundRect(ctx, W - M - tw - 36, M - 10, tw + 36, 52, 26);
-    ctx.fill();
-    ctx.fillStyle = '#FFFFFF';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(label, W - M - (tw + 36) / 2, M + 16);
-    ctx.fillStyle = C.cran;
-    ctx.fillRect(0, H - 14, W, 14);
-    ctx.fillStyle = C.gold;
-    ctx.fillRect(W - M - 120, H - 14, 120, 14);
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'alphabetic';
+    const layer = state.tplImg.gradyan;
+    if (layer) ctx.drawImage(layer, 0, 0, W, H);
   }
 
   function drawPhoto() {
@@ -625,7 +599,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   function autoTitles() {
     const t = state.type;
     if (t === 'toplanti') {
-      return [state.club_no ? `Kulübümüzün ${state.club_no}.` : 'Kulübümüzün', state.term_no ? `${state.term_no}. Toplantısı` : 'Toplantısı'];
+      return [state.club_no ? `Kulübümüzün ${state.club_no}.` : 'Kulübümüzün', state.term_no ? `Dönemimizin ${state.term_no}. Toplantısı` : 'Toplantısı'];
     }
     if (t === 'ocakbasi') return ['Dönemin', state.ocakbasi_no ? `${state.ocakbasi_no}. Ocakbaşı` : 'Ocakbaşı'];
     const first = (state.text[t] || '').split('\n').map((l) => l.trim()).find(Boolean);
@@ -705,7 +679,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
 
   function draw() {
     if (state.cur > 0 && state.extra[state.cur - 1]) {
-      drawExtra(state.extra[state.cur - 1], state.cur, state.extra.length + 1);
+      drawExtra(state.extra[state.cur - 1]);
       return;
     }
     if (isTpl()) { drawTemplate(); return; }
@@ -1140,34 +1114,29 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
 
   const offset = () => toInt(state.term && state.term.club_meeting_offset) ?? 599;
 
-  function syncClubReset() {
-    clubReset.hidden = !state.clubEdited;
+  const meetingByTerm = (n) => state.meetings.find((x) => toInt(x.term_no) === n);
+  function applyMeeting(n) {
+    const m = meetingByTerm(n);
+    state.term_no = n;
+    state.club_no = m ? (toInt(m.club_no) ?? offset() + n) : (n != null ? offset() + n : null);
+    if (m && m.date && !state.dateEdited) { state.date = String(m.date).slice(0, 10); dateInput.value = state.date; }
   }
-
-  termInput.addEventListener('input', () => {
-    state.term_no = toInt(termInput.value);
-    if (!state.clubEdited) {
-      state.club_no = state.term_no != null ? offset() + state.term_no : null;
-      clubInput.value = state.club_no ?? '';
-    }
-    if (!state.dateEdited && state.term_no != null) {
-      const m = state.meetings.find((x) => toInt(x.term_no) === state.term_no);
-      if (m && m.date) { state.date = String(m.date).slice(0, 10); dateInput.value = state.date; }
-    }
-    scheduleRender();
-  });
-  clubInput.addEventListener('input', () => {
-    state.club_no = toInt(clubInput.value);
-    state.clubEdited = clubInput.value !== '';
-    syncClubReset();
-    scheduleRender();
-  });
-  clubReset.addEventListener('click', () => {
-    state.clubEdited = false;
-    state.club_no = state.term_no != null ? offset() + state.term_no : null;
-    clubInput.value = state.club_no ?? '';
-    syncClubReset();
-    clubInput.focus();
+  function fillMeetings() {
+    const list = [...state.meetings].sort((x, y) => toInt(x.term_no) - toInt(y.term_no));
+    termInput.replaceChildren(...list.map((m) => {
+      const n = toInt(m.term_no);
+      const club = toInt(m.club_no) ?? offset() + n;
+      const date = m.date ? ` · ${formatTR(m.date)}` : '';
+      const label = m.label ? ` (${m.label})` : '';
+      return el('option', { value: String(n), text: `Kulübün ${club}. · dönemin ${n}. toplantısı${date}${label}` });
+    }));
+    if (!list.length) termInput.append(el('option', { value: '', text: 'Toplantı listesi boş' }));
+    termInput.value = state.term_no != null ? String(state.term_no) : '';
+  }
+  termInput.addEventListener('change', () => {
+    state.dateEdited = false;
+    applyMeeting(toInt(termInput.value));
+    syncTitles();
     scheduleRender();
   });
   ocakInput.addEventListener('input', () => {
@@ -1189,16 +1158,6 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     title1Input.placeholder = p1;
     title2Input.placeholder = p2;
   }
-  function setTpl(id) {
-    if (!TEMPLATES.some((t) => t.id === id)) return;
-    state.tpl = id;
-    try { localStorage.setItem(TPL_KEY, id); } catch { /* yoksay */ }
-    tplBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tpl === id)));
-    titleFields.hidden = id === 'klasik';
-    tplSection.querySelector('.cmp-hint').hidden = id === 'klasik';
-    scheduleRender();
-  }
-  tplSeg.addEventListener('click', (e) => { const b = e.target.closest('[data-tpl]'); if (b) setTpl(b.dataset.tpl); });
   title1Input.addEventListener('input', () => { state.title1 = title1Input.value; scheduleRender(); });
   title2Input.addEventListener('input', () => { state.title2 = title2Input.value; scheduleRender(); });
   root.addEventListener('input', syncTitles);
@@ -1217,7 +1176,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
       term_no: t === 'toplanti' ? state.term_no : null,
       club_no: t === 'toplanti' ? state.club_no : null,
       ocakbasi_no: t === 'ocakbasi' ? state.ocakbasi_no : null,
-      summary: (state.text[t] || '').trim(),
+      summary: (t === 'proje' ? titles().join(' ') : (state.text[t] || '')).trim(),
     };
   }
 
@@ -1355,7 +1314,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
       return;
     }
     if (state.type === 'toplanti' && !state.term_no) {
-      toast('Dönemin kaçıncı toplantısı olduğunu girin.', 'error');
+      toast('Toplantıyı seçin.', 'error');
       termInput.focus();
       return;
     }
@@ -1440,25 +1399,16 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     state.meetings = Array.isArray(meetings) ? meetings : [];
     state.posts = Array.isArray(posts) ? posts : [];
 
-    if (term && term.meeting_count) termInput.max = String(term.meeting_count);
 
     const today = todayISO();
     const past = state.meetings
       .filter((m) => m.date && String(m.date).slice(0, 10) <= today)
       .sort((a, b) => String(a.date).localeCompare(String(b.date)) || (toInt(a.term_no) - toInt(b.term_no)));
     const last = past[past.length - 1];
-    if (last) {
-      state.term_no = toInt(last.term_no);
-      state.club_no = toInt(last.club_no) ?? (state.term_no != null ? offset() + state.term_no : null);
-      state.clubEdited = state.term_no != null && state.club_no !== offset() + state.term_no;
-      state.date = String(last.date).slice(0, 10);
-    } else {
-      state.term_no = 1;
-      state.club_no = offset() + 1;
-    }
-    termInput.value = state.term_no ?? '';
-    clubInput.value = state.club_no ?? '';
-    syncClubReset();
+    const first = last || [...state.meetings].sort((x, y) => toInt(x.term_no) - toInt(y.term_no))[0];
+    applyMeeting(first ? toInt(first.term_no) : 1);
+    fillMeetings();
+    syncTitles();
     dateInput.value = state.date;
 
     state.ocakbasi_no = state.posts.filter((p) => p.type === 'ocakbasi').length + 1;
@@ -1470,7 +1420,6 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   }
 
   renderExtra();
-  setTpl(state.tpl);
   syncTitles();
   showPage(0);
   const ready = init().catch((e) => toast(e.message || 'Hazırlayıcı yüklenemedi.', 'error'));

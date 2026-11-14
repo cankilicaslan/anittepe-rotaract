@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611141441";
-import { can, hasRole } from "./roles.js?v=202611141441";
+import { CONFIG } from "./config.js?v=202611141443";
+import { can, hasRole } from "./roles.js?v=202611141443";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -25,7 +25,12 @@ export function templateCaption({ type, term_no, club_no, ocakbasi_no, summary, 
   if (type === "ocakbasi") {
     return `Dönemin ${ocakbasi_no || "?"}. ocakbaşında bir araya geldik.\n\n${s || "Sohbet, dostluk ve bol kahkaha."}\n\nDostluğun en güzel hali, aynı masada.\n\n${tags} #Ocakbaşı`;
   }
-  return `${s || (type === "proje" ? "Yeni projemizi hayata geçirdik." : "Etkinliğimizde bir araya geldik.")}\n\nEmeği geçen herkese teşekkür ederiz. Bir sonraki ${TYPE_TR[type] || "buluşma"}da sen de yanımızda ol.\n\n${tags}`;
+  // Panel özeti "Başlık: …" ve "Kısa açıklama: …" satırlarıyla gelir; şablonda etiketsiz yazılır.
+  const title = (s.match(/^Başlık:\s*(.+)$/m) || [])[1] || "";
+  const desc = (s.match(/^Kısa açıklama:\s*([\s\S]+)$/m) || [])[1] || (title ? "" : s);
+  const body = [title, desc.trim()].filter(Boolean).join("\n\n");
+  const next = type === "proje" ? "projemizde" : "etkinliğimizde";
+  return `${body || (type === "proje" ? "Yeni projemizi hayata geçirdik." : "Etkinliğimizde bir araya geldik.")}\n\nEmeği geçen herkese teşekkür ederiz. Bir sonraki ${next} sen de yanımızda ol.\n\n${tags}`;
 }
 
 async function sha(s) {

@@ -347,9 +347,10 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
       mkText('ocakbasi', 'Kısa açıklama', 'Nerede buluştuk, neler konuştuk…'),
     ),
     proje: el('div', { class: 'cmp-group', 'data-for': 'proje', hidden: true },
+      mkText('proje', 'Kısa açıklama', 'Ne yaptık, kimlerle, nerede, sonuç ne oldu? Kısa notlar yeterli; yapay zekâ bunlardan düzgün bir açıklama yazar.'),
     ),
     etkinlik: el('div', { class: 'cmp-group', 'data-for': 'etkinlik', hidden: true },
-      mkText('etkinlik', 'Etkinlik açıklaması', 'İlk satır görselde başlık olur. Örn: Kış Buluşması'),
+      mkText('etkinlik', 'Kısa açıklama', 'Ne yaptık, kimlerle, nerede, sonuç ne oldu? Kısa notlar yeterli; yapay zekâ bunlardan düzgün bir açıklama yazar.'),
     ),
   };
   const dateField = el('div', { class: 'cmp-field cmp-field-date' }, el('label', { for: dateId, text: 'Görseldeki tarih' }), dateInput);
@@ -607,11 +608,11 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
       return [state.club_no ? `Kulübümüzün ${state.club_no}.` : 'Kulübümüzün', state.term_no ? `Dönemimizin ${state.term_no}. Toplantısı` : 'Toplantısı'];
     }
     if (t === 'ocakbasi') return [state.ocakbasi_no ? `Dönemimizin ${state.ocakbasi_no}. Ocakbaşı` : 'Ocakbaşı', state.host ? `Ev Sahibi: ${state.host}` : 'Ev Sahibi'];
-    const first = (state.text[t] || '').split('\n').map((l) => l.trim()).find(Boolean);
-    return ['', first || 'Başlık']; // proje/etkinlik: tür yazısı yok, yalnızca başlık
+    return ['', 'Başlık']; // proje/etkinlik: tür yazısı yok; başlığı kullanıcı yazar
   }
   function titles() {
     const a = autoTitles();
+    if (state.type === 'toplanti') return a; // toplantı başlığı hep listeden
     return [state.title1.trim() || a[0], state.title2.trim() || a[1]];
   }
 
@@ -1101,6 +1102,11 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     state.type = t;
     typeBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.type === t)));
     for (const [k, g] of Object.entries(groups)) g.hidden = k !== t;
+    const meet = t === 'toplanti';
+    dateField.hidden = meet;
+    tplSection.hidden = meet;
+    if (meet) { state.dateEdited = false; applyMeeting(state.term_no); }
+    if (typeof syncTitles === 'function') syncTitles();
     scheduleRender();
   }
   segmented.addEventListener('click', (e) => {
@@ -1124,7 +1130,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     const m = meetingByTerm(n);
     state.term_no = n;
     state.club_no = m ? (toInt(m.club_no) ?? offset() + n) : (n != null ? offset() + n : null);
-    if (m && m.date && !state.dateEdited) { state.date = String(m.date).slice(0, 10); dateInput.value = state.date; }
+    if (m && m.date && (state.type === 'toplanti' || !state.dateEdited)) { state.date = String(m.date).slice(0, 10); dateInput.value = state.date; }
   }
   function fillMeetings() {
     const list = [...state.meetings].sort((x, y) => toInt(x.term_no) - toInt(y.term_no));
@@ -1182,7 +1188,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
       term_no: t === 'toplanti' ? state.term_no : null,
       club_no: t === 'toplanti' ? state.club_no : null,
       ocakbasi_no: t === 'ocakbasi' ? state.ocakbasi_no : null,
-      summary: (t === 'proje' ? titles().join(' ')
+      summary: (t === 'proje' || t === 'etkinlik' ? [titles()[1] !== 'Başlık' ? `Başlık: ${titles()[1]}` : '', state.text[t] ? `Kısa açıklama: ${state.text[t]}` : ''].filter(Boolean).join('\n')
         : t === 'ocakbasi' && state.host ? `Ev sahibi: ${state.host}\n${state.text[t] || ''}`
         : (state.text[t] || '')).trim(),
     };
@@ -1438,6 +1444,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   }
 
   renderExtra();
+  setType(state.type);
   syncTitles();
   showPage(0);
   const ready = init().catch((e) => toast(e.message || 'Hazırlayıcı yüklenemedi.', 'error'));

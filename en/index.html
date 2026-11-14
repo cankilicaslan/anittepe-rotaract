@@ -681,7 +681,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 .tl-card.hl p,.stats div:nth-child(1) span,.date-pick input:checked + .dp span{color:#fff}
 .ev-list button.active .d,#degerler .kicker{color:var(--cran-deep)}
 .apply-form input:not([type=checkbox]),.apply-form select,form.cf input,form.cf select,form.cf textarea{border-color:#B9A0AD}
-.marquee:hover .marquee-track,.marquee:focus-within .marquee-track{animation-play-state:paused}
+
 @media (max-width:640px){html{scroll-padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}}
 .docs li .doc-soon{display:flex;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid var(--line);font-weight:600;color:var(--muted)}
 .docs li .doc-soon span{font-size:.85rem;font-weight:500}
@@ -1415,5 +1415,29 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
     h.querySelector("a").addEventListener("click",e=>{set(localStorage,KEY,e.currentTarget.dataset.lang);const p=here();if(p)set(sessionStorage,POS,JSON.stringify(p))});
     h.querySelector("button").addEventListener("click",()=>{set(localStorage,KEY,CUR);h.remove()});
   }
+})();
+</script>
+<script>
+/* Yönetim ve komite fotoğrafları: üye panelindeki güncel profil fotoğrafı (yalnızca sayfadaki isimler sorulur) */
+(function(){
+  var names=[].slice.call(document.querySelectorAll(".board .person b, .committees li b")).map(function(b){return b.textContent.trim()});
+  names=names.filter(function(n,i){return n&&names.indexOf(n)===i});
+  if(!names.length||!window.fetch)return;
+  fetch("https://fyjcgfbooajuljebxnil.supabase.co/rest/v1/rpc/public_member_photos",{method:"POST",headers:{"Content-Type":"application/json",apikey:"sb_publishable_HmlR3dKiWqbTJ1id363IDA_OIsC6GhP",Authorization:"Bearer sb_publishable_HmlR3dKiWqbTJ1id363IDA_OIsC6GhP"},body:JSON.stringify({names:names})})
+    .then(function(r){return r.ok?r.json():[]}).then(function(rows){
+      var map={};(rows||[]).forEach(function(r){if(r.photo_url)map[r.full_name]=r.photo_url});
+      document.querySelectorAll(".board .person").forEach(function(p){
+        var n=(p.querySelector("b")||{}).textContent;n=n&&n.trim();if(!map[n])return;
+        var av=p.querySelector(".avatar"),img=av&&av.querySelector("img");
+        if(!av)return;if(!img){img=document.createElement("img");img.alt=n;img.loading="lazy";av.textContent="";av.appendChild(img)}
+        if(img.getAttribute("src")!==map[n])img.src=map[n];
+      });
+      document.querySelectorAll(".committees li").forEach(function(li){
+        var n=(li.querySelector("b")||{}).textContent;n=n&&n.trim();if(!map[n])return;
+        var img=li.querySelector("img.mini");
+        if(!img){img=document.createElement("img");img.className="mini";img.alt="";img.loading="lazy";li.insertBefore(img,li.firstChild)}
+        if(img.getAttribute("src")!==map[n])img.src=map[n];
+      });
+    }).catch(function(){});
 })();
 </script>

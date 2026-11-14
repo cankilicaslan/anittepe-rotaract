@@ -549,3 +549,12 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 .se-bar #se-count{font-weight:700;margin-right:auto}
 .se-review{border:1px solid var(--line,#eadde3);border-radius:14px;padding:14px;margin-top:14px;background:#fffafc}
 .matrix th small.mlabel{display:block;font-weight:600;font-size:.68rem;color:var(--muted);white-space:nowrap;line-height:1.2}
+
+/* Profil fotoğrafı kırpma */
+.crop-dlg{border:0;border-radius:18px;padding:0;max-width:min(92vw,380px);box-shadow:0 20px 60px rgba(40,0,20,.3)}
+.crop-dlg::backdrop{background:rgba(30,20,32,.55)}
+.crop-box{padding:20px}
+.crop-stage{position:relative;width:100%;max-width:300px;aspect-ratio:1;margin:0 auto;border-radius:50%;overflow:hidden;background:#2a1520;box-shadow:0 0 0 3px var(--cran,#D41367)}
+.crop-stage canvas{width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+.crop-stage canvas:active{cursor:grabbing}
+.crop-stage canvas:focus-visible{outline:3px solid #fff;outline-offset:-6px}

@@ -1,6 +1,6 @@
 // Kim neyi görür, kim neyi düzenler.
 export const ROLE_LABELS = { baskan: "Başkan", asbaskan: "Asbaşkan", sayman: "Sayman", sekreter: "Sekreter", pr: "Halkla İlişkiler ve Tanıtım", hizmet: "Hizmet Projeleri" };
-const OWNER = { aidat: ["sayman"], kasa: ["sayman"], yoklama: ["sekreter"], instagram: ["pr"], projeler: ["hizmet"], duyuru: ["sekreter"], "wa-toplanti": ["sekreter"], "wa-aidat": ["sayman"], "arsiv-yonetim": ["sekreter", "pr"], bagis: ["sayman"], "proje-form": ["hizmet", "sekreter"], "uyeler-yonetim": ["baskan"] };
+const OWNER = { aidat: ["sayman"], kasa: ["sayman"], yoklama: ["sekreter"], instagram: ["pr"], projeler: ["hizmet"], duyuru: ["sekreter", "pr"], "wa-toplanti": ["sekreter"], "wa-aidat": ["sayman"], "arsiv-yonetim": ["sekreter", "pr"], bagis: ["sayman"], "proje-form": ["hizmet", "sekreter"], "uyeler-yonetim": ["baskan"] };
 
 // Panel hangi görevlinin? (asbaşkanın menüsünde parantez içinde gösterilir)
 const SHORT = { sayman: "Sayman", sekreter: "Sekreter", pr: "HİTK", hizmet: "Hizmet Projeleri" };

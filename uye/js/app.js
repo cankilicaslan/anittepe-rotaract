@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611131221";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611131221";
+import { createStore, trDate } from "./store.js?v=202611141415";
+import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611141415";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -416,6 +416,63 @@ function debtOf(memberId, charges, dues) {
   return { total: open.reduce((s, c) => s + +c.amount, 0), open, overdue: open.filter(c => c.due.due_date < today()) };
 }
 
+
+// Profil fotoğrafı kırpma: fotoğraf yuvarlak çerçevede sürüklenir ve yakınlaştırılır; "Kaydet" 480×480 JPEG döndürür.
+function cropPhoto(file) {
+  return new Promise(resolve => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onerror = () => { URL.revokeObjectURL(url); toast("Bu fotoğraf açılamadı. Farklı bir dosya dene (HEIC desteklenmeyebilir).", "bad"); resolve(null); };
+    img.onload = () => {
+      const S = 300, OUT = 480;
+      const dlg = document.createElement("dialog");
+      dlg.className = "crop-dlg";
+      dlg.innerHTML = `<form method="dialog" class="crop-box">
+        <h2 style="margin:0 0 4px">Profil fotoğrafı</h2>
+        <p class="muted" style="margin:0 0 12px;font-size:.88rem">Fotoğrafı sürükleyerek konumlandır, kaydırıcıyla yakınlaştır. Daire içinde kalan kısım görünür.</p>
+        <div class="crop-stage"><canvas width="${S}" height="${S}" aria-label="Kırpma önizlemesi" tabindex="0"></canvas></div>
+        <label class="f" style="margin-top:12px">Yakınlaştır<input type="range" min="1" max="3" step="0.01" value="1" class="crop-zoom"></label>
+        <div class="row" style="margin-top:14px;justify-content:flex-end"><button type="button" class="btn ghost" data-c="cancel">Vazgeç</button><button type="button" class="btn" data-c="ok">Kaydet</button></div>
+      </form>`;
+      document.body.appendChild(dlg);
+      const cv = dlg.querySelector("canvas"), ctx = cv.getContext("2d"), zoomEl = dlg.querySelector(".crop-zoom");
+      const base = Math.max(S / img.naturalWidth, S / img.naturalHeight);
+      let zoom = 1, cx = 0.5, cy = 0.5; // görünen alanın merkezi (görsel oranı olarak)
+      const geom = (size) => {
+        const k = size / S, sc = base * zoom * k, w = img.naturalWidth * sc, h = img.naturalHeight * sc;
+        const x = Math.min(0, Math.max(size - w, size / 2 - cx * w)), y = Math.min(0, Math.max(size - h, size / 2 - cy * h));
+        return { x, y, w, h };
+      };
+      const clampC = () => { const g = geom(S); cx = (S / 2 - g.x) / g.w; cy = (S / 2 - g.y) / g.h; };
+      const draw = () => { const g = geom(S); ctx.clearRect(0, 0, S, S); ctx.drawImage(img, g.x, g.y, g.w, g.h); };
+      draw();
+      zoomEl.oninput = () => { zoom = +zoomEl.value; clampC(); draw(); };
+      let drag = null;
+      cv.onpointerdown = e => { cv.setPointerCapture(e.pointerId); drag = { x: e.clientX, y: e.clientY }; };
+      cv.onpointermove = e => {
+        if (!drag) return; const g = geom(S), k = S / cv.getBoundingClientRect().width;
+        cx -= (e.clientX - drag.x) * k / g.w; cy -= (e.clientY - drag.y) * k / g.h; drag = { x: e.clientX, y: e.clientY }; clampC(); draw();
+      };
+      cv.onpointerup = cv.onpointercancel = () => { drag = null; };
+      cv.onkeydown = e => {
+        const g = geom(S), st = (e.shiftKey ? 20 : 6), m = { ArrowLeft: [-st, 0], ArrowRight: [st, 0], ArrowUp: [0, -st], ArrowDown: [0, st] }[e.key];
+        if (!m) return; e.preventDefault(); cx += m[0] / g.w; cy += m[1] / g.h; clampC(); draw();
+      };
+      cv.addEventListener("wheel", e => { e.preventDefault(); zoom = Math.min(3, Math.max(1, zoom - e.deltaY * 0.002)); zoomEl.value = String(zoom); clampC(); draw(); }, { passive: false });
+      const close = blob => { URL.revokeObjectURL(url); dlg.close(); dlg.remove(); resolve(blob); };
+      dlg.querySelector('[data-c="cancel"]').onclick = () => close(null);
+      dlg.addEventListener("cancel", e => { e.preventDefault(); close(null); });
+      dlg.querySelector('[data-c="ok"]').onclick = () => {
+        const out = document.createElement("canvas"); out.width = out.height = OUT;
+        const g = geom(OUT), o = out.getContext("2d"); o.imageSmoothingQuality = "high"; o.drawImage(img, g.x, g.y, g.w, g.h);
+        out.toBlob(b => close(b), "image/jpeg", 0.9);
+      };
+      dlg.showModal();
+    };
+    img.src = url;
+  });
+}
+
 /* ------------------------------ Profil ------------------------------ */
 async function viewProfile(v) {
   const [meetings, att, charges, dues, priv] = await Promise.all([store.listMeetings(), store.listAttendance(), store.listCharges(), store.listDues(), store.getPrivate(me.id)]);
@@ -477,8 +534,9 @@ async function viewProfile(v) {
     b.disabled = false;
   };
   document.getElementById("photo").onchange = async e => {
-    const f = e.target.files[0]; if (!f) return;
-    try { await store.uploadPhoto(me.id, f); me = await store.me(); toast("Profil fotoğrafın güncellendi."); refresh(); } catch (er) { fail(er); }
+    const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+    const blob = await cropPhoto(f); if (!blob) return;
+    try { await store.uploadPhoto(me.id, new File([blob], "profil.jpg", { type: "image/jpeg" })); me = await store.me(); toast("Profil fotoğrafın güncellendi."); refresh(); } catch (er) { fail(er); }
   };
   document.getElementById("f-me").onsubmit = async e => {
     e.preventDefault(); const d = Object.fromEntries(new FormData(e.target)); d.birth_date ||= null;
@@ -1072,7 +1130,7 @@ async function viewProjects(v) {
       const d = p.date ? new Date(p.date + "T12:00:00") : null;
       return `<div class="proj"><div class="date">${d ? `<b>${d.getDate()}</b><span>${MONTHS[d.getMonth()].slice(0, 3)} ${d.getFullYear()}</span>` : "<span>Tarih yok</span>"}</div>
         <div><h3>${esc(p.title)}</h3><div class="row"><span class="tag">${KIND[p.kind] || ""}</span>${p.public ? '<span class="tag cran">Sitede</span>' : ""}<span class="muted" style="font-size:.86rem">${[p.committee, p.owner].filter(Boolean).map(esc).join(" · ")}</span></div>
-        ${p.description ? `<p>${esc(p.description)}</p>` : ""}${p.plan ? `<p class="muted" style="white-space:pre-line"><b style="color:var(--ink)">Nasıl yapılacak:</b> ${esc(p.plan)}</p>` : ""}</div>
+        ${p.description ? `<p style="white-space:pre-line">${esc(p.description)}</p>` : ""}${p.plan ? `<p class="muted" style="white-space:pre-line"><b style="color:var(--ink)">Nasıl yapılacak:</b> ${esc(p.plan)}</p>` : ""}</div>
         <div class="acts row">${ro ? "" : `<button class="btn ghost sm" data-ep="${p.id}">Düzenle</button>`}</div></div>`;
     }).join("") : '<p class="muted">Henüz proje yok. "Yeni proje" ile ilkini planla.</p>'}</div>`;
   } else {
@@ -1258,7 +1316,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611131221");
+  const { mountComposer } = await import("./composer.js?v=202611141415");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1417,7 +1475,7 @@ async function viewClubEvents(v) {
     return `<div class="proj"><div class="date"><b>${d.getDate()}</b><span>${MONTHS[d.getMonth()].slice(0, 3)} ${d.getFullYear()}</span></div>
       <div><span class="tag t-kulup">${esc(e.club)}</span><h3 style="margin-top:6px">${esc(e.title)}</h3>
         <p class="muted" style="margin:0;font-size:.88rem">${[DAYS_TR[d.getDay()], e.time, e.location].filter(Boolean).map(esc).join(" · ")}</p>
-        ${e.description ? `<p>${esc(e.description)}</p>` : ""}${e.link ? `<p><a href="${esc(e.link)}" target="_blank" rel="noopener">Etkinlik bağlantısı</a></p>` : ""}
+        ${e.description ? `<p style="white-space:pre-line">${esc(e.description)}</p>` : ""}${e.link ? `<p><a href="${esc(e.link)}" target="_blank" rel="noopener">Etkinlik bağlantısı</a></p>` : ""}
         <div class="row" style="margin-top:10px">
           <div class="seg rsvp" role="group" aria-label="Katılım durumun"><button type="button" data-ev="${e.id}" data-v="katiliyorum" aria-pressed="${mine === "katiliyorum"}">Katılıyorum</button><button type="button" data-ev="${e.id}" data-v="katilamiyorum" aria-pressed="${mine === "katilamiyorum"}">Katılamıyorum</button></div>
           <span class="tag ok">${yes.length} katılıyor</span><span class="tag">${no.length} katılamıyor</span>

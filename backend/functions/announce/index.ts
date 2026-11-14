@@ -52,7 +52,7 @@ class HttpError extends Error {
   }
 }
 
-const ALLOWED_ROLES = ["baskan", "sekreter"];
+const ALLOWED_ROLES = ["baskan", "sekreter", "pr"];
 
 // Çağıranın JWT'sini doğrular; aktif ve baskan/sekreter/pr rolünde değilse hata fırlatır.
 async function requireAnnouncer(req: Request) {

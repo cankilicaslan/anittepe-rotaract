@@ -1186,3 +1186,16 @@ create policy app_settings_write on public.app_settings for all to authenticated
   using (public.has_role('sayman') or public.is_admin())
   with check (public.has_role('sayman') or public.is_admin());
 -- Değer panelden (Aidat hatırlatma → Ödeme bilgisi → Değiştir) girilir; kişisel bilgi olduğu için burada tutulmaz.
+
+-- =====================================================================
+-- v24: Anasayfa yönetim/komite fotoğrafları panelden güncel gelir (yalnızca istenen isimler, aktif üyeler)
+-- =====================================================================
+create or replace function public.public_member_photos(names text[])
+returns table(full_name text, photo_url text)
+language sql stable security definer set search_path = public as $$
+  select p.full_name, p.photo_url from public.profiles p
+   where p.status = 'active' and p.full_name = any(names)
+     and coalesce(p.photo_url, '') like 'http%';
+$$;
+revoke all on function public.public_member_photos(text[]) from public;
+grant execute on function public.public_member_photos(text[]) to anon, authenticated;

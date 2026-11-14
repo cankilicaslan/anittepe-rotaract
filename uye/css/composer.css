@@ -374,3 +374,12 @@
 .cmp-pager-label { font-weight: 700; font-size: .875rem; min-width: 120px; text-align: center; }
 .cmp-pager .cmp-btn { min-width: 44px; min-height: 40px; font-size: 1.2rem; }
 @media (pointer: coarse) { .cmp-icon-btn { min-height: 40px; } }
+
+/* ---------- şablon ve sığdırma ---------- */
+.cmp-tpl { display: grid; gap: 12px; padding-top: 14px; border-top: 1px solid var(--_line); }
+.cmp-tpl .cmp-seg, .cmp-seg-sm { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cmp-label { font-weight: 600; font-size: .9375rem; }
+.cmp-tpl .cmp-hint { margin: 0; }
+.cmp-seg-sm { flex: 1 1 100%; }
+.cmp-seg-sm .cmp-seg-btn { min-height: 36px; padding: 6px 4px; font-size: .8125rem; }
+.cmp-seg-btn:disabled { opacity: .45; cursor: not-allowed; }

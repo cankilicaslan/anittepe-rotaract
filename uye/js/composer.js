@@ -32,6 +32,20 @@ const STATUS_LABEL = { taslak: 'Taslak', paylasildi: 'Paylaşıldı', hata: 'Hat
 
 const LOGO_URL = new URL('../../assets/logo-cranberry.webp', import.meta.url).href;
 
+// Kapak şablonları: saydam PNG/WEBP katmanı fotoğrafın üstüne biner (logo katmanın içinde).
+const TEMPLATES = [
+  { id: 'kavis', label: 'Kavisli', url: new URL('../../assets/ig/tpl-kavis.webp', import.meta.url).href },
+  { id: 'gradyan', label: 'Gradyan', url: new URL('../../assets/ig/tpl-gradyan.webp', import.meta.url).href },
+  { id: 'klasik', label: 'Klasik' },
+];
+const FITS = [
+  { id: 'cover', label: 'Doldur' },
+  { id: 'w', label: 'Enine sığdır' },
+  { id: 'h', label: 'Boyuna sığdır' },
+];
+const ZOOM_MIN = 0.4;
+const TPL_KEY = 'ar-cmp-tpl';
+
 // ---------- küçük yardımcılar ----------
 
 function el(tag, attrs = {}, ...children) {
@@ -183,7 +197,7 @@ async function ensureFonts() {
   const sample = 'İıŞşĞğÜüÖöÇç Toplantı 0123456789';
   try {
     await Promise.all(
-      ['400 30px', '600 30px', '700 30px', '800 80px'].map((f) => document.fonts.load(`${f} "Open Sans"`, sample)),
+      ['300 30px', '400 30px', '600 30px', '700 30px', '800 80px'].map((f) => document.fonts.load(`${f} "Open Sans"`, sample)),
     );
   } catch { /* yazı tipi yüklenemezse sistem yazı tipiyle devam */ }
 }
@@ -234,6 +248,11 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     photo: null, // { img, url, name }
     pos: { x: 0.5, y: 0.5 },
     zoom: 1,
+    fit: 'cover', // cover | w (enine sığdır) | h (boyuna sığdır)
+    tpl: (() => { try { const v = localStorage.getItem(TPL_KEY); return TEMPLATES.some((t) => t.id === v) ? v : 'kavis'; } catch { return 'kavis'; } })(),
+    tplImg: {},
+    title1: '', // şablon başlıkları; boşsa türden otomatik
+    title2: '',
     // Kaydırmalı gönderi: kapaktan sonraki sayfalar [{ img, url, name, pos, zoom }]
     extra: [],
     cur: 0, // önizlemedeki sayfa: 0 = kapak, 1.. = ek sayfalar
@@ -263,14 +282,17 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   }, dzThumb, el('div', { class: 'cmp-dz-text' }, dzTitle, dzSub));
 
   const zoomId = uid('zoom');
-  const zoomInput = el('input', { id: zoomId, type: 'range', min: '1', max: '3', step: '0.01', value: '1', disabled: true });
+  const zoomInput = el('input', { id: zoomId, type: 'range', min: String(ZOOM_MIN), max: '3', step: '0.01', value: '1', disabled: true });
   const centerBtn = el('button', { type: 'button', class: 'cmp-btn cmp-btn-ghost cmp-btn-sm', disabled: true, text: 'Ortala' });
   const removeBtn = el('button', { type: 'button', class: 'cmp-btn cmp-btn-ghost cmp-btn-sm', disabled: true, text: 'Fotoğrafı kaldır' });
+  const fitBtns = FITS.map((f) => el('button', { type: 'button', class: 'cmp-seg-btn', 'data-fit': f.id, 'aria-pressed': String(f.id === 'cover'), disabled: true, text: f.label }));
+  const fitSeg = el('div', { class: 'cmp-seg cmp-seg-sm', role: 'group', 'aria-label': 'Fotoğrafı çerçeveye yerleştir' }, fitBtns);
   const photoTools = el('div', { class: 'cmp-photo-tools' },
-    el('label', { class: 'cmp-zoom', for: zoomId }, el('span', { text: 'Yakınlaştır' }), zoomInput),
+    fitSeg,
+    el('label', { class: 'cmp-zoom', for: zoomId }, el('span', { text: 'Boyut' }), zoomInput),
     el('div', { class: 'cmp-photo-btns' }, centerBtn, removeBtn),
   );
-  const photoHint = el('p', { class: 'cmp-hint', text: 'Konumu ayarlamak için önizlemedeki fotoğrafı sürükleyin (ya da önizlemeye odaklanıp ok tuşlarını kullanın).' });
+  const photoHint = el('p', { class: 'cmp-hint', text: 'Fotoğrafı önizlemede sürükleyerek konumlandırın (ok tuşları da olur). Küçülttüğünüzde ya da enine/boyuna sığdırdığınızda boş kalan yeri aynı fotoğrafın bulanık hâli doldurur.' });
 
   // Ek sayfalar (kaydırmalı gönderi)
   const extraInput = el('input', { type: 'file', accept: 'image/*', multiple: true, class: 'cmp-file', tabindex: '-1', 'aria-hidden': 'true' });
@@ -334,6 +356,23 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   };
   const dateField = el('div', { class: 'cmp-field cmp-field-date' }, el('label', { for: dateId, text: 'Görseldeki tarih' }), dateInput);
 
+  // Kapak şablonu ve şablon başlıkları
+  const tplBtns = TEMPLATES.map((t) => el('button', { type: 'button', class: 'cmp-seg-btn', 'data-tpl': t.id, 'aria-pressed': String(t.id === state.tpl), text: t.label }));
+  const tplSeg = el('div', { class: 'cmp-seg', role: 'group', 'aria-label': 'Kapak şablonu' }, tplBtns);
+  const t1Id = uid('t1');
+  const t2Id = uid('t2');
+  const title1Input = el('input', { id: t1Id, type: 'text', maxlength: '40' });
+  const title2Input = el('input', { id: t2Id, type: 'text', maxlength: '40' });
+  const titleFields = el('div', { class: 'cmp-row cmp-titles' },
+    el('div', { class: 'cmp-field' }, el('label', { for: t1Id, text: 'Başlık 1. satır (ince)' }), title1Input),
+    el('div', { class: 'cmp-field' }, el('label', { for: t2Id, text: 'Başlık 2. satır (kalın)' }), title2Input),
+  );
+  const tplSection = el('div', { class: 'cmp-tpl' },
+    el('div', { class: 'cmp-field' }, el('span', { class: 'cmp-label', text: 'Kapak şablonu' }), tplSeg),
+    titleFields,
+    el('p', { class: 'cmp-hint', text: 'Başlıklar boşsa türe göre otomatik yazılır; kendi başlığınızı yazabilirsiniz.' }),
+  );
+
   // Açıklama (caption)
   const capId = uid('caption');
   const captionTa = el('textarea', { id: capId, rows: '8', maxlength: '2200', placeholder: 'Gönderi açıklaması… Yapay zekâ ile yazdırabilir, sonra düzenleyebilirsiniz.' });
@@ -356,7 +395,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   const resultBox = el('div', { class: 'cmp-result', hidden: true, tabindex: '-1' });
 
   const controls = el('div', { class: 'cmp-controls' },
-    el('section', { class: 'cmp-type', 'aria-label': 'Tür ve içerik' }, segmented, groups.toplanti, groups.ocakbasi, groups.proje, groups.etkinlik, dateField),
+    el('section', { class: 'cmp-type', 'aria-label': 'Tür ve içerik' }, segmented, groups.toplanti, groups.ocakbasi, groups.proje, groups.etkinlik, dateField, tplSection),
     captionSection,
     readOnlyNote,
     actions,
@@ -412,24 +451,70 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
 
   // Önizlemedeki sayfanın fotoğrafı: kapakta üst alan (PHOTO_H), ek sayfalarda alt marka şeridine kadar tüm alan.
   const EXTRA_H = H - 14;
+  const isTpl = () => state.tpl !== 'klasik';
+  // Kapakta fotoğraf çerçevesi: şablonda tüm sayfa, klasikte üst alan.
+  const coverH = () => (isTpl() ? H : PHOTO_H);
   function active() {
     if (state.cur === 0) {
-      return state.photo ? { img: state.photo.img, h: PHOTO_H, pos: state.pos, get zoom() { return state.zoom; }, set zoom(v) { state.zoom = v; }, reset() { state.pos = { x: 0.5, y: 0.5 }; state.zoom = 1; } } : null;
+      return state.photo ? {
+        img: state.photo.img, h: coverH(), pos: state.pos,
+        get zoom() { return state.zoom; }, set zoom(v) { state.zoom = v; },
+        get fit() { return state.fit; }, set fit(v) { state.fit = v; },
+        reset() { state.pos = { x: 0.5, y: 0.5 }; state.zoom = 1; },
+      } : null;
     }
     const s = state.extra[state.cur - 1];
-    return s ? { img: s.img, h: EXTRA_H, pos: s.pos, get zoom() { return s.zoom; }, set zoom(v) { s.zoom = v; }, reset() { s.pos = { x: 0.5, y: 0.5 }; s.zoom = 1; } } : null;
+    return s ? {
+      img: s.img, h: EXTRA_H, pos: s.pos,
+      get zoom() { return s.zoom; }, set zoom(v) { s.zoom = v; },
+      get fit() { return s.fit; }, set fit(v) { s.fit = v; },
+      reset() { s.pos = { x: 0.5, y: 0.5 }; s.zoom = 1; },
+    } : null;
   }
 
+  // Fotoğrafın çerçevedeki yeri. ox/oy < 0 ise fotoğraf çerçeveden küçüktür (boşluk kalır).
   function photoGeom(a = active()) {
     const { img } = a;
     const iw = img.naturalWidth || img.width;
     const ih = img.naturalHeight || img.height;
-    const s = Math.max(W / iw, a.h / ih) * a.zoom;
+    const base = a.fit === 'w' ? W / iw : a.fit === 'h' ? a.h / ih : Math.max(W / iw, a.h / ih);
+    const s = base * a.zoom;
     const dw = iw * s;
     const dh = ih * s;
     const ox = dw - W;
     const oy = dh - a.h;
     return { dw, dh, ox, oy, dx: -ox * a.pos.x, dy: -oy * a.pos.y };
+  }
+
+  // Çerçeveyi doldurmayan fotoğrafın arkasına aynı fotoğrafı güçlü bulanık yerleştirir.
+  // ctx.filter her tarayıcıda yok; küçültüp büyütme hilesi her yerde çalışır.
+  const blurCanvas = document.createElement('canvas');
+  function drawFramed(a, y0 = 0) {
+    const g = photoGeom(a);
+    const fh = a.h;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, y0, W, fh);
+    ctx.clip();
+    ctx.fillStyle = C.ink;
+    ctx.fillRect(0, y0, W, fh);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    if (g.ox < -0.5 || g.oy < -0.5) {
+      const iw = a.img.naturalWidth || a.img.width;
+      const ih = a.img.naturalHeight || a.img.height;
+      const cs = Math.max(W / iw, fh / ih);
+      const k = 1 / 28; // ~%70 bulanıklık
+      blurCanvas.width = Math.max(2, Math.round(W * k));
+      blurCanvas.height = Math.max(2, Math.round(fh * k));
+      const b = blurCanvas.getContext('2d');
+      b.imageSmoothingEnabled = true;
+      b.imageSmoothingQuality = 'high';
+      b.drawImage(a.img, (W - iw * cs) / 2 * k, (fh - ih * cs) / 2 * k, iw * cs * k, ih * cs * k);
+      ctx.drawImage(blurCanvas, -W * 0.03, y0 - fh * 0.03, W * 1.06, fh * 1.06);
+    }
+    ctx.drawImage(a.img, g.dx, y0 + g.dy, g.dw, g.dh);
+    ctx.restore();
   }
 
   // Ek sayfa: fotoğraf tam sayfa, altta kapakla aynı marka şeridi ve küçük sayfa numarası.
@@ -439,14 +524,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     setSpacing(ctx, 0);
     ctx.fillStyle = C.ink;
     ctx.fillRect(0, 0, W, H);
-    const g = photoGeom({ img: s.img, h: EXTRA_H, pos: s.pos, zoom: s.zoom });
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, 0, W, EXTRA_H);
-    ctx.clip();
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(s.img, g.dx, g.dy, g.dw, g.dh);
-    ctx.restore();
+    drawFramed({ img: s.img, h: EXTRA_H, pos: s.pos, zoom: s.zoom, fit: s.fit });
     // sayfa numarası (sağ üst, yarı saydam hap)
     const label = `${index + 1}/${total}`;
     ctx.font = `700 28px ${FONT}`;
@@ -472,11 +550,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     ctx.rect(0, 0, W, PHOTO_H);
     ctx.clip();
     if (state.photo) {
-      const g = photoGeom({ img: state.photo.img, h: PHOTO_H, pos: state.pos, zoom: state.zoom });
-      ctx.fillStyle = C.ink;
-      ctx.fillRect(0, 0, W, PHOTO_H);
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(state.photo.img, g.dx, g.dy, g.dw, g.dh);
+      drawFramed({ img: state.photo.img, h: PHOTO_H, pos: state.pos, zoom: state.zoom, fit: state.fit });
       // alt kenarda hafif gölge: rozet fotoğrafın üzerine taşarken okunaklı kalsın
       const grad = ctx.createLinearGradient(0, PHOTO_H - 140, 0, PHOTO_H);
       grad.addColorStop(0, 'rgba(30,20,32,0)');
@@ -547,11 +621,94 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     return { headline: lines[idx].trim(), sub: '', body: lines.slice(idx + 1).join('\n') };
   }
 
+  // Şablon başlıkları: kullanıcı yazmadıysa türden üretilir.
+  function autoTitles() {
+    const t = state.type;
+    if (t === 'toplanti') {
+      return [state.club_no ? `Kulübümüzün ${state.club_no}.` : 'Kulübümüzün', state.term_no ? `${state.term_no}. Toplantısı` : 'Toplantısı'];
+    }
+    if (t === 'ocakbasi') return ['Dönemin', state.ocakbasi_no ? `${state.ocakbasi_no}. Ocakbaşı` : 'Ocakbaşı'];
+    const first = (state.text[t] || '').split('\n').map((l) => l.trim()).find(Boolean);
+    return [TYPE_BY_ID[t].label, first || 'Başlık'];
+  }
+  function titles() {
+    const a = autoTitles();
+    return [state.title1.trim() || a[0], state.title2.trim() || a[1]];
+  }
+
+  // Metni verilen genişliğe sığana kadar küçültür.
+  function fitFont(text, weight, size, min, maxW) {
+    let s = size;
+    ctx.font = `${weight} ${s}px ${FONT}`;
+    while (s > min && ctx.measureText(text).width > maxW) { s -= 2; ctx.font = `${weight} ${s}px ${FONT}`; }
+    return s;
+  }
+
+  function drawTemplate() {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    setSpacing(ctx, 0);
+    const a = active();
+    if (a) {
+      drawFramed(a);
+    } else {
+      ctx.fillStyle = C.soft;
+      ctx.fillRect(0, 0, W, H);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = C.deep;
+      ctx.font = `700 44px ${FONT}`;
+      ctx.fillText('Fotoğrafı buraya sürükleyin', W / 2, 860);
+      ctx.font = `400 30px ${FONT}`;
+      ctx.fillStyle = 'rgba(163,12,77,0.75)';
+      ctx.fillText('ya da tıklayıp seçin', W / 2, 912);
+    }
+    const layer = state.tplImg[state.tpl];
+    if (layer) ctx.drawImage(layer, 0, 0, W, H);
+
+    const [t1, t2] = titles();
+    ctx.save();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.textBaseline = 'alphabetic';
+    if (state.tpl === 'kavis') {
+      // şablondaki "Başlık" yerleri: sol üst, ince + kalın
+      ctx.shadowColor = 'rgba(110,0,40,0.35)';
+      ctx.shadowBlur = 14;
+      ctx.shadowOffsetY = 4;
+      ctx.textAlign = 'left';
+      const x = 65, maxW = W - x - 60;
+      fitFont(t1, 300, 74, 40, maxW);
+      setSpacing(ctx, -0.5);
+      ctx.fillText(t1, x, 177);
+      fitFont(t2, 700, 98, 48, maxW);
+      setSpacing(ctx, -1.5);
+      ctx.fillText(t2, x - 2, 273);
+    } else {
+      // gradyan: logonun altında ortalı
+      ctx.shadowColor = 'rgba(40,0,20,0.45)';
+      ctx.shadowBlur = 18;
+      ctx.shadowOffsetY = 3;
+      ctx.textAlign = 'center';
+      const maxW = W - 120;
+      fitFont(t1, 300, 60, 34, maxW);
+      setSpacing(ctx, -0.5);
+      ctx.fillText(t1, W / 2, 262);
+      fitFont(t2, 700, 86, 44, maxW);
+      setSpacing(ctx, -1.5);
+      ctx.fillText(t2, W / 2, 352);
+    }
+    ctx.restore();
+    setSpacing(ctx, 0);
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  }
+
   function draw() {
     if (state.cur > 0 && state.extra[state.cur - 1]) {
       drawExtra(state.extra[state.cur - 1], state.cur, state.extra.length + 1);
       return;
     }
+    if (isTpl()) { drawTemplate(); return; }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, W, H);
     setSpacing(ctx, 0);
@@ -690,6 +847,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
       state.photo = { img, url, name: file.name || 'yapistirilan-gorsel' };
       state.pos = { x: 0.5, y: 0.5 };
       state.zoom = 1;
+      state.fit = 'cover';
       zoomInput.value = '1';
       showPage(0);
     } catch {
@@ -702,6 +860,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     if (state.photo) URL.revokeObjectURL(state.photo.url);
     state.photo = null;
     state.zoom = 1;
+    state.fit = 'cover';
     state.pos = { x: 0.5, y: 0.5 };
     zoomInput.value = '1';
     updatePhotoUI();
@@ -715,6 +874,8 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     dropzone.classList.toggle('has-photo', has);
     zoomInput.disabled = !act;
     centerBtn.disabled = !act;
+    const fit = act ? active().fit : 'cover';
+    fitBtns.forEach((b) => { b.disabled = !act; b.setAttribute('aria-pressed', String(b.dataset.fit === fit)); });
     removeBtn.disabled = !has;
     photoHint.hidden = !act;
     canvas.classList.toggle('can-drag', act);
@@ -782,7 +943,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   zoomInput.addEventListener('input', () => {
     const a = active();
     if (!a) return;
-    a.zoom = clamp(parseFloat(zoomInput.value) || 1, 1, 3);
+    a.zoom = clamp(parseFloat(zoomInput.value) || 1, ZOOM_MIN, 3);
     scheduleRender();
   });
   centerBtn.addEventListener('click', () => {
@@ -792,6 +953,17 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     scheduleRender();
   });
   removeBtn.addEventListener('click', clearPhoto);
+  fitSeg.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-fit]');
+    const a = active();
+    if (!b || !a) return;
+    a.fit = b.dataset.fit;
+    a.zoom = 1;
+    a.pos.x = 0.5; a.pos.y = 0.5;
+    zoomInput.value = '1';
+    updatePhotoUI();
+    scheduleRender();
+  });
 
   // Önizlemede sürükleyerek konumlandırma
   let drag = null;
@@ -801,7 +973,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   };
   canvas.addEventListener('pointerdown', (e) => {
     const p = canvasPoint(e);
-    if (state.cur === 0 && p.y > PHOTO_H) return;
+    if (state.cur === 0 && p.y > coverH()) return;
     if (!active()) return; // boşsa click ile seçici açılır
     e.preventDefault();
     canvas.setPointerCapture(e.pointerId);
@@ -816,12 +988,12 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
       const dy = (e.clientY - drag.ly) * drag.k;
       drag.lx = e.clientX;
       drag.ly = e.clientY;
-      if (g.ox > 0) a.pos.x = clamp(a.pos.x - dx / g.ox, 0, 1);
-      if (g.oy > 0) a.pos.y = clamp(a.pos.y - dy / g.oy, 0, 1);
+      if (Math.abs(g.ox) > 0.5) a.pos.x = clamp(a.pos.x - dx / g.ox, 0, 1);
+      if (Math.abs(g.oy) > 0.5) a.pos.y = clamp(a.pos.y - dy / g.oy, 0, 1);
       scheduleRender();
     } else {
       const p = canvasPoint(e);
-      canvas.classList.toggle('over-photo', state.cur > 0 || p.y <= PHOTO_H);
+      canvas.classList.toggle('over-photo', state.cur > 0 || p.y <= coverH());
     }
   });
   const endDrag = (e) => {
@@ -834,7 +1006,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   canvas.addEventListener('pointercancel', endDrag);
   canvas.addEventListener('click', (e) => {
     if (state.cur !== 0 || state.photo) return;
-    if (canvasPoint(e).y <= PHOTO_H) openPicker();
+    if (canvasPoint(e).y <= coverH()) openPicker();
   });
   canvas.addEventListener('keydown', (e) => {
     const a = active();
@@ -851,10 +1023,10 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
       scheduleRender();
     } else if (e.key === '+' || e.key === '=') {
       e.preventDefault();
-      a.zoom = clamp(a.zoom + 0.1, 1, 3); zoomInput.value = String(a.zoom); scheduleRender();
+      a.zoom = clamp(a.zoom + 0.1, ZOOM_MIN, 3); zoomInput.value = String(a.zoom); scheduleRender();
     } else if (e.key === '-') {
       e.preventDefault();
-      a.zoom = clamp(a.zoom - 0.1, 1, 3); zoomInput.value = String(a.zoom); scheduleRender();
+      a.zoom = clamp(a.zoom - 0.1, ZOOM_MIN, 3); zoomInput.value = String(a.zoom); scheduleRender();
     }
   });
 
@@ -872,7 +1044,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
       try {
         const img = await loadImage(url);
         if (destroyed) { URL.revokeObjectURL(url); return; }
-        state.extra.push({ img, url, name: f.name || 'gorsel', pos: { x: 0.5, y: 0.5 }, zoom: 1 });
+        state.extra.push({ img, url, name: f.name || 'gorsel', pos: { x: 0.5, y: 0.5 }, zoom: 1, fit: 'cover' });
       } catch {
         URL.revokeObjectURL(url);
         toast(`${f.name || 'Bir görsel'} açılamadı (HEIC desteklenmeyebilir).`, 'error');
@@ -1010,6 +1182,27 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   for (const [t, ta] of Object.entries(textAreas)) {
     ta.addEventListener('input', () => { state.text[t] = ta.value; scheduleRender(); });
   }
+
+  // ----- şablon -----
+  function syncTitles() {
+    const [p1, p2] = autoTitles();
+    title1Input.placeholder = p1;
+    title2Input.placeholder = p2;
+  }
+  function setTpl(id) {
+    if (!TEMPLATES.some((t) => t.id === id)) return;
+    state.tpl = id;
+    try { localStorage.setItem(TPL_KEY, id); } catch { /* yoksay */ }
+    tplBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tpl === id)));
+    titleFields.hidden = id === 'klasik';
+    tplSection.querySelector('.cmp-hint').hidden = id === 'klasik';
+    scheduleRender();
+  }
+  tplSeg.addEventListener('click', (e) => { const b = e.target.closest('[data-tpl]'); if (b) setTpl(b.dataset.tpl); });
+  title1Input.addEventListener('input', () => { state.title1 = title1Input.value; scheduleRender(); });
+  title2Input.addEventListener('input', () => { state.title2 = title2Input.value; scheduleRender(); });
+  root.addEventListener('input', syncTitles);
+  root.addEventListener('click', () => setTimeout(syncTitles, 0));
   captionTa.addEventListener('input', () => {
     state.caption = captionTa.value;
     capCount.textContent = `${captionTa.value.length} / 2200`;
@@ -1234,6 +1427,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   async function init() {
     draw(); // yazı tipi gelmeden de bir şey görünsün
     const fontsP = ensureFonts().then(() => { state.fontsReady = true; scheduleRender(); });
+    for (const t of TEMPLATES) if (t.url) loadImage(t.url).then((img) => { state.tplImg[t.id] = img; scheduleRender(); }).catch(() => {});
     const logoP = loadImage(LOGO_URL).then((img) => { state.logo = trimLogo(img); scheduleRender(); }).catch(() => {});
 
     const [term, meetings, posts] = await Promise.all([
@@ -1276,6 +1470,8 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   }
 
   renderExtra();
+  setTpl(state.tpl);
+  syncTitles();
   showPage(0);
   const ready = init().catch((e) => toast(e.message || 'Hazırlayıcı yüklenemedi.', 'error'));
 

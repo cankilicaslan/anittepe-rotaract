@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611141505";
-import { can, hasRole } from "./roles.js?v=202611141505";
+import { CONFIG } from "./config.js?v=202611141512";
+import { can, hasRole } from "./roles.js?v=202611141512";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -16,23 +16,27 @@ export const trDate = iso => { if (!iso) return ""; const d = new Date(iso + "T1
 
 // Yapay zekâ bağlı değilken kullanılan şablon. Gerçek modda Edge Function (Claude) yazar.
 export function templateCaption({ type, term_no, club_no, ocakbasi_no, summary, date, hybridhub }) {
+  // Özet "Başlık: …", "Ev sahibi: …", "Kısa açıklama: …" satırlarını içerebilir.
   const s = (summary || "").trim();
-  const when = date ? trDate(date) : "";
-  const tags = "#Rotaract #AnıttepeRotaract #Bölge2430 #RotaractAnkara";
+  const pick = l => ((s.match(new RegExp("^" + l + ":\\s*(.+)$", "m")) || [])[1] || "").trim();
+  const title = pick("Başlık"), host = pick("Ev sahibi");
+  const notes = s.replace(/^Başlık:.*$/m, "").replace(/^Ev sahibi:.*$/m, "").replace(/^Kısa açıklama:\s*/m, "").trim();
+  const when = date ? `, ${trDate(date)} tarihinde` : "";
+  let tags = "#Rotaract #AnıttepeRotaract #Bölge2430 #RotaractAnkara";
+  let opening, fallback;
   if (type === "toplanti") {
-    return `Dönemimizin ${term_no || "?"}. ve kulübümüzün ${club_no || "?"}. toplantısını${when ? " " + when + " tarihinde" : ""}${hybridhub ? " HybridHub’da (@hybridhub.tr)" : ""} gerçekleştirdik.\n\n${s || "Bu toplantıda kulüp gündemimizi konuştuk."}\n\nBir sonraki toplantıda seni de aramızda görmek isteriz. Toplantılarımız iki haftada bir perşembe 19.30'da.\n\n${tags}`;
+    opening = `Dönemimizin ${term_no || "?"}. ve kulübümüzün ${club_no || "?"}. toplantısı${when}${hybridhub ? " HybridHub’da (@hybridhub.tr)" : ""} gerçekleşti.`;
+    fallback = "Gündemimizi konuştuk, fikirlerimizi paylaştık. Bir sonraki toplantıda seni de aramızda görmek isteriz.";
+  } else if (type === "ocakbasi") {
+    opening = `Dönemimizin ${ocakbasi_no || "?"}. Ocakbaşı buluşması${when}${host ? ` ${host} ev sahipliğinde` : ""} gerçekleşti.`;
+    fallback = "Sohbet, dostluk ve bol kahkaha. Dostluğun en güzel hali, aynı masada.";
+    tags += " #Ocakbaşı";
+  } else {
+    const kind = type === "proje" ? "projemiz" : "etkinliğimiz";
+    opening = `${title ? `${title} ${kind}` : kind.charAt(0).toUpperCase() + kind.slice(1)}${when} gerçekleşti.`;
+    fallback = "Emeği geçen herkese teşekkür ederiz.";
   }
-  if (type === "ocakbasi") {
-    const host = (s.match(/^Ev sahibi:\s*(.+)$/m) || [])[1];
-    const note = s.replace(/^Ev sahibi:.*$/m, "").trim();
-    return `Dönemin ${ocakbasi_no || "?"}. ocakbaşında bir araya geldik.\n\n${note || "Sohbet, dostluk ve bol kahkaha."}${host ? `\n\nEv sahibimiz ${host}, misafirperverliğin için teşekkürler!` : ""}\n\nDostluğun en güzel hali, aynı masada.\n\n${tags} #Ocakbaşı`;
-  }
-  // Panel özeti "Başlık: …" ve "Kısa açıklama: …" satırlarıyla gelir; şablonda etiketsiz yazılır.
-  const title = (s.match(/^Başlık:\s*(.+)$/m) || [])[1] || "";
-  const desc = (s.match(/^Kısa açıklama:\s*([\s\S]+)$/m) || [])[1] || (title ? "" : s);
-  const body = [title, desc.trim()].filter(Boolean).join("\n\n");
-  const next = type === "proje" ? "projemizde" : "etkinliğimizde";
-  return `${body || (type === "proje" ? "Yeni projemizi hayata geçirdik." : "Etkinliğimizde bir araya geldik.")}\n\nEmeği geçen herkese teşekkür ederiz. Bir sonraki ${next} sen de yanımızda ol.\n\n${tags}`;
+  return [opening, notes || fallback, tags].join("\n\n");
 }
 
 async function sha(s) {

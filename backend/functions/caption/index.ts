@@ -65,20 +65,18 @@ const SYSTEM_PROMPT = `Sen Ankara Anıttepe Rotaract Kulübü'nün Instagram hes
 
 Kulüp hakkında: Ankara'da gençlerden oluşan, Rotary'ye bağlı bir gönüllülük ve liderlik kulübü. Üyeler iki haftada bir perşembe akşamı toplanır, hizmet projeleri, etkinlikler ve "Ocakbaşı" adını verdiğimiz samimi sohbet buluşmaları düzenler.
 
+Görevin: Açıklamanın açılış cümlesi ve hashtag'leri hazır. Sen yalnızca açılıştan sonra gelecek TEK paragrafı yazarsın.
+
 Yazım kuralları:
 - Türkçe yaz. Sıcak, samimi, içten bir ton kullan; kurumsal ve abartılı olma.
-- Kısa tut: toplam 35 ile 70 kelime arası (hashtag'ler hariç), en fazla 3 kısa paragraf.
-- İlk satır güçlü bir kanca olsun: Instagram'da "...devamı" kesiminden önce görünen tek satır budur, tek başına merak uyandırmalı ve yaklaşık 125 karakteri geçmemeli.
-- Üyenin yazdığı notlar ham bilgidir, çoğu zaman kısa ve dağınıktır. Notları olduğu gibi kopyalama ya da madde madde sıralama: içindeki her bilgiyi koruyarak yaratıcı, akıcı ve canlı cümlelerle yeniden kur. Ortamı, duyguyu ve anlamı hissettiren bir anlatım kullan; cümle yapılarını çeşitlendir. Yaratıcılık anlatımda olsun, bilgide değil: notlarda olmayan kişi, sayı, yer veya olay ekleme.
-- "Başlık:" satırı verilmişse etkinliğin ya da projenin adıdır; metinde doğal bir şekilde geçir.
-- Sana verilen somut bilgileri mutlaka ve doğru şekilde kullan (ör. "Dönemimizin 11. ve kulübümüzün 610. toplantısı", tarih, Ocakbaşı numarası). Verilmeyen bilgi, isim, sayı veya olay uydurma.
-- Uzun tire (—) ve kısa tire (–) kullanma. Gerekirse virgül, nokta veya iki nokta kullan.
+- Tek paragraf, 2 ile 4 cümle, toplam 25 ile 55 kelime.
+- Üyenin yazdığı notlar ham bilgidir, çoğu zaman kısa ve dağınıktır. Notları olduğu gibi kopyalama ya da madde madde sıralama: içindeki bilgileri koruyarak yaratıcı, akıcı ve canlı cümlelerle yeniden kur; cümle yapılarını çeşitlendir. Yaratıcılık anlatımda olsun, bilgide değil: notlarda olmayan kişi, sayı, yer veya olay ekleme.
+- Açılış cümlesindeki bilgileri (toplantı numarası, tarih, mekân, başlık, ev sahibi) tekrar etme.
+- Not verilmediyse yalnızca türe uygun, bilgi uydurmayan tek bir sıcak cümle yaz.
+- Uzun tire (—) ve kısa tire (–) kullanma.
 - Klişelerden kaçın: "unutulmaz bir gün", "dolu dolu", "harika bir etkinlik", "birlikte daha güçlüyüz", "kelimeler yetersiz" gibi kalıpları kullanma.
-- En fazla 3 emoji, yalnızca içerikle gerçekten ilgiliyse.
-- Kısa paragraflar kullan, aralarında boş satır bırak.
-- Kısa bir harekete geçirme cümlesiyle bitir (ör. bir sonraki toplantıya davet, yorumlarda düşünce sorma, profildeki bağlantı).
-- En sonda ayrı bir satırda 3 ile 5 hashtag: #Rotaract #AnıttepeRotaract #Bölge2430 mutlaka olsun, varsa içerikle ilgili 1-2 tane daha ekle.
-- Yalnızca caption metnini yaz. Başlık, açıklama, tırnak işareti veya "İşte caption:" gibi giriş cümleleri ekleme.`;
+- En fazla 1 emoji, yalnızca içerikle gerçekten ilgiliyse.
+- Hashtag, başlık, tırnak işareti ya da "İşte paragraf:" gibi giriş yazma. Yalnızca paragrafın kendisini yaz.`;
 
 const TYPE_LABELS: Record<string, string> = {
   toplanti: "Kulüp toplantısı",
@@ -86,6 +84,8 @@ const TYPE_LABELS: Record<string, string> = {
   proje: "Hizmet projesi",
   etkinlik: "Etkinlik",
 };
+
+const TAGS = "#Rotaract #AnıttepeRotaract #Bölge2430 #RotaractAnkara";
 
 function toInt(v: unknown): number | null {
   const n = typeof v === "string" ? parseInt(v, 10) : typeof v === "number" ? Math.trunc(v) : NaN;
@@ -97,36 +97,54 @@ function formatDateTr(value: unknown): string | null {
   const d = new Date(value.slice(0, 10) + "T12:00:00Z");
   if (isNaN(d.getTime())) return null;
   return new Intl.DateTimeFormat("tr-TR", {
-    day: "numeric", month: "long", year: "numeric", weekday: "long", timeZone: "Europe/Istanbul",
+    day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Istanbul",
   }).format(d);
 }
 
-function buildUserPrompt(body: Record<string, unknown>): string {
+// Paneldeki özet "Başlık: …", "Ev sahibi: …", "Kısa açıklama: …" satırlarını içerebilir.
+function parseSummary(summary: string) {
+  const pick = (label: string) => (summary.match(new RegExp(`^${label}:\\s*(.+)$`, "m")) || [])[1]?.trim() || "";
+  const title = pick("Başlık");
+  const host = pick("Ev sahibi");
+  const notes = summary
+    .replace(/^Başlık:.*$/m, "")
+    .replace(/^Ev sahibi:.*$/m, "")
+    .replace(/^Kısa açıklama:\s*/m, "")
+    .trim();
+  return { title, host, notes };
+}
+
+// Açılış cümlesi her zaman aynı kalıpla, koddan gelir.
+function buildOpening(body: Record<string, unknown>, title: string, host: string): string {
   const type = String(body.type ?? "");
   const termNo = toInt(body.term_no);
   const clubNo = toInt(body.club_no);
-  const ocakbasiNo = toInt(body.ocakbasi_no);
-  const summary = typeof body.summary === "string" ? body.summary.trim().slice(0, 3000) : "";
+  const ocakNo = toInt(body.ocakbasi_no);
   const dateTr = formatDateTr(body.date);
-
-  const facts: string[] = [`Gönderi türü: ${TYPE_LABELS[type] ?? type}`];
-  if (type === "toplanti" && termNo && clubNo) {
-    facts.push(`Bu, dönemimizin ${termNo}. ve kulübümüzün ${clubNo}. toplantısı (metinde bu ifadeyi kullan: "Dönemimizin ${termNo}. ve kulübümüzün ${clubNo}. toplantısı").`);
-  } else {
-    if (termNo) facts.push(`Dönem toplantı numarası: ${termNo}`);
-    if (clubNo) facts.push(`Kulüp toplantı numarası: ${clubNo}`);
+  const when = dateTr ? `, ${dateTr} tarihinde` : "";
+  if (type === "toplanti") {
+    const hub = body.hybridhub === true ? " HybridHub’da (@hybridhub.tr)" : "";
+    return `Dönemimizin ${termNo ?? "?"}. ve kulübümüzün ${clubNo ?? "?"}. toplantısı${when}${hub} gerçekleşti.`;
   }
-  if (type === "ocakbasi" && ocakbasiNo) facts.push(`Bu, ${ocakbasiNo}. Ocakbaşı buluşmamız.`);
-  else if (ocakbasiNo) facts.push(`Ocakbaşı numarası: ${ocakbasiNo}`);
-  if (dateTr) facts.push(`Tarih: ${dateTr}`);
-  if (type === "toplanti" && body.hybridhub === true) {
-    facts.push(`Toplantı HybridHub'da yapıldı. Metinde bunu "toplantımızı ${dateTr ? dateTr + " tarihinde " : ""}HybridHub'da" anlamında doğal bir cümleyle söyle ve mekânı @hybridhub.tr etiketiyle an (ör. "HybridHub'da (@hybridhub.tr)").`);
+  if (type === "ocakbasi") {
+    return `Dönemimizin ${ocakNo ?? "?"}. Ocakbaşı buluşması${when}${host ? ` ${host} ev sahipliğinde` : ""} gerçekleşti.`;
   }
-  facts.push(summary
-    ? `Üyenin notları (ham bilgi; kopyalama, bu bilgilerle yaratıcı ve akıcı cümleler kur):\n${summary}`
-    : "Not verilmedi; yalnızca yukarıdaki bilgileri kullan.");
+  const kind = type === "proje" ? "projemiz" : "etkinliğimiz";
+  const name = title ? `${title} ${kind}` : kind.charAt(0).toUpperCase() + kind.slice(1);
+  return `${name}${when} gerçekleşti.`;
+}
 
-  return `Aşağıdaki bilgilerle bir Instagram açıklaması yaz.\n\n${facts.join("\n")}`;
+function buildUserPrompt(body: Record<string, unknown>, opening: string, notes: string): string {
+  const type = String(body.type ?? "");
+  return [
+    `Gönderi türü: ${TYPE_LABELS[type] ?? type}`,
+    `Hazır açılış cümlesi (tekrar etme): ${opening}`,
+    notes
+      ? `Üyenin notları (ham bilgi; kopyalama, bu bilgilerle yaratıcı ve akıcı cümleler kur):\n${notes}`
+      : "Not verilmedi.",
+    "",
+    "Açılıştan sonra gelecek tek paragrafı yaz.",
+  ].join("\n");
 }
 
 function cleanCaption(text: string): string {
@@ -156,6 +174,9 @@ Deno.serve(async (req: Request) => {
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) throw new HttpError(500, "Yapay zekâ anahtarı (ANTHROPIC_API_KEY) tanımlı değil.");
 
+    const { title, host, notes } = parseSummary(typeof body.summary === "string" ? body.summary.trim().slice(0, 3000) : "");
+    const opening = buildOpening(body, title, host);
+
     const client = new Anthropic({ apiKey });
     const response = await client.beta.messages.create({
       model: "claude-opus-5-5",
@@ -164,7 +185,7 @@ Deno.serve(async (req: Request) => {
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default",
       system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: buildUserPrompt(body) }],
+      messages: [{ role: "user", content: buildUserPrompt(body, opening, notes) }],
     });
 
     if (response.stop_reason === "refusal") {
@@ -178,7 +199,8 @@ Deno.serve(async (req: Request) => {
       .trim();
     if (!text) throw new HttpError(502, "Yapay zekâdan boş yanıt geldi. Lütfen tekrar deneyin.");
 
-    return json({ caption: cleanCaption(text), source: "ai" });
+    const tags = TAGS + (body.type === "ocakbasi" ? " #Ocakbaşı" : "");
+    return json({ caption: [opening, cleanCaption(text), tags].join("\n\n"), source: "ai" });
   } catch (err) {
     if (err instanceof HttpError) return json({ error: err.message }, err.status);
     if (err instanceof Anthropic.APIError) {

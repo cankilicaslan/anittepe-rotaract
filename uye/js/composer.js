@@ -237,6 +237,8 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     term_no: null,
     club_no: null,
     ocakbasi_no: 1,
+    host: '', // ocakbaşı ev sahibi (üye adı)
+    members: [],
     date: todayISO(),
     dateEdited: false,
     text: { toplanti: '', ocakbasi: '', proje: '', etkinlik: '' },
@@ -317,6 +319,8 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
 
   const termInput = el('select', { id: termId });
   const ocakInput = el('input', { id: ocakId, type: 'number', min: '1', inputmode: 'numeric' });
+  const hostId = uid('host');
+  const hostSel = el('select', { id: hostId }, el('option', { value: '', text: 'Ev sahibini seçin' }));
   const dateInput = el('input', { id: dateId, type: 'date' });
 
   const textAreas = {};
@@ -338,6 +342,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     ocakbasi: el('div', { class: 'cmp-group', 'data-for': 'ocakbasi', hidden: true },
       el('div', { class: 'cmp-row' },
         el('div', { class: 'cmp-field' }, el('label', { for: ocakId, text: 'Dönemin kaçıncı ocakbaşı' }), ocakInput),
+        el('div', { class: 'cmp-field' }, el('label', { for: hostId, text: 'Ev sahibi' }), hostSel),
       ),
       mkText('ocakbasi', 'Kısa açıklama', 'Nerede buluştuk, neler konuştuk…'),
     ),
@@ -601,9 +606,9 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     if (t === 'toplanti') {
       return [state.club_no ? `Kulübümüzün ${state.club_no}.` : 'Kulübümüzün', state.term_no ? `Dönemimizin ${state.term_no}. Toplantısı` : 'Toplantısı'];
     }
-    if (t === 'ocakbasi') return ['Dönemin', state.ocakbasi_no ? `${state.ocakbasi_no}. Ocakbaşı` : 'Ocakbaşı'];
+    if (t === 'ocakbasi') return [state.ocakbasi_no ? `Dönemimizin ${state.ocakbasi_no}. Ocakbaşı` : 'Ocakbaşı', state.host ? `Ev Sahibi: ${state.host}` : 'Ev Sahibi'];
     const first = (state.text[t] || '').split('\n').map((l) => l.trim()).find(Boolean);
-    return [TYPE_BY_ID[t].label, first || 'Başlık'];
+    return ['', first || 'Başlık']; // proje/etkinlik: tür yazısı yok, yalnızca başlık
   }
   function titles() {
     const a = autoTitles();
@@ -653,10 +658,10 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
       const x = 65, maxW = W - x - 60;
       fitFont(t1, 300, 74, 40, maxW);
       setSpacing(ctx, -0.5);
-      ctx.fillText(t1, x, 177);
+      if (t1) ctx.fillText(t1, x, 177);
       fitFont(t2, 700, 98, 48, maxW);
       setSpacing(ctx, -1.5);
-      ctx.fillText(t2, x - 2, 273);
+      ctx.fillText(t2, x - 2, t1 ? 273 : 230);
     } else {
       // gradyan: logonun altında ortalı
       ctx.shadowColor = 'rgba(40,0,20,0.45)';
@@ -666,10 +671,10 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
       const maxW = W - 120;
       fitFont(t1, 300, 60, 34, maxW);
       setSpacing(ctx, -0.5);
-      ctx.fillText(t1, W / 2, 262);
+      if (t1) ctx.fillText(t1, W / 2, 262);
       fitFont(t2, 700, 86, 44, maxW);
       setSpacing(ctx, -1.5);
-      ctx.fillText(t2, W / 2, 352);
+      ctx.fillText(t2, W / 2, t1 ? 352 : 300);
     }
     ctx.restore();
     setSpacing(ctx, 0);
@@ -1139,6 +1144,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     syncTitles();
     scheduleRender();
   });
+  hostSel.addEventListener('change', () => { state.host = hostSel.value; syncTitles(); scheduleRender(); });
   ocakInput.addEventListener('input', () => {
     state.ocakbasi_no = toInt(ocakInput.value);
     scheduleRender();
@@ -1176,7 +1182,9 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
       term_no: t === 'toplanti' ? state.term_no : null,
       club_no: t === 'toplanti' ? state.club_no : null,
       ocakbasi_no: t === 'ocakbasi' ? state.ocakbasi_no : null,
-      summary: (t === 'proje' ? titles().join(' ') : (state.text[t] || '')).trim(),
+      summary: (t === 'proje' ? titles().join(' ')
+        : t === 'ocakbasi' && state.host ? `Ev sahibi: ${state.host}\n${state.text[t] || ''}`
+        : (state.text[t] || '')).trim(),
     };
   }
 
@@ -1313,6 +1321,11 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
       captionTa.focus();
       return;
     }
+    if (state.type === 'ocakbasi' && !state.host) {
+      toast('Ocakbaşının ev sahibini seçin.', 'error');
+      hostSel.focus();
+      return;
+    }
     if (state.type === 'toplanti' && !state.term_no) {
       toast('Toplantıyı seçin.', 'error');
       termInput.focus();
@@ -1411,6 +1424,11 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     syncTitles();
     dateInput.value = state.date;
 
+    try {
+      const members = await store.listMembers();
+      state.members = (members || []).filter((m) => m.status === 'active' && m.full_name).map((m) => m.full_name).sort((x, y) => x.localeCompare(y, 'tr'));
+    } catch { state.members = []; }
+    hostSel.append(...state.members.map((n) => el('option', { value: n, text: n })));
     state.ocakbasi_no = state.posts.filter((p) => p.type === 'ocakbasi').length + 1;
     ocakInput.value = String(state.ocakbasi_no);
 

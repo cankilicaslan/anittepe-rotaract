@@ -9,9 +9,9 @@
 <link rel="alternate" hreflang="en" href="https://anitteperotaract.org/en/">
 <link rel="alternate" hreflang="x-default" href="https://anitteperotaract.org/">
 <link rel="manifest" href="https://anitteperotaract.org/site.webmanifest">
+<link rel="icon" href="https://anitteperotaract.org/favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="icon" type="image/png" sizes="32x32" href="https://anitteperotaract.org/assets/icons/favicon-32.png">
-<link rel="icon" type="image/png" sizes="64x64" href="https://anitteperotaract.org/assets/icons/favicon-64.png">
-<link rel="icon" type="image/png" sizes="512x512" href="https://anitteperotaract.org/assets/icons/icon-512.png">
+<link rel="icon" type="image/png" sizes="192x192" href="https://anitteperotaract.org/assets/icons/icon-192.png">
 <link rel="apple-touch-icon" href="https://anitteperotaract.org/assets/icons/apple-touch-icon.png">
 <meta name="theme-color" content="#D41367">
 <meta name="description" content="Ankara Anıttepe Rotaract Kulübü 1996'dan beri Ankara'da. 18–30 yaş arası gençlerle gönüllülük, liderlik ve dostluk. Toplantılar, projeler ve üyelik.">
@@ -450,7 +450,10 @@ body.show-notes .note{display:block}
 .lang-sw a{font:700 .82rem/1 var(--f);text-decoration:none;color:var(--muted);padding:8px 11px;border-radius:999px;letter-spacing:.03em;transition:background .2s,color .2s}
 .lang-sw a:hover{color:var(--cran-deep);background:var(--cran-soft)}
 .lang-sw a[aria-current="true"]{background:var(--cran);color:#fff;pointer-events:none}
-@media (max-width:1200px){.lang-sw{margin-left:auto}.hdr .menu-btn{margin-left:10px}}
+.lang-sw{margin-left:12px}.lang-sw a{gap:6px}.lang-sw .flag{width:20px;height:14px;border-radius:3px;flex:none;display:block;box-shadow:0 0 0 1px rgba(0,0,0,.08)}
+@media (max-width:1200px){.hdr .mlogin{margin-left:auto}.hdr .menu-btn{margin-left:10px;flex:none}.lang-sw{margin-left:10px}}
+@media (max-width:640px){.hdr .menu-btn{margin-left:auto}.lang-sw{margin-left:8px}.lang-sw a{padding:8px 9px}}
+@media (max-width:400px){.hdr{gap:6px}.lang-sw{margin-left:4px}.lang-sw a{padding:6px 6px;gap:4px;min-width:0}.lang-sw .flag{width:16px;height:11px}}
 .mlogin{font-weight:700;font-size:.92rem;color:var(--cran-deep);text-decoration:none;white-space:nowrap;flex:none}.mlogin:hover{text-decoration:underline}@media (max-width:640px){.mlogin{display:none}}
 .lang-hint{position:fixed;left:50%;top:calc(var(--hdr) + 14px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:80;display:flex;align-items:center;gap:12px;background:#fff;color:var(--ink);border:1.5px solid var(--blush-2);box-shadow:0 18px 40px -24px rgba(163,12,77,.55);border-radius:18px;padding:10px 12px 10px 16px;font-size:.92rem;max-width:calc(100% - 32px)}
 .lang-hint a{font-weight:700;color:#fff;background:var(--cran);text-decoration:none;border-radius:999px;padding:7px 14px;white-space:nowrap}
@@ -719,10 +722,10 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
       <a class="nav-extra nav-cta" href="#basvuru">Misafir Olarak Katıl</a>
       <a class="nav-extra nav-login" href="https://anitteperotaract.org/uye/">Üye Girişi</a>
     </nav>
-    <div class="lang-sw" role="group" aria-label="Dil seçimi"><a href="https://anitteperotaract.org/" hreflang="tr" lang="tr" data-lang="tr" aria-current="true" aria-label="Türkçe">TR</a><a href="https://anitteperotaract.org/en/" hreflang="en" lang="en" data-lang="en" aria-label="English">EN</a></div>
     <a class="mlogin" href="https://anitteperotaract.org/uye/">Üye Girişi</a>
     <a class="btn btn-cran" href="#basvuru">Misafir Olarak Katıl</a>
     <button class="menu-btn" id="menuBtn" type="button" aria-expanded="false" aria-controls="nav" aria-label="Menüyü aç">☰</button>
+    <div class="lang-sw" role="group" aria-label="Dil seçimi"><a href="https://anitteperotaract.org/" hreflang="tr" lang="tr" data-lang="tr" aria-current="true" aria-label="Türkçe"><svg class="flag" viewBox="0 0 30 20" aria-hidden="true" focusable="false"><rect width="30" height="20" fill="#E30A17"/><circle cx="11.25" cy="10" r="5" fill="#fff"/><circle cx="12.5" cy="10" r="4" fill="#E30A17"/><polygon fill="#fff" points="14.10,10.00 15.79,9.41 15.83,7.62 16.91,9.05 18.62,8.53 17.60,10.00 18.62,11.47 16.91,10.95 15.83,12.38 15.79,10.59"/></svg>TR</a><a href="https://anitteperotaract.org/en/" hreflang="en" lang="en" data-lang="en" aria-label="English">EN<svg class="flag" viewBox="0 0 60 30" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><clipPath id="ukc"><path d="M30,15h30v15zv15h-30zh-30v-15zv-15h30z"/></clipPath><rect width="60" height="30" fill="#012169"/><path d="M0,0L60,30M60,0L0,30" stroke="#fff" stroke-width="6"/><path d="M0,0L60,30M60,0L0,30" clip-path="url(#ukc)" stroke="#C8102E" stroke-width="4"/><path d="M30,0v30M0,15h60" stroke="#fff" stroke-width="10"/><path d="M30,0v30M0,15h60" stroke="#C8102E" stroke-width="6"/></svg></a></div>
   </div>
 </header>
 

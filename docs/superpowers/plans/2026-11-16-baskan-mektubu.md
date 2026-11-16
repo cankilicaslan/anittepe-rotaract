@@ -89,7 +89,7 @@ Hiçbir görevin testinin doğrudan kapsamadığı ama kullanıcıyı en çok et
 
 ---
 
-### Görev 1: Veritabanı (v27)
+### Task 1: Veritabanı (v27)
 
 **Dosyalar:** `backend/schema.sql` dosyasının sonuna ekleme yapılır.
 
@@ -139,7 +139,7 @@ Hiçbir görevin testinin doğrudan kapsamadığı ama kullanıcıyı en çok et
   - Satır yoksa: kullanıcıya davet gerektiğini raporla. Bu durum koddaki ilerlemeyi engellemez.
 - [ ] **Adım 5:** Commit. Mesaj: "Başkan Mektubu: veritabanı (v27)".
 
-### Görev 2: Sayfa çizici ve stiller
+### Task 2: Sayfa çizici ve stiller
 
 **Dosyalar:**
 - Oluşturulacak: `site/assets/js/letter-render.js`, `site/assets/css/letter.css`, `site/tests/letter-render.test.mjs`
@@ -182,7 +182,7 @@ Hiçbir görevin testinin doğrudan kapsamadığı ama kullanıcıyı en çok et
 - [ ] **Adım 5:** Görsel kontrol: geçici bir `site/tests/letter-preview.html` dosyası tüm düzenleri örnek verilerle çizer. Önizlemede örnek mektupla yan yana karşılaştır. Bu dosya commit'e girmez.
 - [ ] **Adım 6:** Commit. Mesaj: "Başkan Mektubu: sayfa çizici".
 
-### Görev 3: Store metodları ve roller
+### Task 3: Store metodları ve roller
 
 **Dosyalar:** `site/uye/js/store.js` (demo ve Supabase bölümleri), `site/uye/js/roles.js`
 
@@ -210,7 +210,7 @@ Hiçbir görevin testinin doğrudan kapsamadığı ama kullanıcıyı en çok et
 - [ ] **Adım 3: Çakışma doğrulaması (canlı, Görev 1 sonrasında):** SQL ile bir taslak oluştur. Paneldeki `saveLetter` çağrısını eski `updated_at` değeriyle iki kez yap. Beklenen: ikinci çağrı yukarıdaki hata mesajını verir. Sonra test kaydını sil.
 - [ ] **Adım 4:** Commit. Mesaj: "Başkan Mektubu: store ve kulup rolü".
 
-### Görev 4: Klasörlerden sayfa kurma
+### Task 4: Klasörlerden sayfa kurma
 
 **Dosyalar:**
 - Oluşturulacak: `site/assets/js/letter-assemble.js`, `site/tests/letter-assemble.test.mjs`
@@ -248,7 +248,7 @@ Hiçbir görevin testinin doğrudan kapsamadığı ama kullanıcıyı en çok et
 - [ ] **Adım 4:** Testleri çalıştır. Beklenen: hepsi PASS.
 - [ ] **Adım 5:** Commit. Mesaj: "Başkan Mektubu: klasörlerden sayfa kurma".
 
-### Görev 5: Yapay zekâ fonksiyonu `letter-ai`
+### Task 5: Yapay zekâ fonksiyonu `letter-ai`
 
 **Dosyalar:** Oluşturulacak: `backend/functions/letter-ai/index.ts`
 
@@ -270,7 +270,7 @@ Hiçbir görevin testinin doğrudan kapsamadığı ama kullanıcıyı en çok et
 - [ ] **Adım 2:** Commit ve push et. Ardından Supabase panelinden "Deploy a new function" → "Via Editor" ile `letter-ai` adıyla yükle. Kodu, raw GitHub üzerinden commit sha'sıyla al.
 - [ ] **Adım 3:** `curl -X OPTIONS …/functions/v1/letter-ai` çalıştır. Beklenen: 200. Kimlik olmadan POST at. Beklenen: 401.
 
-### Görev 6: Panel ekranı
+### Task 6: Panel ekranı
 
 **Dosyalar:**
 - Oluşturulacak: `site/uye/js/letter-editor.js`, `site/uye/css/letter-editor.css`
@@ -319,7 +319,7 @@ Hiçbir görevin testinin doğrudan kapsamadığı ama kullanıcıyı en çok et
 - [ ] **Adım 4:** Mobil (375px) görünümde form sütunu altta durmalı ve yatay kaydırma olmamalı.
 - [ ] **Adım 5:** Commit. Mesaj: "Başkan Mektubu: panel ekranı".
 
-### Görev 7: Sitede yayın ve PDF
+### Task 7: Sitede yayın ve PDF
 
 **Dosyalar:**
 - Oluşturulacak: `site/mektup/index.html`
@@ -347,7 +347,7 @@ Hiçbir görevin testinin doğrudan kapsamadığı ama kullanıcıyı en çok et
   - Sayfalar bölünmüyor.
 - [ ] **Adım 4:** Commit, push ve canlı kontrol. `curl` döngüsüyle `/mektup/` adresinin 200 döndüğü ve anasayfada bağlantının bulunduğu doğrulanır.
 
-### Görev 8: Son kontrol
+### Task 8: Son kontrol
 
 - [ ] **Adım 1:** `node --test site/tests/` çalıştır. Beklenen: tüm testler PASS.
 - [ ] **Adım 2:** Canlı panelde Sekreter dışı bir hesapla (kullanıcı) ve Başkan rolüyle uçtan uca deneme yapılır. Bu deneme kullanıcıya bırakılır; Claude yalnızca demo ve SQL doğrulaması yapar.

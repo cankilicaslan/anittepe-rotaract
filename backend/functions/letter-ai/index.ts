@@ -76,7 +76,7 @@ Yazım kuralları:
 - Üyenin yazdığı notlar ham bilgidir, çoğu zaman kısa ve dağınıktır. Notları olduğu gibi kopyalama: içindeki bilgileri koruyarak akıcı cümlelerle yeniden kur. Yaratıcılık anlatımda olsun, bilgide değil: notlarda olmayan kişi, sayı, yer veya olay ekleme.
 - Örnek mektup dili: "Kulübümüzün 603., dönemimizin 4. toplantısında bir araya gelerek…", "…büyük bir heyecanla gerçekleştirdik." gibi akıcı, resmî ama içten cümleler kur.
 - Toplantılarda, kulüp numarası ve dönem numarası verildiyse paragrafa "Kulübümüzün {kulüp no}., dönemimizin {dönem no}. toplantısı…" kalıbıyla başla. Numaralar verilmediyse numara uydurma.
-- "Ocakbaşı", kulübümüzün bir üyenin evinde yaptığı samimi sohbet buluşmasının adıdır; gerçek bir ocakbaşı, mangal ya da restoran değildir. Ocakbaşı maddelerinde ateş, ızgara, mangal, kebap, ocak, sofra gibi kelimelerin gerçek anlamını çağrıştırma; notlarda geçmiyorsa yemekten söz etme. Ev sahibinden söz etmen gerekirse yalnızca "…'nın ev sahipliğinde" kalıbını kullan (ev sahibi verildiyse).
+- "Ocakbaşı", kulübümüzün bir üyenin evinde yaptığı samimi sohbet buluşmasının adıdır; gerçek bir ocakbaşı, mangal ya da restoran değildir. Ocakbaşı maddelerinde ateş, ızgara, mangal, kebap, ocak, sofra gibi kelimelerin gerçek anlamını çağrıştırma; notlarda geçmiyorsa yemekten söz etme. Ev sahibinden söz etmen gerekirse yalnızca maddede verilen hazır "Ev sahipliği ifadesi"ni aynen kullan; başka kalıp ya da ek kullanma.
 - Uzun tire (—) ve kısa tire (–) kullanma.
 - Hashtag, emoji, başlık, madde işareti ya da "İşte paragraf:" gibi giriş yazma. Yalnızca paragrafın kendisini yaz.
 
@@ -118,6 +118,17 @@ function formatDateTr(value: string): string {
   }).format(d);
 }
 
+// Özel ada tamlayan eki ekler (Kılıçaslan’ın, Gözüpek’in, Oğuzkurt’un, Ayşe’nin).
+function genitive(name: string): string {
+  const w = name.trim().split(/\s+/).pop()!.toLocaleLowerCase("tr");
+  const vowels = "aıoueiöü";
+  const last = [...w].reverse().find((c) => vowels.includes(c)) ?? "e";
+  // ince L ile biten adlar (Kemal’in, Hilal’in, Meral’in)
+  const soft = ["kemal", "cemal", "celal", "hilal", "bilal", "nihal", "meral", "iclal", "ikbal", "hayal", "cemil"].includes(w);
+  const v = soft ? "i" : "aı".includes(last) ? "ı" : "ei".includes(last) ? "i" : "ou".includes(last) ? "u" : "ü";
+  return `${name.trim()}’${vowels.includes(w.slice(-1)) ? "n" : ""}${v}n`;
+}
+
 function buildUserPrompt(items: Item[]): string {
   const blocks = items.map((it, i) => {
     const lines = [
@@ -129,7 +140,7 @@ function buildUserPrompt(items: Item[]): string {
     if (it.date) lines.push(`Tarih: ${formatDateTr(it.date)}`);
     if (it.club_no) lines.push(`Kulüp toplantı numarası: ${it.club_no}`);
     if (it.term_no) lines.push(`Dönem toplantı numarası: ${it.term_no}`);
-    if (it.host) lines.push(`Ev sahibi: ${it.host}`);
+    if (it.host) lines.push(`Ev sahipliği ifadesi (aynen kullan): "${genitive(it.host)} ev sahipliğinde"`);
     lines.push(it.notes ? `Notlar (ham bilgi):\n${it.notes}` : "Notlar: verilmedi (yalnızca türe uygun, bilgi uydurmayan kısa bir paragraf yaz).");
     return lines.join("\n");
   });
@@ -144,7 +155,7 @@ function buildUserPrompt(items: Item[]): string {
 export function splitParagraphs(raw: string, n: number): string[] {
   const out: string[] = Array.from({ length: n }, () => "");
   const seen = new Set<number>();
-  const re = /={3}\s*(\d+)\s*={3}/g;
+  const re = /^\s*[*_]*\s*={3,}\s*(\d+)\s*={3,}\s*[*_]*\s*$/gm;
   const marks: { num: number; start: number; end: number }[] = [];
   let m: RegExpExecArray | null;
   while ((m = re.exec(raw)) !== null) {
@@ -212,7 +223,7 @@ Deno.serve(async (req: Request) => {
     const client = new Anthropic({ apiKey });
     const response = await client.beta.messages.create({
       model: "claude-opus-5-5",
-      max_tokens: 8000,
+      max_tokens: 12000,
       output_config: { effort: "low" },
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default",
@@ -232,6 +243,13 @@ Deno.serve(async (req: Request) => {
     if (!raw) throw new HttpError(502, "Yapay zekâdan boş yanıt geldi. Lütfen tekrar deneyin.");
 
     const parts = splitParagraphs(raw, items.length);
+    if (response.stop_reason === "max_tokens") {
+      // Kesilmiş son paragraf tamam sayılmasın: notlara düşsün.
+      console.error("letter-ai: yanıt max_tokens nedeniyle kesildi");
+      let last = parts.length - 1;
+      while (last > 0 && !parts[last]) last--;
+      if (last >= 0) parts[last] = "";
+    }
     const texts = parts.map((p, i) => cleanText(p) || cleanText(items[i].notes));
     return json({ texts });
   } catch (err) {

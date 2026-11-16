@@ -11,12 +11,14 @@ export const ROLE_GROUPS = [
   ["Yönetim kurulu", ["baskan", "asbaskan", "sayman", "sekreter"]],
   ["Komite başkanlığı", ["hizmet", "uyelik", "uluslararasi", "pr", "kulup", "meslek", "afet", "hobi", "interact"]]
 ];
-const OWNER = { aidat: ["sayman"], kasa: ["sayman"], yoklama: ["sekreter"], instagram: ["pr"], projeler: ["hizmet"], duyuru: ["sekreter", "pr"], "wa-toplanti": ["sekreter"], "wa-aidat": ["sayman"], "arsiv-yonetim": ["sekreter", "pr"], bagis: ["sayman"], "proje-form": ["hizmet", "sekreter"], "uyeler-yonetim": ["baskan"], mektup: ["kulup", "sekreter"] };
+const OWNER = { aidat: ["sayman"], kasa: ["sayman"], yoklama: ["sekreter"], instagram: ["pr"], projeler: ["hizmet"], duyuru: ["sekreter", "pr"], "wa-toplanti": ["sekreter"], "wa-aidat": ["sayman"], "arsiv-yonetim": ["sekreter", "pr"], bagis: ["sayman"], "proje-form": ["hizmet", "sekreter"], "uyeler-yonetim": ["baskan"], mektup: ["kulup", "pr"] };
 
 // Panel hangi görevlinin? (asbaşkanın menüsünde parantez içinde gösterilir)
 const SHORT = { sayman: "Sayman", sekreter: "Sekreter", pr: "HİTK", hizmet: "Hizmet Projeleri", kulup: "Kulüp Hizmetleri" };
 export const panelOwners = panel => (OWNER[panel] || []).map(r => SHORT[r]).filter(Boolean).join(", ");
 const GDB_VIEW = ["yoklama", "aidat", "kasa", "projeler"];
+// Yalnızca görüntüleme yetkisi (düzenleyemez): Sekreter Bağışları ve Hizmet projelerini görür.
+const VIEW_ROLES = { bagis: ["sekreter"], projeler: ["sekreter"] };
 
 export const isActive = p => !!p && p.status === "active";
 // is_owner yalnızca giriş yapan kişinin kendi profilinde (me) bulunur ve arayüzde hiçbir yerde gösterilmez.
@@ -29,6 +31,7 @@ export function can(p, panel, mode = "view") {
   if ((OWNER[panel] || []).some(r => hasRole(p, r))) return true;
   // Geçmiş dönem başkanları (GDB) yalnızca bu panelleri görüntüleyebilir (düzenleyemez).
   if (mode === "view" && p.past_president && GDB_VIEW.includes(panel)) return true;
+  if (mode === "view" && (VIEW_ROLES[panel] || []).some(r => hasRole(p, r))) return true;
   // Asbaşkan tüm yönetim panellerini görür ama yalnızca görüntüleme modunda (üye özellikleri herkes gibi açık).
   if (mode === "view" && hasRole(p, "asbaskan")) return true;
   return false;

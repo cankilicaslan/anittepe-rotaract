@@ -715,3 +715,21 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 .conv-sum{margin:14px 0;padding:12px 14px;border-radius:12px;background:var(--bg-2);font-size:.9rem}
 .conv-sum p{margin:0 0 6px}
 .conv-sum p:last-child{margin:0}
+
+/* Menü: üye alanı ve yönetim bölümü ayrı */
+.side nav{display:block}
+.side nav .nav-sec{display:grid;gap:2px}
+.side nav .nav-sec.mgmt{margin-top:14px;padding:6px;border-radius:14px;background:var(--bg-2);border:1px solid var(--line)}
+.side nav .nav-sec.mgmt .grp{color:var(--cran-deep);padding:8px 10px 6px;display:flex;flex-direction:column;gap:1px;font-size:.8rem}
+.side nav .nav-sec.mgmt .grp small{font-size:.72rem;font-weight:600;color:var(--muted)}
+.side nav .nav-sec.mgmt a:hover{background:#fff}
+.side nav .nav-sec.mgmt a[aria-current=page]{background:#fff;box-shadow:0 1px 0 var(--line)}
+.side nav .nav-sec:first-child .grp{padding-top:4px}
+/* Kulüp projeleri */
+.kp-h{font-size:1.05rem;margin:18px 0 10px;display:flex;align-items:center;gap:8px}
+.kp-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.kp-card h3{margin:8px 0 4px;font-size:1.02rem}
+.kp-top{display:flex;gap:6px;flex-wrap:wrap}
+.kp-meta{margin:0 0 8px;font-size:.86rem}
+.kp-desc{margin:0 0 8px;font-size:.92rem;line-height:1.55}
+.kp-owner{margin:0;font-size:.82rem}

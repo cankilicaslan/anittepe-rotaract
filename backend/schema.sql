@@ -1447,3 +1447,14 @@ begin
 end $$;
 revoke all on function public.convert_guest(uuid, uuid, date) from public, anon;
 grant execute on function public.convert_guest(uuid, uuid, date) to authenticated;
+
+-- =====================================================================
+-- v34: Başkan Mektubu'nu Sekreter yerine HİTK hazırlar; Sekreter bağışları görüntüler
+-- =====================================================================
+create or replace function public.letter_editor()
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.is_admin() or public.has_role('pr') or public.has_role('kulup');
+$$;
+drop policy if exists donations_select on public.donations;
+create policy donations_select on public.donations for select to authenticated
+  using (public.has_role('sayman') or public.has_role('sekreter') or public.can_view_all());

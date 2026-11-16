@@ -1,6 +1,6 @@
 // Supabase Edge Function: letter-ai
 // Başkan Mektubu "Neler Yaptık?" bölümü için madde başına tek paragraf yazar.
-// Yalnızca Başkan, Sekreter veya Kulüp Hizmetleri yetkisi olanlar çağırabilir (letter_editor() RPC).
+// Yalnızca Başkan, HİTK veya Kulüp Hizmetleri yetkisi olanlar çağırabilir (letter_editor() RPC).
 //
 // POST ${SUPABASE_URL}/functions/v1/letter-ai
 // Header: Authorization: Bearer <kullanıcının access token'ı>
@@ -59,7 +59,7 @@ async function requireLetterEditor(req: Request) {
   }
   const { data: allowed, error: rpcErr } = await supabase.rpc("letter_editor");
   if (profile.status !== "active" || rpcErr || allowed !== true) {
-    throw new HttpError(403, "Bu işlem için Başkan, Sekreter veya Kulüp Hizmetleri yetkisi gerekiyor.");
+    throw new HttpError(403, "Bu işlem için Başkan, HİTK veya Kulüp Hizmetleri yetkisi gerekiyor.");
   }
   return { user: userData.user, profile };
 }

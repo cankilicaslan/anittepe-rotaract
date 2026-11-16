@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611161832";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161832";
+import { createStore, trDate } from "./store.js?v=202611161839";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161839";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -306,13 +306,15 @@ function pendingView(passive = false) {
 
 /* ------------------------------ Kabuk ------------------------------ */
 const PAGES = [
+  { grp: "Üye alanı" },
   { id: "profil", label: "Profilim", show: () => true },
   { id: "takvim", label: "Takvim", show: () => true },
   { id: "uyeler", label: "Üye-Misafir listesi", show: () => true },
+  { id: "kulup-projeleri", label: "Kulüp projeleri", show: () => true },
   { id: "kulupler", label: "Diğer kulüplerin etkinlikleri", show: () => true },
   { id: "arsiv", label: "Fotoğraf arşivi", show: () => true },
   { id: "yukle", label: "Fotoğraf yükle", show: () => true, hidden: true },
-  { grp: "Yönetim" },
+  { grp: "Yönetim", mgmt: true },
   { id: "duyurular", label: "Duyurular", panel: "duyuru" },
   { id: "yoklama", label: "Yoklama", panel: "yoklama" },
   { id: "wa-toplanti", label: "Toplantı duyurusu (WhatsApp)", panel: "wa-toplanti" },
@@ -324,7 +326,7 @@ const PAGES = [
   { id: "proje-formlari", label: "Proje formları", panel: "proje-form" },
   // Instagram: yalnızca paylaşım yapabilenler (başkan ve Halkla İlişkiler / HİTK) görür ve açar.
   { id: "instagram", label: "Instagram paylaşımı", panel: "instagram" },
-  // Başkan Mektubu: Başkan, Sekreter ve Kulüp Hizmetleri hazırlar; asbaşkan görüntüler; yalnızca Başkan yayınlar.
+  // Başkan Mektubu: Başkan, HİTK ve Kulüp Hizmetleri hazırlar; asbaşkan görüntüler; yalnızca Başkan yayınlar.
   { id: "mektup", label: "Başkan Mektubu", panel: "mektup" },
   // Site düzenleme: yalnızca Halkla İlişkiler ve Tanıtım (HİTK) görevlisi.
   { id: "site", label: "Site düzenleme", show: () => hasRole(me, "pr") }
@@ -354,16 +356,18 @@ function shell() {
   const navId = id === "yukle" ? "arsiv" : id;
   // HİTK (Halkla İlişkiler) fotoğraf arşivini yönettiği için menüde arşiv Yönetim başlığının altında durur.
   let pages = PAGES;
-  if (hasRole(me, "pr")) { const ar = PAGES.find(p => p.id === "arsiv"), rest = PAGES.filter(p => p !== ar), g = rest.findIndex(p => p.grp); pages = [...rest.slice(0, g + 1), ar, ...rest.slice(g + 1)]; }
+  if (hasRole(me, "pr")) { const ar = PAGES.find(p => p.id === "arsiv"), rest = PAGES.filter(p => p !== ar), g = rest.findIndex(p => p.mgmt); pages = [...rest.slice(0, g + 1), ar, ...rest.slice(g + 1)]; }
   const nav = pages.filter(p => p.grp || (visible(p) && !p.hidden));
+  // Menü iki bölüm: herkesin gördüğü "Üye alanı" ve görevlilerin "Yönetim" bölümü (ayrı kutu, belirgin başlık).
+  const hasMgmt = nav.some((p, i) => p.mgmt && nav.slice(i + 1).some(x => !x.grp));
   const navHtml = nav.map((p, i) => p.grp
-    ? (nav.slice(i + 1).some(x => !x.grp) ? `<div class="grp">${p.grp}</div>` : "")
+    ? (!nav.slice(i + 1).some(x => !x.grp) || (!p.mgmt && !hasMgmt) ? "" : p.mgmt ? `</div><div class="nav-sec mgmt" role="group" aria-label="Yönetim"><div class="grp">${p.grp}<small>Görevine özel paneller</small></div>` : `<div class="grp">${p.grp}</div>`)
     : `<a href="#${p.id}" ${p.id === navId ? 'aria-current="page"' : ""}>${navLabel(p)}</a>`).join("");
   app.innerHTML = `
   <div class="shell">
     <aside class="side" id="side">
       <a href="../"><img class="logo" src="../assets/logo-cranberry.webp" alt="Rotaract Ankara Anıttepe, kulüp sitesine dön"></a>
-      <nav aria-label="Panel">${navHtml}</nav>
+      <nav aria-label="Panel"><div class="nav-sec">${navHtml}</div></nav>
       <div class="who">${avatar(me)}<div style="min-width:0"><b>${esc(me.full_name)}</b><span>${esc(me.title || "Üye")}</span></div></div>
       ${isRealOwner() && !preview ? `<button class="btn ghost sm" id="pv-open">Paneli başka gözle gör</button>` : ""}
       <button class="btn ghost sm" id="logout">Çıkış yap</button>
@@ -394,7 +398,7 @@ function shell() {
   const rs = document.getElementById("reset");
   if (rs) rs.onclick = () => { if (confirm("Örnek veriler ilk haline dönsün mü? Bu tarayıcıdaki demo değişiklikleri silinir.")) { store.resetDemo(); location.hash = ""; location.reload(); } };
   const view = document.getElementById("view");
-  const fn = { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram, mektup: viewLetter, site: viewSite, arsiv: viewArchive, yukle: viewUpload, bagislar: viewDonations, "proje-formlari": viewProjectForms, "wa-toplanti": viewWaMeeting, "wa-aidat": viewWaDues }[id];
+  const fn = { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, "kulup-projeleri": viewClubProjects, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram, mektup: viewLetter, site: viewSite, arsiv: viewArchive, yukle: viewUpload, bagislar: viewDonations, "proje-formlari": viewProjectForms, "wa-toplanti": viewWaMeeting, "wa-aidat": viewWaDues }[id];
   fn(view).catch(e => { view.innerHTML = `<div class="err">${esc(e.message)}</div>`; });
   labelTables(view);
   new MutationObserver(() => labelTables(view)).observe(view, { childList: true, subtree: true });
@@ -1275,6 +1279,30 @@ async function viewTreasury(v) {
 const KIND = { hizmet: "Hizmet projesi", etkinlik: "Etkinlik", ocakbasi: "Ocakbaşı", diger: "Diğer" };
 const PSTAT = { planlandi: ["Planlandı", "warn"], devam: ["Devam ediyor", "cran"], tamamlandi: ["Tamamlandı", "ok"], iptal: ["İptal", "bad"] };
 let projMode = "liste", calMonth = today().slice(0, 7);
+/* ------------------------- Kulüp projeleri (herkes) ------------------------- */
+// Hizmet projeleri panelinden girilen projeler; tüm üyeler salt okunur görür.
+const PROJ_KIND = { hizmet: "Hizmet projesi", etkinlik: "Etkinlik", ocakbasi: "Ocakbaşı", diger: "Diğer" };
+const PROJ_STATUS = { planlandi: ["Planlandı", ""], devam: ["Devam ediyor", "warn"], tamamlandi: ["Tamamlandı", "ok"], iptal: ["İptal edildi", "bad"] };
+async function viewClubProjects(v) {
+  const list = (await store.listCalendarProjects().catch(() => [])).filter(p => p.title);
+  const t = today();
+  const up = list.filter(p => p.status !== "iptal" && p.status !== "tamamlandi" && (!p.date || p.date >= t)).sort((a, b) => String(a.date || "9999").localeCompare(String(b.date || "9999")));
+  const past = list.filter(p => !up.includes(p)).sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  const card = p => {
+    const st = PROJ_STATUS[p.status] || [esc(p.status || ""), ""];
+    const meta = [p.date ? trDate(p.date) + (p.time ? " · " + esc(p.time) : "") : "Tarih belirlenmedi", p.location ? esc(p.location) : ""].filter(Boolean).join(" · ");
+    return `<article class="card kp-card"><div class="kp-top"><span class="tag cran">${esc(PROJ_KIND[p.kind] || "Proje")}</span><span class="tag ${st[1]}">${st[0]}</span></div>
+      <h3>${esc(p.title)}</h3><p class="muted kp-meta">${meta}</p>
+      ${p.description ? `<p class="kp-desc" style="white-space:pre-line">${esc(p.description)}</p>` : ""}
+      ${p.owner ? `<p class="muted kp-owner">Sorumlu: ${esc(p.owner)}</p>` : ""}</article>`;
+  };
+  v.innerHTML = header("Kulüp projeleri", "Hizmet Projeleri Komitesinin girdiği projeler ve etkinlikler") +
+    (list.length ? `<h2 class="kp-h">Yaklaşan ve devam eden <span class="tag">${up.length}</span></h2>
+      ${up.length ? `<div class="kp-list">${up.map(card).join("")}</div>` : '<p class="muted">Şu an planlanan proje yok.</p>'}
+      ${past.length ? `<h2 class="kp-h">Geçmiş projeler <span class="tag">${past.length}</span></h2><div class="kp-list">${past.map(card).join("")}</div>` : ""}`
+      : '<div class="card empty"><p>Henüz proje girilmedi. Projeler Hizmet Projeleri Komitesi tarafından eklenince burada görünür.</p></div>');
+}
+
 async function viewProjects(v) {
   const ro = !can(me, "projeler", "edit");
   const [projects, meetings] = await Promise.all([store.listProjects(), store.listMeetings()]);
@@ -1483,7 +1511,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611161832");
+  const { mountComposer } = await import("./composer.js?v=202611161839");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1492,7 +1520,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161832");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161839");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

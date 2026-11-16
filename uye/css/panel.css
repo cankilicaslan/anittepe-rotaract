@@ -864,3 +864,6 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 /* YK planlama: sabit başkan çerçevesi */
 .bp-slot.locked .bp-frame{cursor:default}
 .bp-lock-note{font-size:.7rem;color:var(--muted);font-weight:600}
+
+/* Misafirler tablosu: Misafirlik hücresinde toplantı sayısı */
+.m-table .m-sub{display:block;font-size:.8rem;color:var(--muted)}

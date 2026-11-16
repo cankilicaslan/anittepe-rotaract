@@ -593,7 +593,7 @@ async function viewMembers(v) {
   const pending = members.filter(m => m.status === "pending");
   const BOARD = ["baskan", "asbaskan", "sekreter", "sayman"];
   // İsmin altı: görevi olanlarda düğme görünümlü görev etiketleri; görevi olmayan (üye, GDB) kişide unvan gri yazı.
-  const ROLE_CHIP = r => ROLE_LABELS[r] + (ROLE_GROUPS[1][1].includes(r) ? " Başkanı" : "");
+  const ROLE_CHIP = r => ROLE_LABELS[r];
   const whoCell = m => {
     const rs = m.hide_roles ? [] : (m.roles || []).filter(r => ROLE_LABELS[r]);
     const gdb = m.past_president ? '<span class="m-gray"><abbr title="Geçmiş dönem başkanı">GDB</abbr></span>' : "";
@@ -802,7 +802,7 @@ async function convertGuestDialog(g, cameCount) {
     try {
       const r = await store.convertGuest({ guest_id: g.id, full_name: String(fd.get("full_name")).trim(), email: String(fd.get("email")).trim(), phone: String(fd.get("phone") || "").trim(), joined_at: fd.get("joined_at") });
       dlg.close();
-      toast(`${esc(g.full_name)} üye olarak alındı. ${r.charges} taksit borç olarak eklendi, ${r.attendance} toplantı devamına aktarıldı.`);
+      toast(`${esc(g.full_name)} üye olarak alındı. ${r.charges} taksit borç olarak eklendi, ${r.attendance} toplantının yoklama kaydı aktarıldı.`);
       refresh();
     } catch (er) { fail(er); btn.disabled = false; btn.textContent = "Üye al"; }
   };

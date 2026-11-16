@@ -1656,3 +1656,10 @@ drop policy if exists guest_private_rw on public.guest_private;
 create policy guest_private_rw on public.guest_private for all to authenticated
   using (public.has_role('sekreter') or public.is_admin())
   with check (public.has_role('sekreter') or public.is_admin());
+
+-- =====================================================================
+-- v38: Planlayıcı taslak dönemin ayarlarını (açılış bakiyesi vb.) düzenler
+-- =====================================================================
+drop policy if exists terms_planner_update on public.terms;
+create policy terms_planner_update on public.terms for update to authenticated
+  using (not is_current and public.is_planner()) with check (not is_current and public.is_planner());

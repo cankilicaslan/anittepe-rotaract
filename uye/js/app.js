@@ -1,5 +1,6 @@
-import { createStore, trDate } from "./store.js?v=202611161946";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611161946";
+import * as BP from "./board-plan.js?v=202611161952";
+import { createStore, trDate } from "./store.js?v=202611161952";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611161952";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -434,7 +435,90 @@ const roBanner = panel => can(me, panel, "edit") ? "" : `<div class="banner info
 const refresh = () => shell();
 
 /* ------------------------- Yönetim kurulu planlama ------------------------- */
-async function viewBoardPlan(v) { v.innerHTML = header("Yönetim kurulu planlama"); }
+// Boş çerçeveler (anasayfadaki portreler gibi); tıkla → üye/misafir seç, ya da sağdaki listeden sürükle-bırak.
+const BP_LABEL = k => k === BP.MULTI ? "Yönetim Kurulu Üyesi" : ROLE_LABELS[k];
+async function viewBoardPlan(v) {
+  const [plan, members0, guests] = await Promise.all([store.getBoardPlan(), store.listMembers(), store.listGuests().catch(() => [])]);
+  const members = members0.filter(m => m.status === "active").sort((x, y) => x.full_name.localeCompare(y.full_name, "tr"));
+  guests.sort((x, y) => x.full_name.localeCompare(y.full_name, "tr"));
+  let slots = plan.slots || {}, saveT = null;
+  const find = ref => BP.resolveSlot(ref, members, guests);
+  const silhouette = '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="24" r="12"/><path d="M10 58c2-13 11-20 22-20s20 7 22 20"/></svg>';
+  const frame = (key, index) => {
+    const ref = key === BP.MULTI ? (slots[BP.MULTI] || [])[index] : slots[key];
+    const r = find(ref), idx = index == null ? "" : ` data-index="${index}"`;
+    const label = BP_LABEL(key);
+    const body = r?.person ? `${avatar(r.person, "bp-pic")}<b>${esc(r.person.full_name)}</b>${r.kind === "guest" ? '<em class="bp-guest">Misafir</em>' : ""}`
+      : r?.missing ? `<span class="avatar bp-pic bp-empty">${silhouette}</span><b class="muted">Kişi artık listede değil</b>`
+      : `<span class="avatar bp-pic bp-empty">${silhouette}</span><b class="muted">Boş</b>`;
+    return `<div class="bp-slot${ref ? " filled" : ""}" data-key="${key}"${idx}>
+      <button type="button" class="bp-frame" data-pick="${key}"${idx} ${ref && !r?.missing ? 'draggable="true"' : ""} aria-label="${esc(label)}: ${r?.person ? esc(r.person.full_name) + ", değiştir" : "kişi seç"}">${body}</button>
+      <span class="bp-role">${esc(label)}</span>
+      ${ref ? `<button type="button" class="bp-x" data-clear="${key}"${idx} aria-label="${esc(label)} çerçevesini boşalt">×</button>` : ""}
+    </div>`;
+  };
+  const card = (p, kind) => `<div class="bp-card" draggable="true" data-kind="${kind}" data-id="${p.id}" title="${esc(p.full_name)}">${avatar(p, "bp-mini")}<span>${esc(p.full_name)}</span></div>`;
+  const draw = () => {
+    const placed = BP.placedIds(slots), multi = slots[BP.MULTI] || [];
+    v.innerHTML = header("Yönetim kurulu planlama", "2027-2028 dönemi için yönetim kurulunu yerleştir. Çerçeveye tıklayıp kişi seç ya da sağdaki listeden sürükleyip bırak. Bu taslak kimseye görev vermez.", `<span class="muted bp-save" id="bp-save" role="status" aria-live="polite"></span>`) + `
+    <div class="bp-wrap">
+      <div class="bp-main">
+        <section class="card bp-sec"><h2>Yönetim Kurulu</h2>
+          <div class="bp-grid">${BP.BOARD_SLOTS.map(k => frame(k)).join("")}${multi.map((_, i) => frame(BP.MULTI, i)).join("")}
+            <div class="bp-slot"><button type="button" class="bp-frame bp-add" id="bp-add" aria-label="Yönetim kurulu üyesi ekle"><span class="avatar bp-pic bp-empty">+</span><b>Üye ekle</b></button><span class="bp-role">Yönetim Kurulu Üyesi</span></div>
+          </div></section>
+        <section class="card bp-sec"><h2>Genişletilmiş Yönetim Kurulu</h2>
+          <div class="bp-grid">${ROLE_GROUPS[1][1].map(k => frame(k)).join("")}</div></section>
+      </div>
+      <aside class="card bp-side" aria-label="Kişiler">
+        <h2>Üyeler <span class="tag">${members.length}</span></h2>
+        <div class="bp-people">${members.map(p => card(p, "member").replace('class="bp-card"', `class="bp-card${placed.has("member:" + p.id) ? " placed" : ""}"`)).join("")}</div>
+        ${guests.length ? `<h2>Misafirler <span class="tag">${guests.length}</span></h2><div class="bp-people">${guests.map(p => card(p, "guest").replace('class="bp-card"', `class="bp-card${placed.has("guest:" + p.id) ? " placed" : ""}"`)).join("")}</div>` : ""}
+      </aside>
+    </div><dialog id="bp-dlg" class="bp-dlg"></dialog>`;
+    bind();
+  };
+  const save = () => {
+    const st = document.getElementById("bp-save"); if (st) st.textContent = "Kaydediliyor…";
+    clearTimeout(saveT);
+    saveT = setTimeout(async () => { try { await store.saveBoardPlan(slots); const s2 = document.getElementById("bp-save"); if (s2) s2.textContent = "Kaydedildi"; } catch (e) { fail(e); } }, 300);
+  };
+  const update = s => { slots = s; draw(); save(); };
+  const at = el => ({ key: el.dataset.key || el.dataset.pick || el.dataset.clear, index: el.dataset.index == null ? undefined : +el.dataset.index });
+  const picker = (key, index) => {
+    const dlg = document.getElementById("bp-dlg");
+    const list = (arr, kind) => arr.map(p => `<button type="button" class="bp-opt" data-kind="${kind}" data-id="${p.id}" data-q="${esc(p.full_name.toLocaleLowerCase("tr"))}">${avatar(p, "bp-mini")}<span>${esc(p.full_name)}</span></button>`).join("");
+    dlg.innerHTML = `<form method="dialog"><div class="bp-dlg-h"><h2>${esc(BP_LABEL(key))}</h2><button class="btn ghost sm" value="cancel">Kapat</button></div>
+      <input type="search" class="bp-q" placeholder="İsim ara" aria-label="İsim ara">
+      <h3>Üyeler</h3><div class="bp-opts">${list(members, "member")}</div>
+      ${guests.length ? `<h3>Misafirler</h3><div class="bp-opts">${list(guests, "guest")}</div>` : ""}</form>`;
+    dlg.showModal();
+    const q = dlg.querySelector(".bp-q"); q.focus();
+    q.oninput = () => { const s = q.value.trim().toLocaleLowerCase("tr"); dlg.querySelectorAll(".bp-opt").forEach(b => b.hidden = !!s && !b.dataset.q.includes(s)); };
+    dlg.querySelectorAll(".bp-opt").forEach(b => b.onclick = () => { dlg.close(); update(BP.place(slots, key, { kind: b.dataset.kind, id: b.dataset.id }, index)); });
+    dlg.onclick = e => { if (e.target === dlg) dlg.close(); };
+  };
+  function bind() {
+    v.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => { const p = at(b); picker(p.key, p.index); });
+    document.getElementById("bp-add").onclick = () => picker(BP.MULTI, undefined);
+    v.querySelectorAll("[data-clear]").forEach(b => b.onclick = () => { const p = at(b); update(BP.clear(slots, p.key, p.index)); });
+    // Sürükle-bırak: sağdaki kişi kartı ya da dolu çerçeve → çerçeve
+    v.querySelectorAll(".bp-card").forEach(c => c.ondragstart = e => { e.dataTransfer.setData("text/plain", JSON.stringify({ person: { kind: c.dataset.kind, id: c.dataset.id } })); e.dataTransfer.effectAllowed = "copy"; });
+    v.querySelectorAll(".bp-frame[draggable]").forEach(f => f.ondragstart = e => { e.dataTransfer.setData("text/plain", JSON.stringify({ from: at(f) })); e.dataTransfer.effectAllowed = "move"; });
+    v.querySelectorAll(".bp-slot[data-key]").forEach(s => {
+      s.ondragover = e => { e.preventDefault(); s.classList.add("over"); };
+      s.ondragleave = () => s.classList.remove("over");
+      s.ondrop = e => {
+        e.preventDefault(); s.classList.remove("over");
+        let d; try { d = JSON.parse(e.dataTransfer.getData("text/plain")); } catch { return; }
+        const to = at(s);
+        if (d.person) update(BP.place(slots, to.key, d.person, to.index));
+        else if (d.from) update(BP.move(slots, d.from, to));
+      };
+    });
+  }
+  draw();
+}
 
 /* --------------------------- Yardımcı hesaplar --------------------------- */
 // Üyenin yoklamada sayılmaya başladığı toplantı no'su (bu dönemde değilse dönem başı = 1).
@@ -1558,7 +1642,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611161946");
+  const { mountComposer } = await import("./composer.js?v=202611161952");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1567,7 +1651,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161946");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161952");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

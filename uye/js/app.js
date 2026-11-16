@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611161959";
-import { createStore, trDate } from "./store.js?v=202611161959";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611161959";
+import * as BP from "./board-plan.js?v=202611162002";
+import { createStore, trDate } from "./store.js?v=202611162002";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611162002";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -436,6 +436,8 @@ const refresh = () => shell();
 
 /* ------------------------- Yönetim kurulu planlama ------------------------- */
 // Boş çerçeveler (anasayfadaki portreler gibi); tıkla → üye/misafir seç, ya da sağdaki listeden sürükle-bırak.
+const GDB_BADGE = p => p?.past_president ? '<span class="bp-gdb" title="Geçmiş dönem başkanı">GDB</span>' : "";
+const bpPic = (p, cls) => `<span class="bp-pw">${avatar(p, cls)}${GDB_BADGE(p)}</span>`;
 const BP_LABEL = k => k === BP.MULTI ? "Yönetim Kurulu Üyesi" : ROLE_LABELS[k];
 async function viewBoardPlan(v) {
   const [plan, members0, guests] = await Promise.all([store.getBoardPlan(), store.listMembers(), store.listGuests().catch(() => [])]);
@@ -454,12 +456,12 @@ async function viewBoardPlan(v) {
       const names = r.pair.map(x => x?.person ? x.person.full_name : "Kişi artık listede değil");
       return `<div class="bp-slot filled pair" data-key="${key}"${idx}>
       <button type="button" class="bp-frame" data-pick="${key}"${idx} draggable="true" aria-label="${esc(label)}: ${esc(names.join(" ve "))}, değiştir"><span class="avatar bp-pic bp-pair">${half(r.pair[0], "a")}${half(r.pair[1], "b")}</span></button>
-      <div class="bp-pair-names">${r.pair.map((x, i) => `<span><b class="${x?.person ? "" : "muted"}">${esc(names[i])}</b>${x?.kind === "guest" ? '<em class="bp-guest">Misafir</em>' : ""}<button type="button" class="bp-x1" data-rm1="${key}" data-sub="${i}" aria-label="${esc(names[i])} kişisini çıkar">×</button></span>`).join("")}</div>
+      <div class="bp-pair-names">${r.pair.map((x, i) => `<span><b class="${x?.person ? "" : "muted"}">${esc(names[i])}</b>${GDB_BADGE(x?.person).replace("bp-gdb", "bp-gdb inline")}${x?.kind === "guest" ? '<em class="bp-guest">Misafir</em>' : ""}<button type="button" class="bp-x1" data-rm1="${key}" data-sub="${i}" aria-label="${esc(names[i])} kişisini çıkar">×</button></span>`).join("")}</div>
       <span class="bp-role">${esc(label)}</span>
       <button type="button" class="bp-x" data-clear="${key}"${idx} aria-label="${esc(label)} çerçevesini boşalt">×</button>
     </div>`;
     }
-    const body = r?.person ? `${avatar(r.person, "bp-pic")}<b>${esc(r.person.full_name)}</b>${r.kind === "guest" ? '<em class="bp-guest">Misafir</em>' : ""}`
+    const body = r?.person ? `${bpPic(r.person, "bp-pic")}<b>${esc(r.person.full_name)}</b>${r.kind === "guest" ? '<em class="bp-guest">Misafir</em>' : ""}`
       : r?.missing ? `<span class="avatar bp-pic bp-empty">${silhouette}</span><b class="muted">Kişi artık listede değil</b>`
       : `<span class="avatar bp-pic bp-empty">${silhouette}</span><b class="muted">Boş</b>`;
     return `<div class="bp-slot${ref ? " filled" : ""}" data-key="${key}"${idx}>
@@ -469,7 +471,7 @@ async function viewBoardPlan(v) {
       ${ref && key !== BP.MULTI && !r?.missing ? `<button type="button" class="bp-plus" data-second="${key}" title="İkinci kişiyi ekle" aria-label="${esc(label)}: ikinci kişiyi ekle">+</button>` : ""}
     </div>`;
   };
-  const card = (p, kind) => `<div class="bp-card" draggable="true" data-kind="${kind}" data-id="${p.id}" title="${esc(p.full_name)}">${avatar(p, "bp-mini")}<span>${esc(p.full_name)}</span></div>`;
+  const card = (p, kind) => `<div class="bp-card" draggable="true" data-kind="${kind}" data-id="${p.id}" title="${esc(p.full_name)}">${bpPic(p, "bp-mini")}<span>${esc(p.full_name)}</span></div>`;
   const draw = () => {
     const placed = BP.placedIds(slots), multi = slots[BP.MULTI] || [];
     v.innerHTML = header("Yönetim kurulu planlama", "2027-2028 dönemi için yönetim kurulunu yerleştir. Çerçeveye tıklayıp kişi seç ya da sağdaki listeden sürükleyip bırak. Bir göreve iki kişi için dolu çerçevedeki + düğmesini kullan (ya da kişiyi + üzerine bırak). Bu taslak kimseye görev vermez.", `<span class="muted bp-save" id="bp-save" role="status" aria-live="polite"></span>`) + `
@@ -499,7 +501,7 @@ async function viewBoardPlan(v) {
   const at = el => ({ key: el.dataset.key || el.dataset.pick || el.dataset.clear, index: el.dataset.index == null ? undefined : +el.dataset.index });
   const picker = (key, index, second = false) => {
     const dlg = document.getElementById("bp-dlg");
-    const list = (arr, kind) => arr.map(p => `<button type="button" class="bp-opt" data-kind="${kind}" data-id="${p.id}" data-q="${esc(p.full_name.toLocaleLowerCase("tr"))}">${avatar(p, "bp-mini")}<span>${esc(p.full_name)}</span></button>`).join("");
+    const list = (arr, kind) => arr.map(p => `<button type="button" class="bp-opt" data-kind="${kind}" data-id="${p.id}" data-q="${esc(p.full_name.toLocaleLowerCase("tr"))}">${bpPic(p, "bp-mini")}<span>${esc(p.full_name)}</span></button>`).join("");
     dlg.innerHTML = `<form method="dialog"><div class="bp-dlg-h"><h2>${esc(BP_LABEL(key))}${second ? " · ikinci kişi" : ""}</h2><button class="btn ghost sm" value="cancel">Kapat</button></div>
       <input type="search" class="bp-q" placeholder="İsim ara" aria-label="İsim ara">
       <h3>Üyeler</h3><div class="bp-opts">${list(members, "member")}</div>
@@ -731,7 +733,8 @@ async function viewMembers(v) {
   const none = '<span class="muted" aria-label="Eklenmedi">—</span>';
   const ig = m => m.instagram ? m.instagram.replace(/^@/, "").trim() : "";
 
-  const F = { q: "", f: "aktif" };
+  const F = { q: "", f: "aktif", gdb: true, guests: true };
+  try { const o = JSON.parse(localStorage.getItem("ar-m-show") || "{}"); if (o.gdb === false) F.gdb = false; if (o.guests === false) F.guests = false; } catch {}
   const FILTERS = [
     ["aktif", "Aktif üyeler", m => m.status === "active"],
     ["yk", "Yönetim kurulu", m => m.status === "active" && (m.roles || []).some(r => BOARD.includes(r))],
@@ -756,7 +759,7 @@ async function viewMembers(v) {
     const fn = FILTERS.find(x => x[0] === F.f)?.[2] || FILTERS[0][2];
     const q = F.q, qd = q.replace(/\D/g, "").replace(/^(90|0)/, "");
     // Telefon biçimden bağımsız eşleşir ("0532 123" = "+90532123…")
-    return members.filter(fn)
+    return members.filter(fn).filter(m => F.gdb || !m.past_president)
       .filter(m => !q || [m.full_name, m.title, roleText(m), m.email, m.phone, m.profession, m.instagram].join(" ").toLocaleLowerCase("tr").includes(q)
         || (qd.length >= 3 && String(m.phone || "").replace(/\D/g, "").includes(qd)))
       .sort((a, b) => a.full_name.localeCompare(b.full_name, "tr"));
@@ -768,6 +771,7 @@ async function viewMembers(v) {
     (admin && pending.length ? `<div class="card m-pending" style="margin-bottom:16px"><h2>Onay bekleyen hesaplar <span class="tag warn">${pending.length}</span></h2>${pending.map(m => `<div class="pay-row">${person(m)}<span class="muted">${esc(m.email)}${m.phone ? " · " + esc(m.phone) : ""}</span><button class="btn sm" data-approve="${m.id}">Onayla</button><button class="btn danger sm" data-reject="${m.id}">Pasife al</button></div>`).join("")}</div>` : "") +
     `<div class="m-tools">
       <div class="m-search"><input type="search" id="q" placeholder="Üye ya da misafir ara: isim, görev, komite, telefon, okul" aria-label="Üye ya da misafir ara" autocomplete="off"></div>
+      <div class="m-show" role="group" aria-label="Listede göster"><label class="check"><input type="checkbox" id="sh-gdb" ${F.gdb ? "checked" : ""}> GDB'leri göster</label><label class="check"><input type="checkbox" id="sh-guests" ${F.guests ? "checked" : ""}> Misafirleri göster</label></div>
       <div class="m-filters" role="group" aria-label="Listeyi süz">${FILTERS.map(([k, l, fn]) => `<button type="button" class="m-chip" data-f="${k}" aria-pressed="${k === F.f}">${l} <span class="m-n">${members.filter(fn).length}</span></button>`).join("")}</div>
     </div>
     <p class="muted m-count" id="mcount" role="status" aria-live="polite"></p>` +
@@ -798,9 +802,13 @@ async function viewMembers(v) {
       gtb.querySelectorAll("[data-conv]").forEach(b => b.onclick = () => convertGuestDialog(guests.find(x => x.id === b.dataset.conv), came.get(b.dataset.conv) || 0));
       document.getElementById("gempty").hidden = gs.length > 0;
       gtb.closest(".tbl-wrap").hidden = gs.length === 0;
+      gtb.closest(".m-guests").hidden = !F.guests;
     }
     tb.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => editMember(members.find(m => m.id === b.dataset.edit)));
   };
+  const keepShow = () => { try { localStorage.setItem("ar-m-show", JSON.stringify({ gdb: F.gdb, guests: F.guests })); } catch {} };
+  document.getElementById("sh-gdb").onchange = e => { F.gdb = e.target.checked; keepShow(); render(); };
+  document.getElementById("sh-guests").onchange = e => { F.guests = e.target.checked; keepShow(); render(); };
   qEl.oninput = () => { F.q = qEl.value.trim().toLocaleLowerCase("tr"); render(); };
   document.getElementById("mclear").onclick = () => { qEl.value = ""; F.q = ""; F.f = "aktif"; v.querySelectorAll("[data-f]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.f === "aktif"))); render(); qEl.focus(); };
   v.querySelectorAll("[data-f]").forEach(b => b.onclick = () => { F.f = b.dataset.f; v.querySelectorAll("[data-f]").forEach(x => x.setAttribute("aria-pressed", String(x === b))); render(); });
@@ -1211,9 +1219,21 @@ const GROUP_LABEL = { etkinlik: "Etkinlik", proje: "Proje" };
 const groupKindOf = c => String(c || "").startsWith("Proje") ? "proje" : String(c || "").startsWith("Etkinlik") ? "etkinlik" : null;
 const isDonCat = c => c === "Bağış" || String(c || "").startsWith(DON_PREFIX);
 let kasaTab = "ozet", kasaKind = "hepsi", kasaCat = "", kasaAdd = "hareket";
+// Güncel dönem kasasının şu anki bakiyesi (planlama kasasının başlangıcı buradan canlı gelir)
+async function liveCurrentBalance() {
+  const pt = store.getViewTerm?.(); store.setViewTerm?.(null);
+  try {
+    const [t, txs, charges, dues] = await Promise.all([store.getTerm(), store.listTransactions(), store.listCharges(), store.listDues()]);
+    const paid = new Set(dues.filter(d => d.term_id === t.id).map(d => d.id));
+    const duesIn = charges.filter(c => c.paid_at && paid.has(c.due_id)).reduce((s, c) => s + +c.amount, 0);
+    return +t.opening_balance + duesIn + txs.reduce((s, r) => s + (r.kind === "gelir" ? +r.amount : -r.amount), 0);
+  } finally { store.setViewTerm?.(pt); }
+}
 async function viewTreasury(v) {
   const ro = !can(me, "kasa", "edit");
-  const [term, txs, charges, dues, meetings, members, savedGroups] = await Promise.all([store.getTerm(), store.listTransactions(), store.listCharges(), store.listDues(), store.listMeetings(), store.listMembers(), store.listKasaGroups().catch(() => [])]);
+  const liveOpen = planSub ? await liveCurrentBalance() : null;
+  const [term0, txs, charges, dues, meetings, members, savedGroups] = await Promise.all([store.getTerm(), store.listTransactions(), store.listCharges(), store.listDues(), store.listMeetings(), store.listMembers(), store.listKasaGroups().catch(() => [])]);
+  const term = planSub ? { ...term0, opening_balance: liveOpen } : term0;
   // Ödenen aidatlar "Üye aidat tahsilatı" olarak kendiliğinden gelir yazılır.
   const duesIncome = dues.filter(d => d.term_id === term.id).map(d => { const cs = charges.filter(c => c.due_id === d.id && c.paid_at); return { id: "d-" + d.id, date: cs.map(c => c.paid_at).sort().at(-1) || d.due_date, kind: "gelir", category: "Üye aidat tahsilatı", description: `${d.label} (${cs.length} üye)`, amount: cs.reduce((s, c) => s + +c.amount, 0), auto: true }; }).filter(x => x.amount > 0);
   const all = [...txs, ...duesIncome].sort((a, b) => b.date.localeCompare(a.date));
@@ -1318,7 +1338,7 @@ async function viewTreasury(v) {
 
   v.innerHTML = header("Kulüp kasası", `${esc(term.name)} dönemi kasa takibi`) + roBanner("kasa") + `
   <div class="stats">
-    <div class="stat"><span>Kasa başlangıcı</span><b>${TL(term.opening_balance)}</b></div>
+    <div class="stat"><span>${planSub ? "Güncel dönemden devreden" : "Kasa başlangıcı"}</span><b>${TL(term.opening_balance)}</b></div>
     <div class="stat"><span>Toplam gelir</span><b>${TL(inc)}</b></div>
     <div class="stat"><span>Toplam gider</span><b>${TL(exp)}</b></div>
     <div class="stat hl"><span>Güncel kasa</span><b>${TL(bal)}</b></div>
@@ -1353,7 +1373,8 @@ async function viewTreasury(v) {
   </div>`}
   <div class="seg kasa-tabs" role="tablist" aria-label="Kasa görünümü" style="margin:4px 0 14px;flex-wrap:wrap">${tabBtn("ozet", "Özet")}${tabBtn("hareket", "Hareketler")}${tabBtn("misafir", "Misafir tahsilatları")}${tabBtn("aidat", "Aidatlar")}${tabBtn("rozet", "Rozet satışları")}${["etkinlik", "proje"].map(k => { const gs = groups.filter(g => g.kind === k); const on = openGroup?.kind === k; return `<select class="kasa-pick${on ? " on" : ""}" data-kp="${k}" aria-label="${k === "etkinlik" ? "Etkinlik seç" : "Proje seç"}"><option value="">${k === "etkinlik" ? "Etkinlik" : "Proje"} ▾</option>${gs.map(g => `<option value="${esc(g.id)}" ${openGroup?.id === g.id ? "selected" : ""}>${esc(g.name)}</option>`).join("") || `<option disabled>Henüz ${k} yok</option>`}</select>`; }).join("")}</div>
   ${body}
-  <form id="f-open" class="card row" style="align-items:flex-end"><fieldset ${ro ? "disabled" : ""} class="row" style="align-items:flex-end;flex:1;border:0;padding:0;margin:0">
+  ${planSub ? `<div class="card"><p style="margin:0"><b>Kasa başlangıcı: ${TL(term.opening_balance)}</b> <span class="muted">· güncel dönem kasasının şu anki bakiyesi, canlı. Güncel kasaya kayıt girildikçe burası da değişir.</span></p></div>` : ""}
+  <form id="f-open" class="card row" style="align-items:flex-end"${planSub ? " hidden" : ""}><fieldset ${ro ? "disabled" : ""} class="row" style="align-items:flex-end;flex:1;border:0;padding:0;margin:0">
     <label class="f" style="flex:1">Kasa başlangıcı (TL) <small>Dönemin ilk günündeki kasa</small><input type="number" step="0.01" name="opening_balance" value="${term.opening_balance}"></label>
     ${ro ? "" : '<button class="btn ghost sm" style="margin-bottom:4px">Güncelle</button>'}</fieldset></form>`;
 
@@ -1656,7 +1677,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611161959");
+  const { mountComposer } = await import("./composer.js?v=202611162002");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1665,7 +1686,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161959");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611162002");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

@@ -139,14 +139,19 @@ function refPath(ref) {
   return ref || '';
 }
 
-// Fotoğraf: <img>; pos {x,y} yüzde (0–100) olarak object-position, zoom ölçek.
+// Fotoğraf: <img>. pos {x,y} 0–1 kesirdir (Instagram oluşturucusundaki
+// state.pos ile aynı; 0.5/0.5 ortadır) ve object-position yüzdesine çevrilir.
+// zoom ≥ 1 ölçektir (varsayılan 1).
+const frac = (v) => Math.round(Math.min(1, Math.max(0, +v)) * 1000) / 10;
+
 function img(ctx, ref) {
   const url = ctx.photoUrl ? ctx.photoUrl(ref) : refPath(ref);
   let style = '';
   if (ref && typeof ref === 'object') {
-    const pos = ref.pos && Number.isFinite(+ref.pos.x) && Number.isFinite(+ref.pos.y)
-      ? `${+ref.pos.x}% ${+ref.pos.y}%` : '';
-    const zoom = Number.isFinite(+ref.zoom) && +ref.zoom > 0 && +ref.zoom !== 1 ? +ref.zoom : 0;
+    const p = ref.pos;
+    const pos = p && Number.isFinite(+p.x) && Number.isFinite(+p.y) && !(+p.x === 0.5 && +p.y === 0.5)
+      ? `${frac(p.x)}% ${frac(p.y)}%` : '';
+    const zoom = Number.isFinite(+ref.zoom) && +ref.zoom > 1 ? +ref.zoom : 0;
     if (pos) style += `object-position:${pos};`;
     if (zoom) style += `transform:scale(${zoom});transform-origin:${pos || '50% 50%'};`;
   }

@@ -62,15 +62,19 @@
   pointer-events: none;
 }
 
-/* Sağ altta beyaz logo (arka plan resmi; oran ≈ 3.7:1). */
+/* Altta ortada beyaz logo, örnek mektuptaki gibi (arka plan resmi; oran ≈ 3.7:1).
+   Kapakta sol üstte, künyede sağ altta (örnekteki gibi). */
 .lt-logo {
   position: absolute;
-  right: 40px;
-  bottom: 34px;
+  left: 0;
+  right: 0;
+  bottom: 30px;
   width: 150px;
   height: 41px;
-  background: no-repeat right center / contain;
+  margin: 0 auto;
+  background: no-repeat center / contain;
 }
+.lt-kunye .lt-logo { left: auto; right: 40px; margin: 0; background-position: right center; }
 
 /* ------------------------------------------------------------ ortak öğeler */
 

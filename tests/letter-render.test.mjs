@@ -55,6 +55,15 @@ test('içindekiler sayfalardan türetilir', () => {
   assert.ok(a > -1 && b > a && c > b, `${a} ${b} ${c}`);
 });
 
+test('fotoğraf konumu 0–1 kesirden object-position yüzdesine çevrilir', () => {
+  const html = renderPage(
+    { layout: 'neler-1', fields: { photo: { path: 'a.jpg', pos: { x: 0.25, y: 1 }, zoom: 1.5 } } },
+    opts(),
+  );
+  assert.ok(html.includes('object-position:25% 100%'), html);
+  assert.ok(html.includes('scale(1.5)'));
+});
+
 test('neler-tam en fazla 4 fotoğraf çizer', () => {
   const photos = ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg'];
   const html = renderPage({ layout: 'neler-tam', fields: { label: 'x', body: 'y', photos } }, opts());

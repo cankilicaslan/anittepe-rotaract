@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611161916";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161916";
+import { createStore, trDate } from "./store.js?v=202611161918";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161918";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -704,7 +704,6 @@ async function editMember(m) {
     ${isNew && store.mode === "supabase" ? `<p class="muted" style="margin:0">Üyeye e-postasına bir davet gider; bağlantıya tıklayıp şifresini belirleyince panele girebilir.</p>` : ""}
     <div class="grid g2">
       <label class="f">Ad soyad<input type="text" name="full_name" value="${esc(m.full_name)}" required></label>
-      <label class="f">Görev<input type="text" name="title" value="${esc(m.title)}" list="titles" id="m-title"></label>
       <label class="f">Telefon<input type="tel" name="phone" value="${esc(m.phone)}" placeholder="05xx xxx xx xx"></label>
       <label class="f">E-posta<input type="email" name="email" value="${esc(m.email)}" ${isNew && store.mode === "supabase" ? "required" : ""}></label>
       <label class="f">Doğum tarihi<input type="date" name="birth_date" value="${esc(m.birth_date || "")}"></label>
@@ -715,12 +714,11 @@ async function editMember(m) {
       <label class="f">Üyelik tarihi<input type="date" name="joined_at" value="${esc(m.joined_at || "")}"></label>
       <label class="f">Yoklamada başladığı toplantı <small>Üye alındığı toplantı; devam oranı buradan itibaren hesaplanır</small><select name="start_meeting_id"><option value="">Dönem başından</option>${meetings.map(x => `<option value="${x.id}" ${m.start_meeting_id === x.id ? "selected" : ""}>${x.term_no}. toplantı · ${trDate(x.date)}</option>`).join("")}</select></label>
     </div>
-    <datalist id="titles">${["Başkan", "Asbaşkan", "Sekreter", "Sayman", "Yönetim Kurulu Üyesi", "Geçmiş Dönem Başkanı", ...ROLE_GROUPS[1][1].map(k => ROLE_LABELS[k] + " Başkanı"), "Üye"].map(t => `<option value="${t}">`).join("")}</datalist>
-    <fieldset><legend style="font-weight:700;margin-bottom:6px">Panel yetkileri</legend><div class="grid g2">
+    <fieldset><legend style="font-weight:700;margin-bottom:6px">Dönem görevi</legend><div class="grid g2">
       ${ROLE_GROUPS.map(([g, keys]) => `<p class="role-grp">${g}</p>` + keys.map(k => `<label class="check"><input type="checkbox" name="role" value="${k}" ${(m.roles || []).includes(k) ? "checked" : ""}> ${ROLE_LABELS[k]}</label>`).join("")).join("")}
       <p class="role-grp">Diğer</p>
       <label class="check"><input type="checkbox" name="past_president" ${m.past_president ? "checked" : ""}> Geçmiş dönem başkanı (tüm panelleri görür)</label>
-      <label class="check"><input type="checkbox" name="hide_roles" ${m.hide_roles ? "checked" : ""}> Yetkileri görev olarak gösterme (yalnızca unvan ve GDB görünür)</label>
+      <label class="check"><input type="checkbox" name="hide_roles" ${m.hide_roles ? "checked" : ""}> Görevleri listede gösterme (yalnızca GDB ya da "Üye" görünür)</label>
     </div></fieldset>
     <div class="row"><button class="btn" value="save">Kaydet</button><button class="btn ghost" value="cancel" formnovalidate>Vazgeç</button></div>
   </form>`;
@@ -731,18 +729,10 @@ async function editMember(m) {
   let downOut = false;
   dlg.onpointerdown = e => { downOut = outside(e); };
   dlg.onclick = e => { if (downOut && outside(e)) dlg.close(); downOut = false; };
-  // Unvan "X Komitesi Başkanı" seçilince X komitesinin rolü kendiliğinden işaretlenir.
-  const tIn = dlg.querySelector("#m-title");
-  if (tIn) tIn.addEventListener("change", () => {
-    const v = tIn.value.trim().toLocaleLowerCase("tr");
-    const k = v === "yönetim kurulu üyesi" ? "ykuye" : Object.keys(ROLE_LABELS).find(r => ROLE_GROUPS[1][1].includes(r) && v === (ROLE_LABELS[r] + " Başkanı").toLocaleLowerCase("tr"));
-    const cb = k && dlg.querySelector(`input[name=role][value="${k}"]`);
-    if (cb && !cb.checked) { cb.checked = true; toast(`${esc(ROLE_LABELS[k])} yetkisi de işaretlendi.`); }
-  });
   dlg.querySelector("form").onsubmit = async e => {
     if (e.submitter?.value !== "save") return;
     const fd = new FormData(e.target);
-    const patch = { full_name: fd.get("full_name"), title: fd.get("title"), phone: fd.get("phone"), email: fd.get("email"), birth_date: fd.get("birth_date") || null, profession: fd.get("profession"), instagram: fd.get("instagram"), blood_type: fd.get("blood_type"), status: fd.get("status"), joined_at: fd.get("joined_at") || null, roles: fd.getAll("role"), past_president: fd.has("past_president"), hide_roles: fd.has("hide_roles"), start_meeting_id: fd.get("start_meeting_id") || null };
+    const patch = { full_name: fd.get("full_name"), phone: fd.get("phone"), email: fd.get("email"), birth_date: fd.get("birth_date") || null, profession: fd.get("profession"), instagram: fd.get("instagram"), blood_type: fd.get("blood_type"), status: fd.get("status"), joined_at: fd.get("joined_at") || null, roles: fd.getAll("role"), past_president: fd.has("past_president"), hide_roles: fd.has("hide_roles"), start_meeting_id: fd.get("start_meeting_id") || null };
     // Komite görevi devri: yeni verilen komite başka bir aktif üyedeyse, görev ve panel erişimi eski kişiden alınıp bu kişiye aktarılır.
     const COMMITTEES = ROLE_GROUPS[1][1];
     const added = (patch.roles || []).filter(r => COMMITTEES.includes(r) && !(m.roles || []).includes(r));
@@ -1512,7 +1502,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611161916");
+  const { mountComposer } = await import("./composer.js?v=202611161918");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1521,7 +1511,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161916");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161918");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

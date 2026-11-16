@@ -314,6 +314,7 @@ nav.main a:hover{opacity:1;background:color-mix(in srgb,currentColor 12%,transpa
 
 /* ---------- News ---------- */
 .news{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.news-more{margin-top:28px}.news-more .btn{color:var(--cran-deep)}
 .post{background:var(--surface);border:1px solid var(--line);border-radius:24px;overflow:hidden;display:flex;flex-direction:column;text-decoration:none;transition:transform .3s cubic-bezier(.2,.8,.2,1)}
 .post:hover{transform:translateY(-4px)}
 .post:hover h3{color:var(--cran)}
@@ -1011,6 +1012,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
           <div class="inner"><time>11 September 2026</time><h3>The first President's Letter is out</h3><p>This term's projects and club news, in President Simay Oğuzkurt's letter.</p></div>
         </a>
       </div>
+      <p class="news-more"><a class="btn btn-line" href="/mektup/">President's Letters →</a></p>
     </div>
   </section>
 

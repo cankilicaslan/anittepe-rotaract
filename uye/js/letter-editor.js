@@ -6,13 +6,13 @@
 // "Yapay zekâ ile oluştur" klasörleri: letter-folders.js.
 // Sayfa çizimi assets/js/letter-render.js, klasör → sayfa assets/js/letter-assemble.js.
 
-import { LAYOUTS, renderPage, renderLetter, tocFromPages, MAX_PHOTOS, esc } from "../../assets/js/letter-render.js?v=202611161805";
-import { LONG_WORDS, wordCount } from "../../assets/js/letter-assemble.js?v=202611161805";
-import { hasRole } from "./roles.js?v=202611161805";
+import { LAYOUTS, renderPage, renderLetter, tocFromPages, MAX_PHOTOS, esc } from "../../assets/js/letter-render.js?v=202611161809";
+import { LONG_WORDS, wordCount } from "../../assets/js/letter-assemble.js?v=202611161809";
+import { hasRole } from "./roles.js?v=202611161809";
 import {
   mountFolders, ensureFolders, aiItem, findItem, guessItem, kunyeDefaults, suggestPeriod, norm,
   rowsHtml, rowsAction, rowsInput, parseKunye, safeId, CLUB,
-} from "./letter-folders.js?v=202611161805";
+} from "./letter-folders.js?v=202611161809";
 
 // ---------------------------------------------------------------- yardımcılar
 

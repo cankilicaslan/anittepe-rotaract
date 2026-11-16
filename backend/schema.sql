@@ -1341,3 +1341,17 @@ drop policy if exists app_settings_write on public.app_settings;
 create policy app_settings_write on public.app_settings for all to authenticated
   using (public.has_role('sayman') or public.is_admin() or (key = 'letter_kunye' and public.letter_editor()))
   with check (public.has_role('sayman') or public.is_admin() or (key = 'letter_kunye' and public.letter_editor()));
+
+-- =====================================================================
+-- v28: Başkan Mektubu yeniden yayın: ilk yayın tarihi korunur (sitede sıra ve dönem kaymasın)
+-- =====================================================================
+create or replace function public.publish_letter(p_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Yalnızca Başkan yayınlayabilir'; end if;
+  perform set_config('app.letter_publish', '1', true);
+  update public.letters set status = 'yayinda', published_pages = pages, published_at = coalesce(published_at, now()) where id = p_id;
+  if not found then raise exception 'Mektup bulunamadı'; end if;
+end $$;
+revoke all on function public.publish_letter(uuid) from public, anon;
+grant execute on function public.publish_letter(uuid) to authenticated;

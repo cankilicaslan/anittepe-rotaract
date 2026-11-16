@@ -3,14 +3,15 @@
 // fotoğraf yükleme, kişi seçici ve onay penceresini sağlar (bkz. editörde `ctx`).
 // Ayrıca künye, isim/unvan biçimi ve madde eşleme gibi saf yardımcılar burada.
 
-import { esc } from "../../assets/js/letter-render.js?v=202611161748";
-import { defaultFolders, meetingLabel, missingFor, wordCount, assemblePages, LONG_WORDS } from "../../assets/js/letter-assemble.js?v=202611161748";
+import { esc } from "../../assets/js/letter-render.js?v=202611161758";
+import { defaultFolders, meetingLabel, missingFor, wordCount, assemblePages, LONG_WORDS } from "../../assets/js/letter-assemble.js?v=202611161758";
 
 export const CLUB = "Ankara Anıttepe Rotaract Kulübü";
 const MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 const MONTHS_LC = MONTHS.map(m => m.toLocaleLowerCase("tr"));
 export const KIND = { toplanti: "Toplantı", proje: "Proje", etkinlik: "Etkinlik", ocakbasi: "Ocakbaşı" };
 const KIND_CLS = { toplanti: "toplanti", proje: "hizmet", etkinlik: "etkinlik", ocakbasi: "ocakbasi" };
+const AI_BATCH = 20; // letter-ai tek istekte en fazla 20 madde kabul eder (MAX_ITEMS)
 const NEW_TITLE = { proje: "Yeni proje", etkinlik: "Yeni etkinlik", ocakbasi: "Ocakbaşı buluşması" };
 const BOARD = [["baskan", "Dönem Başkanı", "Başkanı"], ["asbaskan", "Dönem Asbaşkanı", "Asbaşkanı"], ["sekreter", "Dönem Sekreteri", "Sekreteri"], ["sayman", "Dönem Saymanı", "Saymanı"]];
 
@@ -642,12 +643,22 @@ export function mountFolders(host, ctx) {
     try {
       if (f.items.length) {
         const items = [...f.items]; // beklerken liste değişse de metinler doğru maddeye gitsin
-        const res = await ctx.store.letterAi(items.map(it => aiItem(it, ctx.refs.meetings)));
+        // Sunucu tek istekte en fazla 20 madde alır: 20'lik gruplar hâlinde sırayla gönder, metinleri sırayla birleştir.
+        const payload = items.map(it => aiItem(it, ctx.refs.meetings));
+        const texts = [];
+        let fellBack = false;
+        for (let s = 0; s < payload.length; s += AI_BATCH) {
+          const part = payload.slice(s, s + AI_BATCH);
+          const res = await ctx.store.letterAi(part);
+          if (gone || ctx.folders !== f) return;
+          const got = Array.isArray(res?.texts) ? res.texts : [];
+          for (let i = 0; i < part.length; i++) texts.push(got[i]);
+          if (res?.source === "sablon") fellBack = true;
+        }
         // Beklerken ekran kapandıysa ya da başka mektup açıldıysa sonucu uygulama.
         if (gone || ctx.folders !== f) return;
-        const texts = Array.isArray(res?.texts) ? res.texts : [];
         items.forEach((it, i) => { const t = texts[i]; if (typeof t === "string" && t.trim()) it.text = t.trim(); });
-        if (res?.source === "sablon") note = ctx.isDemo ? " Demo modunda yapay zekâ kapalı; notlardan şablon metin kullanıldı." : " Yapay zekâya ulaşılamadı; notlardan şablon metin kullanıldı.";
+        if (fellBack) note = ctx.isDemo ? " Demo modunda yapay zekâ kapalı; notlardan şablon metin kullanıldı." : " Yapay zekâya ulaşılamadı; notlardan şablon metin kullanıldı.";
       }
       const pages = assemblePages(f);
       genBusy = false;

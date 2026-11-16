@@ -6,13 +6,13 @@
 // "Yapay zekâ ile oluştur" klasörleri: letter-folders.js.
 // Sayfa çizimi assets/js/letter-render.js, klasör → sayfa assets/js/letter-assemble.js.
 
-import { LAYOUTS, renderPage, renderLetter, tocFromPages, MAX_PHOTOS, esc } from "../../assets/js/letter-render.js?v=202611161748";
-import { LONG_WORDS, wordCount } from "../../assets/js/letter-assemble.js?v=202611161748";
-import { hasRole } from "./roles.js?v=202611161748";
+import { LAYOUTS, renderPage, renderLetter, tocFromPages, MAX_PHOTOS, esc } from "../../assets/js/letter-render.js?v=202611161758";
+import { LONG_WORDS, wordCount } from "../../assets/js/letter-assemble.js?v=202611161758";
+import { hasRole } from "./roles.js?v=202611161758";
 import {
   mountFolders, ensureFolders, aiItem, findItem, guessItem, kunyeDefaults, suggestPeriod, norm,
   rowsHtml, rowsAction, rowsInput, parseKunye, safeId, CLUB,
-} from "./letter-folders.js?v=202611161748";
+} from "./letter-folders.js?v=202611161758";
 
 // ---------------------------------------------------------------- yardımcılar
 
@@ -206,7 +206,7 @@ export function mountLetterEditor(root, { store, me, toast: toastFn, readOnly = 
       const live = l.status === "yayinda";
       const yes = await confirmDlg({
         title: `Sayı ${l.issue_no} silinsin mi?`,
-        body: `<p>${esc(l.period || "")} sayısı, sayfaları ve fotoğraflarıyla birlikte kalıcı olarak silinecek.${live ? " <b>Sitede yayında olduğu için /mektup/ sayfasından da kalkacak.</b>" : ""} Bu işlem geri alınamaz.</p>`,
+        body: `<p>Sayı ${esc(l.issue_no)}${l.period ? ` (${esc(l.period)})` : ""}, sayfaları ve fotoğraflarıyla birlikte kalıcı olarak silinecek.${live ? " <b>Sitede yayında olduğu için /mektup/ sayfasından da kalkacak.</b>" : ""} Bu işlem geri alınamaz.</p>`,
         ok: "Kalıcı olarak sil", danger: true,
       });
       if (!yes || destroyed) return;
@@ -387,11 +387,35 @@ export function mountLetterEditor(root, { store, me, toast: toastFn, readOnly = 
       toast("Kaydedildi.");
       return true;
     } catch (e) {
-      if (!destroyed) toast(e.message || "Kaydedilemedi.", "error");
-      return false;
+      if (destroyed) return false;
+      if (e?.code !== "conflict") { toast(e.message || "Kaydedilemedi.", "error"); return false; }
     } finally {
       if (!destroyed && E) { E.saving = false; renderTop(); }
     }
+    return resolveConflict();
+  }
+
+  // Araya başka bir kayıt girdi: onunkini yükle, benimkini üstüne yaz ya da düzenlemeye dön.
+  async function resolveConflict() {
+    const r = await dialog(`<form method="dialog"><h2>Başka biri bu sayıyı kaydetti.</h2>
+      <p>Sen düzenlerken bu sayı başka bir yerden kaydedildi. Ne yapmak istersin?</p>
+      <p><b>Onun hâlini yükle:</b> son kaydedilen hâl açılır; <b>senin kaydedilmemiş değişikliklerin silinir.</b></p>
+      <p><b>Benimkini yine de kaydet:</b> senin hâlin kaydedilir; onun yaptığı değişiklikler kaybolur.</p>
+      <div class="row le-dlg-acts"><button class="btn ghost" value="theirs">Onun hâlini yükle</button><button class="btn" value="mine">Benimkini yine de kaydet</button><button class="btn ghost" value="">Vazgeç</button></div></form>`);
+    if (destroyed || !E) return false;
+    if (r === "theirs") {
+      try { await reread(); toast("Son kaydedilen hâl yüklendi."); }
+      catch (e) { if (!destroyed) toast(e.message || "Yüklenemedi.", "error"); }
+      return false;
+    }
+    if (r !== "mine") return false;
+    const id = E.letter.id;
+    try {
+      const cur = await store.getLetter(id);
+      if (destroyed || !E || E.letter.id !== id) return false;
+      E.letter.updated_at = cur.updated_at;
+    } catch (e) { if (!destroyed) toast(e.message || "Kaydedilemedi.", "error"); return false; }
+    return save();
   }
 
   async function reread() {
@@ -404,24 +428,45 @@ export function mountLetterEditor(root, { store, me, toast: toastFn, readOnly = 
     renderTop(); renderTab();
   }
 
+  // Yayın işlemi sürerken yazılan değişiklikler kaybolmasın: o durumda yalnızca yayın alanları tazelenir.
+  async function afterPublishChange(rev) {
+    if (destroyed || !E) return;
+    if (E.rev === rev) return reread();
+    const L = E.letter;
+    const fresh = await store.getLetter(L.id);
+    if (destroyed || !E || E.letter !== L) return;
+    Object.assign(L, { status: fresh.status, published_pages: fresh.published_pages, published_at: fresh.published_at, updated_at: fresh.updated_at });
+    renderTop();
+  }
+
+  const savingNow = () => { if (!E?.saving) return false; toast("Kayıt sürüyor, birazdan tekrar dene.", "error"); return true; };
+
   async function publish(again) {
+    if (savingNow()) return;
     const L = E.letter;
     const ok = await confirmDlg({
       title: again ? "Güncel hâli yayınlansın mı?" : `Sayı ${L.issue_no} yayınlansın mı?`,
       body: `<p>Mektup sitede <b>/mektup/</b> adresinde herkese açık olur.${again ? " Sitedeki eski hâlin yerini alır." : ""}</p>${isDirty() ? `<p class="muted">Kaydedilmemiş değişiklikler önce kaydedilecek.</p>` : ""}`,
       ok: "Yayınla",
     });
-    if (!ok || (isDirty() && !(await save()))) return;
-    try { await store.publishLetter(L.id); await reread(); toast("Mektup yayınlandı."); }
-    catch (e) { toast(e.message || "Yayınlanamadı.", "error"); }
+    if (!ok || destroyed || savingNow() || (isDirty() && !(await save()))) return;
+    const rev = E.rev;
+    try { await store.publishLetter(L.id); }
+    catch (e) { toast(e.message || "Yayınlanamadı.", "error"); return; }
+    toast("Mektup yayınlandı.");
+    await afterPublishChange(rev).catch(() => { if (!destroyed) toast("Yayın durumu ekranda yenilenemedi; sayfayı yenile.", "error"); });
   }
   async function unpublish() {
+    if (savingNow()) return;
     const L = E.letter;
     const ok = await confirmDlg({ title: `Sayı ${L.issue_no} yayından kaldırılsın mı?`, body: "<p>Sitede artık görünmez; mektup taslak olarak kalır ve yeniden yayınlanabilir.</p>", ok: "Yayından kaldır", danger: true });
-    if (!ok) return;
+    if (!ok || destroyed || savingNow()) return;
     if (isDirty() && !(await save())) return;
-    try { await store.unpublishLetter(L.id); await reread(); toast("Mektup yayından kaldırıldı."); }
-    catch (e) { toast(e.message || "Yayından kaldırılamadı.", "error"); }
+    const rev = E.rev;
+    try { await store.unpublishLetter(L.id); }
+    catch (e) { toast(e.message || "Yayından kaldırılamadı.", "error"); return; }
+    toast("Mektup yayından kaldırıldı.");
+    await afterPublishChange(rev).catch(() => { if (!destroyed) toast("Yayın durumu ekranda yenilenemedi; sayfayı yenile.", "error"); });
   }
 
   // ---------------------------------------------------------------- elle düzenleyici

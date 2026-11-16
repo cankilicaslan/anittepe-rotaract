@@ -26,7 +26,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,300;1,400&display=swap">
-<link rel="stylesheet" href="/assets/css/letter.css">
+<link rel="stylesheet" href="/assets/css/letter.css?v=202611161758">
 <style>
 :root{
   --cran:#D41367; --cran-deep:#A30C4D; --cran-soft:#FCE6EF; --gold:#F7A81B;
@@ -117,10 +117,10 @@ h1{font-size:clamp(2rem,5vw,3rem);line-height:1.08;font-weight:800;letter-spacin
 </header>
 
 <main id="main">
-  <div class="wrap" id="app" aria-live="polite">
+  <div class="wrap" id="app">
     <span class="kicker">Başkan Mektubu</span>
     <h1>Başkan Mektupları</h1>
-    <div class="state"><p>Yükleniyor…</p></div>
+    <div class="state" role="status" aria-live="polite"><p>Yükleniyor…</p></div>
   </div>
 </main>
 
@@ -132,23 +132,29 @@ h1{font-size:clamp(2rem,5vw,3rem);line-height:1.08;font-weight:800;letter-spacin
 </footer>
 
 <script type="module">
-import { CONFIG } from "/uye/js/config.js";
-import { renderLetter, renderPage, tocFromPages, esc } from "/assets/js/letter-render.js";
+import { CONFIG } from "/uye/js/config.js?v=202611161758";
+import { renderLetter, renderPage, tocFromPages, esc } from "/assets/js/letter-render.js?v=202611161758";
 
 const TITLE = "Başkan Mektubu · Ankara Anıttepe Rotaract Kulübü";
 const LOGO = "/assets/logo-beyaz.webp";
-const API = `${CONFIG.SUPABASE_URL}/rest/v1/letters?select=id,term_id,issue_no,period,published_at,published_pages&status=eq.yayinda&order=published_at.desc`;
+const API = `${CONFIG.SUPABASE_URL}/rest/v1/letters?select=id,term_id,issue_no,period,published_at,published_pages&status=eq.yayinda`;
 const app = document.getElementById("app");
 document.getElementById("yr").textContent = new Date().getFullYear();
 
 const photoUrl = r => (typeof r === "string" ? r : (r?.url || ""));
 
 // Dönem temmuzda başlar: Temmuz 2026 – Haziran 2027 → "2026-27".
+// Ay, ziyaretçinin saat diliminden bağımsız olarak İstanbul saatine göre alınır (temmuz sınırı herkeste aynı).
+const TR_YM = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Istanbul", year: "numeric", month: "numeric" });
 function termOf(iso) {
   const d = new Date(iso);
-  const y = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1;
+  if (!iso || isNaN(d)) return "";
+  const p = Object.fromEntries(TR_YM.formatToParts(d).map(x => [x.type, x.value]));
+  const y = +p.month >= 7 ? +p.year : +p.year - 1;
   return `${y}-${String(y + 1).slice(-2)}`;
 }
+// Yeni dönem önce, dönem içinde büyük sayı önce (yeniden yayın sırayı bozmaz).
+const byNewest = (a, b) => (a.term < b.term ? 1 : a.term > b.term ? -1 : (+b.issue_no || 0) - (+a.issue_no || 0));
 const hrefOf = l => `/mektup/?donem=${encodeURIComponent(l.term)}&sayi=${encodeURIComponent(l.issue_no)}`;
 const pageOpts = l => ({ photoUrl, logoUrl: LOGO, letter: { issue_no: l.issue_no, period: l.period }, toc: tocFromPages(l.pages) });
 const head = (title, lead) => `<div class="rd-head"><span class="kicker">Başkan Mektubu</span><h1>${title}</h1>${lead ? `<p class="lead">${lead}</p>` : ""}</div>`;
@@ -168,7 +174,18 @@ async function load() {
   const rows = await res.json();
   return rows
     .filter(r => Array.isArray(r.published_pages) && r.published_pages.length)
-    .map(r => ({ ...r, pages: r.published_pages, term: termOf(r.published_at) }));
+    .map(r => ({ ...r, pages: r.published_pages, term: termOf(r.published_at) }))
+    .filter(r => r.term)
+    .sort(byNewest);
+}
+
+// Tek bir bozuk sayı tüm listeyi düşürmesin: küçük resmi çizilemezse boş kapak kalır.
+function thumbOf(l) {
+  try { return renderPage(l.pages[0], pageOpts(l)); }
+  catch (err) { console.error("Kapak çizilemedi", l.id, err); return ""; }
+}
+function showError(title, msg) {
+  app.innerHTML = `${head(title)}<div class="state" role="alert"><strong>${msg}</strong><p>Biraz sonra tekrar dene.</p><a class="btn btn-cran" href="/mektup/">Tüm sayılar</a></div>`;
 }
 
 function showList(letters) {
@@ -180,7 +197,7 @@ function showList(letters) {
   }
   app.innerHTML = `${intro}<ul class="issues">${letters.map(l => `
     <li class="issue"><a href="${esc(hrefOf(l))}">
-      <div class="thumb" data-fit aria-hidden="true">${renderPage(l.pages[0], pageOpts(l))}</div>
+      <div class="thumb" data-fit aria-hidden="true">${thumbOf(l)}</div>
       <h2>Sayı ${esc(l.issue_no)}</h2>
       <p>${esc([l.period, `${l.term} dönemi`].filter(Boolean).join(" · "))}</p>
     </a></li>`).join("")}</ul>`;
@@ -224,13 +241,19 @@ async function main() {
     console.error(err);
     app.innerHTML = `${head("Başkan Mektupları")}<div class="state"><strong>Mektuplar şu an yüklenemedi.</strong><p>Bağlantını kontrol edip biraz sonra tekrar dene.</p><button type="button" class="btn btn-cran" id="retry">Tekrar dene</button></div>`;
     document.getElementById("retry").addEventListener("click", () => {
-      app.innerHTML = `${head("Başkan Mektupları")}<div class="state"><p>Yükleniyor…</p></div>`;
+      app.innerHTML = `${head("Başkan Mektupları")}<div class="state" role="status" aria-live="polite"><p>Yükleniyor…</p></div>`;
       main();
     });
     return;
   }
-  if (term && issue) showReader(letters, term, issue);
-  else showList(letters);
+  try {
+    if (term && issue) showReader(letters, term, issue);
+    else showList(letters);
+  } catch (err) {
+    console.error(err);
+    if (term && issue) showError("Sayı açılamadı", "Bu sayı şu an görüntülenemiyor.");
+    else showError("Başkan Mektupları", "Mektuplar şu an görüntülenemiyor.");
+  }
 }
 main();
 </script>

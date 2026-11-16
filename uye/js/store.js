@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611161748";
-import { can, hasRole } from "./roles.js?v=202611161748";
+import { CONFIG } from "./config.js?v=202611161758";
+import { can, hasRole } from "./roles.js?v=202611161758";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -424,14 +424,16 @@ function demoStore() {
     },
     async createLetter({ issue_no, period }) {
       need("mektup");
-      if (S.letters.some(l => l.term_id === S.term.id && l.issue_no === Number(issue_no))) throw new Error("Bu sayı numarası zaten var.");
+      if (S.letters.some(l => l.term_id === S.term.id && l.issue_no === Number(issue_no))) throw new Error("Bu sayı numarası bu dönemde zaten var.");
       const l = { id: uid(), term_id: S.term.id, issue_no: Number(issue_no), period: period || "", status: "taslak", pages: [], folders: [], published_pages: null, published_at: null, updated_at: new Date().toISOString(), updated_by: S.session };
       S.letters.push(l); save(); return clone(l);
     },
     async saveLetter(letter, prevUpdatedAt) {
       need("mektup");
       const l = S.letters.find(x => x.id === letter.id);
-      if (!l || l.updated_at !== prevUpdatedAt) throw new Error("Bu mektubu başka biri kaydetti. Sayfayı yenileyip tekrar deneyin.");
+      if (!l) throw new Error("Mektup bulunamadı.");
+      if (l.updated_at !== prevUpdatedAt) throw conflictError();
+      if (S.letters.some(x => x.id !== l.id && x.term_id === l.term_id && x.issue_no === Number(letter.issue_no))) throw new Error("Bu sayı numarası bu dönemde zaten var.");
       Object.assign(l, clone({ period: letter.period, issue_no: letter.issue_no, pages: letter.pages, folders: letter.folders }));
       // Aynı milisaniyede ikinci kayıt olursa damga değişmeyip çakışma kaçmasın
       let ts = new Date().toISOString(); if (ts <= l.updated_at) ts = new Date(Date.parse(l.updated_at) + 1).toISOString();
@@ -442,7 +444,7 @@ function demoStore() {
       if (!hasRole(me(), "baskan") && !me()?.is_owner) throw new Error("Yalnızca Başkan yayınlayabilir");
       const l = S.letters.find(x => x.id === id); if (!l) throw new Error("Mektup bulunamadı.");
       const now = new Date().toISOString();
-      l.status = "yayinda"; l.published_pages = clone(l.pages); l.published_at = now; l.updated_at = now; save(); return clone(l);
+      l.status = "yayinda"; l.published_pages = clone(l.pages); l.published_at = l.published_at || now; l.updated_at = now; save(); return clone(l);
     },
     async unpublishLetter(id) {
       if (!hasRole(me(), "baskan") && !me()?.is_owner) throw new Error("Yalnızca Başkan yayınlayabilir");
@@ -676,7 +678,7 @@ async function supabaseStore() {
       if (!gone || !gone.length) throw new Error("Sayıları yalnızca Başkan silebilir.");
       try {
         const files = ok(await sb.storage.from("letters").list(id, { limit: 1000 })) || [];
-        if (files.length) await sb.storage.from("letters").remove(files.map(f => id + "/" + f.name));
+        if (files.length) ok(await sb.storage.from("letters").remove(files.map(f => id + "/" + f.name)));
       } catch (e) { console.warn("Mektup fotoğrafları silinemedi", e); }
     },
     async createLetter({ issue_no, period }) {
@@ -686,7 +688,7 @@ async function supabaseStore() {
     async saveLetter(letter, prevUpdatedAt) {
       const row = ok(await sb.from("letters").update({ period: letter.period, issue_no: letter.issue_no, pages: letter.pages, folders: letter.folders, updated_by: await meId() })
         .eq("id", letter.id).eq("updated_at", prevUpdatedAt).select().maybeSingle());
-      if (!row) throw new Error("Bu mektubu başka biri kaydetti. Sayfayı yenileyip tekrar deneyin.");
+      if (!row) throw conflictError();
       return row;
     },
     async publishLetter(id) { ok(await sb.rpc("publish_letter", { p_id: id })); },
@@ -708,7 +710,16 @@ async function supabaseStore() {
   };
 }
 
+// Kayıt çakışması: başkası araya kayıt yaptı (düzenleyici e.code ile ayırt eder).
+function conflictError() {
+  const e = new Error("Bu mektubu başka biri kaydetti. Sayfayı yenileyip tekrar deneyin.");
+  e.code = "conflict";
+  return e;
+}
+
 function trError(m) {
+  if (/letters_issue_uniq/i.test(m)) return "Bu sayı numarası bu dönemde zaten var.";
+  if (/duplicate key|unique constraint/i.test(m)) return "Bu kayıt zaten var.";
   if (/Invalid login credentials/i.test(m)) return "E-posta ya da şifre hatalı.";
   if (/Email not confirmed/i.test(m)) return "E-posta adresinizi doğrulamanız gerekiyor. Gelen kutunuza bakın.";
   if (/already registered/i.test(m)) return "Bu e-posta ile zaten bir hesap var.";

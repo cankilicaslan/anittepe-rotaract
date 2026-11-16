@@ -1688,3 +1688,5 @@ alter table public.term_board_plans add column if not exists notes text;
 --      orijinal PDF indirme bağlantısı letters.pdf_url
 -- =====================================================================
 alter table public.letters add column if not exists pdf_url text;
+-- Anonim okuyucu (/mektup/) pdf_url sütununu da okur (letters sütun bazlı izinli)
+grant select (pdf_url) on public.letters to anon;

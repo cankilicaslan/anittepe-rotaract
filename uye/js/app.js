@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611161816";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161816";
+import { createStore, trDate } from "./store.js?v=202611161819";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161819";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -737,7 +737,26 @@ async function editMember(m) {
     if (e.submitter?.value !== "save") return;
     const fd = new FormData(e.target);
     const patch = { full_name: fd.get("full_name"), title: fd.get("title"), phone: fd.get("phone"), email: fd.get("email"), birth_date: fd.get("birth_date") || null, profession: fd.get("profession"), instagram: fd.get("instagram"), blood_type: fd.get("blood_type"), status: fd.get("status"), joined_at: fd.get("joined_at") || null, roles: fd.getAll("role"), past_president: fd.has("past_president"), hide_roles: fd.has("hide_roles"), start_meeting_id: fd.get("start_meeting_id") || null };
+    // Komite görevi devri: yeni verilen komite başka bir aktif üyedeyse, görev ve panel erişimi eski kişiden alınıp bu kişiye aktarılır.
+    const COMMITTEES = ROLE_GROUPS[1][1];
+    const added = (patch.roles || []).filter(r => COMMITTEES.includes(r) && !(m.roles || []).includes(r));
+    let handover = [];
+    if (added.length) {
+      const all = await store.listMembers().catch(() => []);
+      handover = added.flatMap(r => all.filter(x => x.id !== m.id && x.status === "active" && (x.roles || []).includes(r)).map(x => ({ r, x })));
+      if (handover.length) {
+        const lines = handover.map(({ r, x }) => `• ${ROLE_LABELS[r]}: ${x.full_name} → ${patch.full_name}`).join("\n");
+        if (!confirm(`Bu komite görevleri şu an başka birinde:\n${lines}\n\nTamam: görev ve panel erişimi eski kişiden alınıp ${patch.full_name} kişisine aktarılır.\nİptal: görev ikisinde de kalır.`)) handover = [];
+      }
+      // Unvanı boş ya da "Üye" ise yeni komitenin unvanı yazılır.
+      if (!patch.title || /^üye$/i.test(String(patch.title).trim())) patch.title = ROLE_LABELS[added[0]] + " Başkanı";
+    }
     try {
+      for (const { r, x } of handover) {
+        const title = String(x.title || "").trim().toLocaleLowerCase("tr") === (ROLE_LABELS[r] + " Başkanı").toLocaleLowerCase("tr") ? "Üye" : x.title;
+        await store.updateMember(x.id, { roles: (x.roles || []).filter(k => k !== r), title });
+      }
+      if (handover.length) toast(`Görev devredildi: ${handover.map(({ r, x }) => `${esc(ROLE_LABELS[r])} (${esc(x.full_name)} → ${esc(patch.full_name)})`).join(", ")}`);
       if (isNew) {
         const { roles, past_president, status, hide_roles, start_meeting_id, ...base } = patch;
         const created = await store.addMember(base);
@@ -1424,7 +1443,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611161816");
+  const { mountComposer } = await import("./composer.js?v=202611161819");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1433,7 +1452,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161816");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161819");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

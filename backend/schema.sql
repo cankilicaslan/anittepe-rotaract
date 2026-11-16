@@ -1382,3 +1382,18 @@ create policy app_settings_write on public.app_settings for all to authenticated
 drop policy if exists guests_select on public.guests;
 create policy guests_select on public.guests for select to authenticated
   using (public.has_role('sekreter') or public.has_role('pr') or public.can_view_all());
+
+-- =====================================================================
+-- v31: Tüm komite başkanları misafir iletişim bilgilerini görür (üye bilgileri zaten tüm üyelere açık)
+-- =====================================================================
+create or replace function public.is_committee_chair()
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.profiles p
+                 where p.id = auth.uid() and p.status = 'active'
+                   and p.roles && array['hizmet','uyelik','uluslararasi','pr','kulup','meslek','afet','hobi','interact']::text[]);
+$$;
+revoke all on function public.is_committee_chair() from public, anon;
+grant execute on function public.is_committee_chair() to authenticated;
+drop policy if exists guests_select on public.guests;
+create policy guests_select on public.guests for select to authenticated
+  using (public.has_role('sekreter') or public.is_committee_chair() or public.can_view_all());

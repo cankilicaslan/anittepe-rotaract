@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611161816";
-import { can, hasRole } from "./roles.js?v=202611161816";
+import { CONFIG } from "./config.js?v=202611161819";
+import { can, hasRole } from "./roles.js?v=202611161819";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -287,7 +287,8 @@ function demoStore() {
       if (status) S.attendance.push({ meeting_id, member_id, status, note, updated_at: new Date().toISOString() });
       save();
     },
-    async listGuests() { return can(me(), "yoklama") || can(me(), "duyuru") ? clone(S.guests) : []; },
+    // Misafir iletişim bilgileri: yoklama/duyuru görevlileri ve tüm komite başkanları.
+    async listGuests() { const m = me(); return can(m, "yoklama") || can(m, "duyuru") || ["hizmet", "uyelik", "uluslararasi", "pr", "kulup", "meslek", "afet", "hobi", "interact"].some(r => hasRole(m, r)) ? clone(S.guests) : []; },
     async listGuestNames() { return (S.guests || []).map(g => g.full_name); },
     async getSetting(key) { return (S.settings ||= {})[key] ?? null; },
     async setSetting(key, value) {

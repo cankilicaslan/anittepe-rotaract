@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611161616";
-import { can, hasRole } from "./roles.js?v=202611161616";
+import { CONFIG } from "./config.js?v=202611161656";
+import { can, hasRole } from "./roles.js?v=202611161656";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -48,6 +48,13 @@ export function templateCaption({ type, term_no, club_no, ocakbasi_no, summary, 
     fallback = "Emeği geçen herkese teşekkür ederiz.";
   }
   return [opening, notes || fallback, tags].join("\n\n");
+}
+
+// Mektup yapay zekâsı bağlı değilken: notları kullanarak şablon paragraf (uydurma bilgi yok).
+function letterTemplate(i) {
+  const label = (i.label || i.title || "").trim(), notes = (i.notes || "").trim();
+  if (!label) return notes;
+  return notes ? `${label}: ${notes}` : `${label} gerçekleşti.`;
 }
 
 async function sha(s) {
@@ -145,6 +152,18 @@ function demoStore() {
     S.meetings.filter(m => m.term_no >= 6 && m.date < today()).forEach((m, i) => S.guestAtt.push({ meeting_id: m.id, guest_id: g.id, status: i % 4 === 3 ? "gelmedi" : "geldi", note: "" }));
     const late = S.profiles.find(p => p.full_name === "Metehan Can Çırak"), m9 = S.meetings.find(m => m.term_no === 9);
     if (late && m9) { late.start_meeting_id = m9.id; S.attendance = S.attendance.filter(a => !(a.member_id === late.id && S.meetings.find(m => m.id === a.meeting_id)?.term_no < 9)); }
+  }
+  if (!S.letters) {
+    // Demo: dönemin yayında bir örnek mektubu (Başkan Mektubu)
+    const ph = f => ({ path: "demo", url: `../assets/haberler/${f}`, pos: { x: 0.5, y: 0.5 }, zoom: 1 });
+    const pages = [
+      { id: uid(), layout: "kapak", fields: { issue: "1", period: "Temmuz 2026", title: "Başkan Mektubu", photo: ph("606-toplanti.webp") } },
+      { id: uid(), layout: "kunye", fields: { rows: [{ title: "Başkan", name: "Simay Oğuzkurt" }, { title: "Sekreter", name: "Oğulcan Görgülü" }, { title: "Sayman", name: "Umut Ekin Akkuş" }] } },
+      { id: uid(), layout: "baskan", fields: { photo: ph("baskan-mektubu-1.webp"), body: "Sevgili Rotaractçılar, yeni dönemimize birlikte başladık. Bu mektup örnek bir metindir.", name: "Simay Oğuzkurt", club: "Ankara Anıttepe Rotaract Kulübü", role: "Başkan" } },
+      { id: uid(), layout: "neler-2", fields: { label1: "Döneme Merhaba Partisi", photo1: ph("doneme-merhaba-partisi.webp"), body1: "Dönemi bir partiyle açtık.", label2: "606. Toplantı", photo2: ph("606-toplanti.webp"), body2: "Toplantımızda gündemi konuştuk." } }
+    ];
+    const now = new Date().toISOString();
+    S.letters = [{ id: uid(), term_id: S.term.id, issue_no: 1, period: "Temmuz 2026", status: "yayinda", pages, folders: [], published_pages: JSON.parse(JSON.stringify(pages)), published_at: now, updated_at: now, updated_by: null }];
   }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { throw new Error("Tarayıcı depolaması dolu. Daha küçük bir fotoğraf deneyin."); } };
   save();
@@ -386,7 +405,56 @@ function demoStore() {
       S.posts.push(x); save(); return clone(x);
     },
     async generateCaption(input) { need("instagram"); return { caption: templateCaption(input), source: "sablon" }; },
-    async publishInstagram() { need("instagram"); return { ok: false, demo: true }; }
+    async publishInstagram() { need("instagram"); return { ok: false, demo: true }; },
+
+    // Başkan Mektubu
+    async listLetters() {
+      need("mektup", "view");
+      return clone(S.letters.filter(l => l.term_id === S.term.id)).sort((a, b) => b.issue_no - a.issue_no)
+        .map(({ id, issue_no, period, status, published_at, updated_at }) => ({ id, issue_no, period, status, published_at, updated_at }));
+    },
+    async getLetter(id) {
+      need("mektup", "view");
+      const l = S.letters.find(x => x.id === id); if (!l) throw new Error("Mektup bulunamadı."); return clone(l);
+    },
+    async createLetter({ issue_no, period }) {
+      need("mektup");
+      if (S.letters.some(l => l.term_id === S.term.id && l.issue_no === Number(issue_no))) throw new Error("Bu sayı numarası zaten var.");
+      const l = { id: uid(), term_id: S.term.id, issue_no: Number(issue_no), period: period || "", status: "taslak", pages: [], folders: [], published_pages: null, published_at: null, updated_at: new Date().toISOString(), updated_by: S.session };
+      S.letters.push(l); save(); return clone(l);
+    },
+    async saveLetter(letter, prevUpdatedAt) {
+      need("mektup");
+      const l = S.letters.find(x => x.id === letter.id);
+      if (!l || l.updated_at !== prevUpdatedAt) throw new Error("Bu mektubu başka biri kaydetti. Sayfayı yenileyip tekrar deneyin.");
+      Object.assign(l, clone({ period: letter.period, issue_no: letter.issue_no, pages: letter.pages, folders: letter.folders }));
+      // Aynı milisaniyede ikinci kayıt olursa damga değişmeyip çakışma kaçmasın
+      let ts = new Date().toISOString(); if (ts <= l.updated_at) ts = new Date(Date.parse(l.updated_at) + 1).toISOString();
+      l.updated_at = ts; l.updated_by = S.session;
+      save(); return clone(l);
+    },
+    async publishLetter(id) {
+      if (!hasRole(me(), "baskan") && !me()?.is_owner) throw new Error("Yalnızca Başkan yayınlayabilir");
+      const l = S.letters.find(x => x.id === id); if (!l) throw new Error("Mektup bulunamadı.");
+      const now = new Date().toISOString();
+      l.status = "yayinda"; l.published_pages = clone(l.pages); l.published_at = now; l.updated_at = now; save(); return clone(l);
+    },
+    async unpublishLetter(id) {
+      if (!hasRole(me(), "baskan") && !me()?.is_owner) throw new Error("Yalnızca Başkan yayınlayabilir");
+      const l = S.letters.find(x => x.id === id); if (!l) throw new Error("Mektup bulunamadı.");
+      l.status = "taslak"; l.published_pages = null; l.published_at = null; l.updated_at = new Date().toISOString(); save(); return clone(l);
+    },
+    // Demo: görsel veri adresi olarak saklanır (yenilemeden sonra da görünsün)
+    async uploadLetterPhoto(letterId, blob) {
+      need("mektup");
+      const url = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = () => rej(new Error("Fotoğraf okunamadı.")); fr.readAsDataURL(blob); });
+      return { path: "demo/" + uid(), url };
+    },
+    async copyAvatarToLetter(letterId, photoUrl) { need("mektup"); return { path: "demo/" + uid(), url: photoUrl }; },
+    async letterAi(items) {
+      need("mektup");
+      return { texts: items.map(i => letterTemplate(i)), source: "sablon" };
+    }
   };
 }
 
@@ -589,6 +657,39 @@ async function supabaseStore() {
       const body = list.length > 1 ? { images_base64: await Promise.all(list.map(b64)), caption, post_id } : { image_base64: await b64(list[0]), caption, post_id };
       const j = await fn("instagram-publish", body);
       return { ok: true, ...j };
+    },
+
+    // Başkan Mektubu
+    async listLetters() {
+      const t = await term();
+      return ok(await sb.from("letters").select("id,issue_no,period,status,published_at,updated_at").eq("term_id", t.id).order("issue_no", { ascending: false }));
+    },
+    async getLetter(id) { return ok(await sb.from("letters").select("*").eq("id", id).single()); },
+    async createLetter({ issue_no, period }) {
+      const t = await term();
+      return ok(await sb.from("letters").insert({ term_id: t.id, issue_no, period, updated_by: await meId() }).select().single());
+    },
+    async saveLetter(letter, prevUpdatedAt) {
+      const row = ok(await sb.from("letters").update({ period: letter.period, issue_no: letter.issue_no, pages: letter.pages, folders: letter.folders, updated_by: await meId() })
+        .eq("id", letter.id).eq("updated_at", prevUpdatedAt).select().maybeSingle());
+      if (!row) throw new Error("Bu mektubu başka biri kaydetti. Sayfayı yenileyip tekrar deneyin.");
+      return row;
+    },
+    async publishLetter(id) { ok(await sb.rpc("publish_letter", { p_id: id })); },
+    async unpublishLetter(id) { ok(await sb.rpc("unpublish_letter", { p_id: id })); },
+    async uploadLetterPhoto(letterId, blob) {
+      const path = `${letterId}/${crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)}.jpg`;
+      ok(await sb.storage.from("letters").upload(path, blob, { contentType: "image/jpeg" }));
+      return { path, url: sb.storage.from("letters").getPublicUrl(path).data.publicUrl };
+    },
+    async copyAvatarToLetter(letterId, photoUrl) {
+      const res = await fetch(photoUrl);
+      if (!res.ok) throw new Error("Profil fotoğrafı alınamadı.");
+      return this.uploadLetterPhoto(letterId, await res.blob());
+    },
+    async letterAi(items) {
+      try { return await fn("letter-ai", { items }); }
+      catch (e) { return { texts: items.map(i => i.notes || ""), source: "sablon", error: e.message }; }
     }
   };
 }

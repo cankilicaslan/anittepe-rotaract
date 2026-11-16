@@ -505,18 +505,6 @@ function cropPhoto(file) {
 }
 
 /* ------------------------------ Profil ------------------------------ */
-// Profilde "Görevin": kişinin görevleri ve her görevin menüdeki paneli; paneli olmayan görev üye görünümünü kullanır.
-function myDuties() {
-  const rs = (me.roles || []).filter(r => ROLE_LABELS[r]);
-  if (!rs.length && !me.past_president) return "";
-  const rowsH = [...rs, ...(me.past_president ? ["gdb"] : [])].map(r => {
-    const name = r === "gdb" ? "Geçmiş dönem başkanı" : ROLE_LABELS[r] + (ROLE_GROUPS[1][1].includes(r) ? " Başkanı" : "");
-    const pages = rolePages(r);
-    const note = r === "baskan" || r === "asbaskan" ? rolePagesNote(r) : pages.length ? "Menüde: " + pages.join(", ") : "Bu göreve özel panel henüz tanımlanmadı; üye görünümünü kullanıyorsun.";
-    return `<li><b>${esc(name)}</b><span>${esc(note)}</span></li>`;
-  }).join("");
-  return `<div class="duties"><h3>Görevin</h3><ul>${rowsH}</ul></div>`;
-}
 /* ---------------------------- Komite paneli ---------------------------- */
 // Her komite görevinin kendi paneli. Komitenin özel bir paneli (ör. HİTK → Instagram) varsa buradan da açılır.
 const COMMITTEE_INFO = {
@@ -570,7 +558,7 @@ async function viewProfile(v) {
   <div class="card"><div class="profile-head">
     <div class="photo-btn">${avatar(me, "lg")}<label>Değiştir<input type="file" accept="image/*" id="photo" class="sr"></label></div>
     <div><h2>${esc(me.full_name)}</h2><p style="margin:2px 0 8px;font-weight:600">${esc(me.title || "Üye")}</p><div class="row">${roles}</div></div>
-  </div>${myDuties()}</div>
+  </div></div>
   <div class="stats" style="margin-top:16px">
     <div class="stat ${debt.total ? "hl" : ""}"><span>Aidat borcu</span><b>${TL(debt.total)}</b></div>
     <div class="stat"><span>Devam oranı</span><b>${pct(st.oran)}</b></div>

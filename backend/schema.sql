@@ -1465,3 +1465,147 @@ create policy donations_select on public.donations for select to authenticated
 alter table public.profiles drop constraint if exists profiles_roles_chk;
 alter table public.profiles add constraint profiles_roles_chk
   check (roles <@ array['baskan','asbaskan','sayman','sekreter','ykuye','pr','hizmet','uyelik','uluslararasi','kulup','meslek','afet','hobi','interact']::text[]);
+
+-- =====================================================================
+-- v36: Gelecek dönemi planla (2027-28 taslak dönemi)
+--      Pasif dönem satırı; dönem tablolarına "aktif dönem ya da planlayıcı" kapısı.
+--      Planlayıcı = asbaşkan ya da site sahibi (başkan ve GDB değil).
+-- =====================================================================
+create or replace function public.is_planner()
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.has_role('asbaskan') or public.is_owner();
+$$;
+create or replace function public.term_is_current(p_term uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select p_term is null or exists (select 1 from public.terms t where t.id = p_term and t.is_current);
+$$;
+revoke all on function public.is_planner(), public.term_is_current(uuid) from public;
+grant execute on function public.is_planner() to authenticated;
+grant execute on function public.term_is_current(uuid) to anon, authenticated;
+
+-- Plan dönemi (yoksa oluşturur). Yalnızca planlayıcı.
+create or replace function public.ensure_plan_term()
+returns public.terms language plpgsql security definer set search_path = public as $$
+declare c public.terms; p public.terms;
+begin
+  if not public.is_planner() then raise exception 'Planlama yalnızca asbaşkana açık'; end if;
+  select * into p from public.terms where name = '2027-28';
+  if found then return p; end if;
+  select * into c from public.terms where is_current;
+  insert into public.terms (name, start_date, meeting_count, club_meeting_offset, opening_balance, is_current)
+  values ('2027-28', date '2027-07-01', 24, coalesce(c.club_meeting_offset + c.meeting_count, 599), 0, false)
+  returning * into p;
+  return p;
+end $$;
+revoke all on function public.ensure_plan_term() from public, anon;
+grant execute on function public.ensure_plan_term() to authenticated;
+
+-- Projelere dönem
+alter table public.projects add column if not exists term_id uuid references public.terms(id) on delete set null;
+create index if not exists projects_term_idx on public.projects (term_id);
+
+-- Dönemi boş eski kayıtlar aktif döneme bağlanır
+update public.dues         set term_id = (select id from public.terms where is_current) where term_id is null;
+update public.transactions set term_id = (select id from public.terms where is_current) where term_id is null;
+update public.kasa_groups  set term_id = (select id from public.terms where is_current) where term_id is null;
+update public.projects     set term_id = (select id from public.terms where is_current) where term_id is null;
+
+-- Kapı: aktif olmayan dönemin satırlarını yalnızca planlayıcı okur/yazar
+drop policy if exists dues_term_gate on public.dues;
+create policy dues_term_gate on public.dues as restrictive for all to authenticated
+  using (public.term_is_current(term_id) or public.is_planner()) with check (public.term_is_current(term_id) or public.is_planner());
+drop policy if exists transactions_term_gate on public.transactions;
+create policy transactions_term_gate on public.transactions as restrictive for all to authenticated
+  using (public.term_is_current(term_id) or public.is_planner()) with check (public.term_is_current(term_id) or public.is_planner());
+drop policy if exists kasa_groups_term_gate on public.kasa_groups;
+create policy kasa_groups_term_gate on public.kasa_groups as restrictive for all to authenticated
+  using (public.term_is_current(term_id) or public.is_planner()) with check (public.term_is_current(term_id) or public.is_planner());
+drop policy if exists projects_term_gate on public.projects;
+create policy projects_term_gate on public.projects as restrictive for all to authenticated
+  using (public.term_is_current(term_id) or public.is_planner()) with check (public.term_is_current(term_id) or public.is_planner());
+drop policy if exists projects_anon_gate on public.projects;
+create policy projects_anon_gate on public.projects as restrictive for select to anon
+  using (public.term_is_current(term_id));
+drop policy if exists charges_term_gate on public.charges;
+create policy charges_term_gate on public.charges as restrictive for all to authenticated
+  using (exists (select 1 from public.dues d where d.id = due_id and (public.term_is_current(d.term_id) or public.is_planner())))
+  with check (exists (select 1 from public.dues d where d.id = due_id and (public.term_is_current(d.term_id) or public.is_planner())));
+drop policy if exists terms_plan_gate on public.terms;
+create policy terms_plan_gate on public.terms as restrictive for select to authenticated
+  using (is_current or public.is_planner());
+
+-- Planlayıcı taslak dönemde yazar (rol kısıtlarından bağımsız)
+drop policy if exists dues_planner_write on public.dues;
+create policy dues_planner_write on public.dues for all to authenticated
+  using (not public.term_is_current(term_id) and public.is_planner()) with check (not public.term_is_current(term_id) and public.is_planner());
+drop policy if exists transactions_planner_write on public.transactions;
+create policy transactions_planner_write on public.transactions for all to authenticated
+  using (not public.term_is_current(term_id) and public.is_planner()) with check (not public.term_is_current(term_id) and public.is_planner());
+drop policy if exists kasa_groups_planner_write on public.kasa_groups;
+create policy kasa_groups_planner_write on public.kasa_groups for all to authenticated
+  using (not public.term_is_current(term_id) and public.is_planner()) with check (not public.term_is_current(term_id) and public.is_planner());
+drop policy if exists projects_planner_write on public.projects;
+create policy projects_planner_write on public.projects for all to authenticated
+  using (not public.term_is_current(term_id) and public.is_planner()) with check (not public.term_is_current(term_id) and public.is_planner());
+
+-- YK planı (taslak; kimseye görev vermez)
+create table if not exists public.term_board_plans (
+  term_id    uuid primary key references public.terms(id) on delete cascade,
+  slots      jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now(),
+  updated_by uuid references public.profiles(id) on delete set null
+);
+alter table public.term_board_plans enable row level security;
+drop policy if exists term_board_plans_planner on public.term_board_plans;
+create policy term_board_plans_planner on public.term_board_plans for all to authenticated
+  using (public.is_planner()) with check (public.is_planner());
+
+-- Taslak dönemin "Bağış" gideri bugünkü Bağışlar listesine düşmez
+create or replace function public.tx_to_donation()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if not public.term_is_current(new.term_id) then return new; end if;
+  if new.kind = 'gider' and (new.category = 'Bağış' or new.category like 'Bağış – %') then
+    insert into public.donations (tx_id, date, fund, on_behalf, amount, note)
+    values (new.id, new.date,
+            coalesce(new.donation_fund, nullif(substring(new.category from 'Bağış – (.*)$'), '')),
+            new.donation_for, new.amount, new.description)
+    on conflict (tx_id) do nothing;
+  end if;
+  return new;
+end;
+$$;
+
+-- Misafiri üye yaparken yalnızca aktif dönemin taksitleri borç olur
+create or replace function public.convert_guest(p_guest uuid, p_member uuid, p_joined date)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v_att int := 0; v_ch int := 0; v_first uuid;
+begin
+  if not public.is_admin() then raise exception 'Üye almak için Başkan yetkisi gerekiyor'; end if;
+  if not exists (select 1 from public.guests where id = p_guest) then raise exception 'Misafir bulunamadı'; end if;
+  if not exists (select 1 from public.profiles where id = p_member) then raise exception 'Üye profili bulunamadı'; end if;
+  insert into public.attendance (meeting_id, member_id, status, note)
+    select ga.meeting_id, p_member, ga.status, ga.note from public.guest_attendance ga where ga.guest_id = p_guest
+  on conflict (meeting_id, member_id) do nothing;
+  get diagnostics v_att = row_count;
+  select m.id into v_first from public.guest_attendance ga join public.meetings m on m.id = ga.meeting_id
+   where ga.guest_id = p_guest order by m.date nulls last, m.term_no limit 1;
+  if v_first is null then
+    select m.id into v_first from public.meetings m where m.date >= p_joined order by m.date, m.term_no limit 1;
+  end if;
+  update public.profiles set joined_at = p_joined, start_meeting_id = coalesce(v_first, start_meeting_id) where id = p_member;
+  insert into public.charges (due_id, member_id, amount)
+    select d.id, p_member, d.amount from public.dues d where d.due_date >= p_joined and public.term_is_current(d.term_id)
+  on conflict (due_id, member_id) do nothing;
+  get diagnostics v_ch = row_count;
+  delete from public.guests where id = p_guest;
+  return jsonb_build_object('attendance', v_att, 'charges', v_ch);
+end $$;
+
+-- Aktifleştirme (1 Temmuz 2027, elle; tek transaction):
+--   begin;
+--   update public.terms set is_current = false where is_current;
+--   update public.terms set is_current = true where name = '2027-28';
+--   commit;
+--   Sonra: aktif üyeler için 2027-28 taksitlerine charge üret, toplantıları oluştur,
+--   YK planına bakıp görevleri panelden ata.

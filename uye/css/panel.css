@@ -763,3 +763,9 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 .check.locked{opacity:.55;cursor:not-allowed}
 /* Misafir satırı: Düzenle + Üye al */
 .m-gacts{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+
+/* Gelecek dönemi planla */
+.banner.plan{background:#EEF4FF;border:1px solid #C9DAF5;color:#163A6B;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.side nav .grp.plan-grp{color:#163A6B;display:flex;flex-direction:column;gap:2px;padding:6px 12px 10px}
+.side nav .grp.plan-grp small{font-size:.72rem;font-weight:600;color:var(--muted)}
+.side nav a.plan-exit{margin-top:10px;color:var(--muted);font-weight:600}

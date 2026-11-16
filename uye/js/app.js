@@ -329,8 +329,17 @@ const PAGES = [
   // Başkan Mektubu: Başkan, HİTK ve Kulüp Hizmetleri hazırlar; asbaşkan görüntüler; yalnızca Başkan yayınlar.
   { id: "mektup", label: "Başkan Mektubu", panel: "mektup" },
   // Site düzenleme: yalnızca Halkla İlişkiler ve Tanıtım (HİTK) görevlisi.
-  { id: "site", label: "Site düzenleme", show: () => hasRole(me, "pr") }
+  { id: "site", label: "Site düzenleme", show: () => hasRole(me, "pr") },
+  // Gelecek dönemi planla: yalnızca asbaşkan ve site sahibi (taslak; veritabanı da yalnız onlara açar)
+  { id: "plan", label: "Gelecek dönemi planla", show: () => isPlanner() }
 ];
+const isPlanner = () => !preview && hasRole(realPlanMe || me, "asbaskan");
+const PLAN_NAME = "2027-2028 dönemi planlama";
+const PLAN_PAGES = [["yk", "Yönetim kurulu planlama"], ["takvim", "Takvim"], ["kulup-projeleri", "Kulüp projeleri"], ["aidat", "Aidat"], ["kasa", "Kulüp kasası"]];
+// Plan modunda planlayıcı bu dört ekranı düzenleyebilir (taslak satırlarda veritabanı planlayıcıya izin verir)
+let realPlanMe = null, planSub = null;
+function enterPlanMe() { if (!realPlanMe) { realPlanMe = me; me = { ...me, roles: [...new Set([...(me.roles || []), "sayman", "hizmet"])] }; } }
+function leavePlanMe() { if (realPlanMe) { me = realPlanMe; realPlanMe = null; } store.setViewTerm?.(null); planSub = null; }
 const visible = p => p.panel ? can(me, p.panel, "view") : p.show?.();
 
 let composerInst = null, letterInst = null;
@@ -351,8 +360,10 @@ function shell() {
   try { letterInst?.destroy?.(); } catch {} letterInst = null;
   [route] = [(location.hash || "#profil").slice(1).split("/").map(decodeURIComponent)];
   let id = route.shift();
+  if (id === "plan" && isPlanner()) { planSub = PLAN_PAGES.some(([k]) => k === route[0]) ? route.shift() : "yk"; enterPlanMe(); }
+  else leavePlanMe();
   const page = PAGES.find(p => p.id === id);
-  if (!page || !visible(page)) { id = "profil"; route = []; }
+  if (!page || !visible(page)) { id = "profil"; route = []; leavePlanMe(); }
   const navId = id === "yukle" ? "arsiv" : id;
   // HİTK (Halkla İlişkiler) fotoğraf arşivini yönettiği için menüde arşiv Yönetim başlığının altında durur.
   let pages = PAGES;
@@ -360,7 +371,7 @@ function shell() {
   const nav = pages.filter(p => p.grp || (visible(p) && !p.hidden));
   // Menü iki bölüm: herkesin gördüğü "Üye alanı" ve görevlilerin "Yönetim" bölümü (ayrı kutu, belirgin başlık).
   const hasMgmt = nav.some((p, i) => p.mgmt && nav.slice(i + 1).some(x => !x.grp));
-  const navHtml = nav.map((p, i) => p.grp
+  const navHtml = planSub ? `<div class="grp plan-grp">${PLAN_NAME}<small>Taslak · yalnızca sen görüyorsun</small></div>` + PLAN_PAGES.map(([k, l]) => `<a href="#plan${k === "yk" ? "" : "/" + k}" ${k === planSub ? 'aria-current="page"' : ""}>${l}</a>`).join("") + `<a href="#profil" class="plan-exit">← Planlamadan çık</a>` : nav.map((p, i) => p.grp
     ? (!nav.slice(i + 1).some(x => !x.grp) || (!p.mgmt && !hasMgmt) ? "" : p.mgmt ? `</div><div class="nav-sec mgmt" role="group" aria-label="Yönetim"><div class="grp">${p.grp}<small>Görevine özel paneller</small></div>` : `<div class="grp">${p.grp}</div>`)
     : `<a href="#${p.id}" ${p.id === navId ? 'aria-current="page"' : ""}>${navLabel(p)}</a>`).join("");
   app.innerHTML = `
@@ -373,9 +384,10 @@ function shell() {
       <button class="btn ghost sm" id="logout">Çıkış yap</button>
     </aside>
     <div>
-      <div class="topbar"><button class="icon-btn" id="menu" aria-controls="side" aria-expanded="false" aria-label="Menüyü aç"><span class="burger" aria-hidden="true"></span></button><img src="../assets/logo-cranberry.webp" alt="Rotaract Ankara Anıttepe"><span class="topbar-title">${esc((PAGES.find(p => p.id === id) || {}).label || "")}</span></div>
+      <div class="topbar"><button class="icon-btn" id="menu" aria-controls="side" aria-expanded="false" aria-label="Menüyü aç"><span class="burger" aria-hidden="true"></span></button><img src="../assets/logo-cranberry.webp" alt="Rotaract Ankara Anıttepe"><span class="topbar-title">${esc(planSub ? (PLAN_PAGES.find(([k]) => k === planSub) || [])[1] || PLAN_NAME : (PAGES.find(p => p.id === id) || {}).label || "")}</span></div>
       <main class="main" id="main" tabindex="-1">
         ${store.mode === "demo" ? `<div class="banner demo"><span><b>Demo modu.</b> Örnek verilerle çalışıyor; değişiklikler yalnızca bu tarayıcıda kalır.</span> <button class="btn ghost sm" id="reset">Örnek verileri sıfırla</button></div>` : ""}
+        ${planSub ? `<div class="banner plan" role="status"><span><b>${PLAN_NAME}</b> · Taslak. 1 Temmuz 2027 – 30 Haziran 2028. Burada girilenleri yalnızca asbaşkan ve site sahibi görür; dönem aktif yapılınca geçerli olur.</span> <a class="btn ghost sm" href="#profil">Planlamadan çık</a></div>` : ""}
         ${preview ? `<div class="banner preview" role="status"><span><b>Önizleme:</b> ${esc(preview.label)} olarak görüyorsun. Değişiklikler kaydedilmez.</span> <button class="btn sm" id="pv-end">Önizlemeden çık</button></div>` : ""}
         <div id="view"><p class="muted">Yükleniyor…</p></div>
       </main>
@@ -383,7 +395,7 @@ function shell() {
     <div class="scrim" id="scrim" hidden></div>
     <nav class="tabbar" aria-label="Hızlı geçiş">${[["profil", "Profil", "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0"], ["takvim", "Takvim", "M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"], ["uyeler", "Üyeler", "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm-6 9a6 6 0 0 1 12 0M17 11a3 3 0 1 0-1-5.8M21 20a5 5 0 0 0-4-4.9"], ["arsiv", "Arşiv", "M4 6h16v13H4zM4 15l4.5-4.5 3.5 3.5 2.5-2.5L20 17M15.5 9.5h.01"]].map(([h, l, d]) => `<a href="#${h}" ${h === navId ? 'aria-current="page"' : ""}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg><span>${l}</span></a>`).join("")}<button type="button" id="more"${["profil", "takvim", "uyeler", "arsiv"].includes(navId) ? "" : ' class="on"'}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menü</span></button></nav>
   </div>`;
-  document.getElementById("logout").onclick = async () => { if (letterInst?.isDirty?.() && !confirm("Mektupta kaydedilmemiş değişiklikler var. Kaydetmeden çıkılsın mı?")) return; try { letterInst?.destroy?.(); } catch {} letterInst = null; if (preview) { me = realMe; store = realStore; realMe = realStore = preview = null; } await store.signOut(); me = null; location.hash = ""; render(); };
+  document.getElementById("logout").onclick = async () => { if (letterInst?.isDirty?.() && !confirm("Mektupta kaydedilmemiş değişiklikler var. Kaydetmeden çıkılsın mı?")) return; try { letterInst?.destroy?.(); } catch {} letterInst = null; if (realPlanMe) { me = realPlanMe; realPlanMe = null; store.setViewTerm?.(null); } if (preview) { me = realMe; store = realStore; realMe = realStore = preview = null; } await store.signOut(); me = null; location.hash = ""; render(); };
   document.getElementById("pv-open")?.addEventListener("click", previewPicker);
   document.getElementById("pv-end")?.addEventListener("click", endPreview);
   const side = document.getElementById("side"), mb = document.getElementById("menu");
@@ -398,7 +410,12 @@ function shell() {
   const rs = document.getElementById("reset");
   if (rs) rs.onclick = () => { if (confirm("Örnek veriler ilk haline dönsün mü? Bu tarayıcıdaki demo değişiklikleri silinir.")) { store.resetDemo(); location.hash = ""; location.reload(); } };
   const view = document.getElementById("view");
-  const fn = { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, "kulup-projeleri": viewClubProjects, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram, mektup: viewLetter, site: viewSite, arsiv: viewArchive, yukle: viewUpload, bagislar: viewDonations, "proje-formlari": viewProjectForms, "wa-toplanti": viewWaMeeting, "wa-aidat": viewWaDues }[id];
+  const planFn = { yk: viewBoardPlan, takvim: viewCalendar, "kulup-projeleri": viewClubProjects, aidat: viewDues, kasa: viewTreasury }[planSub];
+  const fn = planSub ? async v => {
+    const t = await store.ensurePlanTerm(); store.setViewTerm(t);
+    if (planSub === "takvim" && !(cal2Month >= "2027-07" && cal2Month <= "2028-06")) cal2Month = "2027-07";
+    return planFn(v);
+  } : { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, "kulup-projeleri": viewClubProjects, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram, mektup: viewLetter, site: viewSite, arsiv: viewArchive, yukle: viewUpload, bagislar: viewDonations, "proje-formlari": viewProjectForms, "wa-toplanti": viewWaMeeting, "wa-aidat": viewWaDues, plan: viewBoardPlan }[id];
   fn(view).catch(e => { view.innerHTML = `<div class="err">${esc(e.message)}</div>`; });
   labelTables(view);
   new MutationObserver(() => labelTables(view)).observe(view, { childList: true, subtree: true });
@@ -415,6 +432,9 @@ function labelTables(root) {
 const header = (title, sub = "", actions = "") => `<div class="page-h"><div><h1>${title}</h1>${sub ? `<p>${sub}</p>` : ""}</div><div class="spacer"></div>${actions}</div>`;
 const roBanner = panel => can(me, panel, "edit") ? "" : `<div class="banner info">Bu bölümü yalnızca görüntüleyebilirsin; değişiklikleri görevli üye yapar.</div>`;
 const refresh = () => shell();
+
+/* ------------------------- Yönetim kurulu planlama ------------------------- */
+async function viewBoardPlan(v) { v.innerHTML = header("Yönetim kurulu planlama"); }
 
 /* --------------------------- Yardımcı hesaplar --------------------------- */
 // Üyenin yoklamada sayılmaya başladığı toplantı no'su (bu dönemde değilse dönem başı = 1).
@@ -1022,7 +1042,7 @@ async function viewDues(v) {
   const paid = charges.filter(c => c.paid_at).reduce((s, c) => s + +c.amount, 0);
   const dmap = Object.fromEntries(dues.map(d => [d.id, d]));
   const overdue = charges.filter(c => !c.paid_at && dmap[c.due_id]?.due_date < today()).reduce((s, c) => s + +c.amount, 0);
-  const ym = today().slice(0, 7);
+  const ym = planSub ? "2027-07" : today().slice(0, 7);
   v.innerHTML = header("Aidat", "Aidatları dönem dönem gir, ödeyenleri işaretle.") + roBanner("aidat") + `
   <div class="stats">
     <div class="stat"><span>Toplam tahakkuk</span><b>${TL(total)}</b></div>
@@ -1037,7 +1057,7 @@ async function viewDues(v) {
       <label class="f">Tutar (TL)<input type="number" name="amount" min="0" step="0.01" required></label>
       <label class="f">Son ödeme tarihi<input type="date" name="due_date" required></label>
     </div>
-    <details style="margin-top:12px"><summary style="cursor:pointer;font-weight:600">Kimlere uygulanacak? <span class="muted" id="who-n">Tüm aktif üyeler</span></summary>
+    ${planSub ? `<p class="muted" style="margin:12px 0 0;font-size:.88rem">Taslak dönemde taksit kimseye borç yazılmaz; dönem aktif olunca üyelere uygulanır.</p>` : ""}<details style="margin-top:12px"${planSub ? " hidden" : ""}><summary style="cursor:pointer;font-weight:600">Kimlere uygulanacak? <span class="muted" id="who-n">Tüm aktif üyeler</span></summary>
       <div class="grid g3" style="margin-top:10px">${members.filter(m => m.status === "active").map(m => `<label class="check"><input type="checkbox" name="mem" value="${m.id}" checked> ${esc(m.full_name)}</label>`).join("")}</div>
     </details>
     <div class="row" style="margin-top:14px"><button class="btn" type="submit">Aidatı ekle</button></div>
@@ -1564,7 +1584,7 @@ const longDate = iso => { const d = new Date(iso + "T12:00:00"); return `${d.get
 
 async function calendarItems() {
   const [meetings, projects, dues, charges, clubs, rsvps] = await Promise.all([
-    store.listMeetings(), store.listCalendarProjects(), store.listDues(), store.listCharges(), store.listClubEvents(), store.listRsvps()
+    store.listMeetings(), store.listCalendarProjects(), store.listDues(), store.listCharges(), planSub ? [] : store.listClubEvents(), planSub ? [] : store.listRsvps()
   ]);
   const items = [];
   meetings.forEach(m => items.push({ date: m.date, type: "toplanti", time: "19.30", title: `${m.term_no}. toplantı${m.label ? ` (${m.label})` : ""}`, sub: `Kulübümüzün ${m.club_no}. toplantısı · Hybrid Hub${m.note ? " · " + m.note : ""}`, ref: m }));
@@ -1616,7 +1636,7 @@ async function viewCalendar(v) {
   const shift = n => { const d = new Date(y, m - 1 + n, 1); cal2Month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; viewCalendar(v); };
   document.getElementById("c-prev").onclick = () => shift(-1);
   document.getElementById("c-next").onclick = () => shift(1);
-  document.getElementById("c-today").onclick = () => { cal2Month = today().slice(0, 7); viewCalendar(v); };
+  document.getElementById("c-today").onclick = () => { cal2Month = planSub ? "2027-07" : today().slice(0, 7); viewCalendar(v); };
   v.querySelectorAll("[data-f]").forEach(b => b.onclick = () => { calOff.has(b.dataset.f) ? calOff.delete(b.dataset.f) : calOff.add(b.dataset.f); viewCalendar(v); });
   v.querySelectorAll("[data-i]").forEach(b => b.onclick = e => { e.stopPropagation(); calDetail(items[+b.dataset.i], v); });
   const small = () => matchMedia("(max-width: 640px)").matches;

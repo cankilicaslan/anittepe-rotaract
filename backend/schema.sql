@@ -1458,3 +1458,10 @@ $$;
 drop policy if exists donations_select on public.donations;
 create policy donations_select on public.donations for select to authenticated
   using (public.has_role('sayman') or public.has_role('sekreter') or public.can_view_all());
+
+-- =====================================================================
+-- v35: Yönetim kurulu üyesi görevi (ykuye): özel paneli yok, üye görünümü; listede YK etiketi
+-- =====================================================================
+alter table public.profiles drop constraint if exists profiles_roles_chk;
+alter table public.profiles add constraint profiles_roles_chk
+  check (roles <@ array['baskan','asbaskan','sayman','sekreter','ykuye','pr','hizmet','uyelik','uluslararasi','kulup','meslek','afet','hobi','interact']::text[]);

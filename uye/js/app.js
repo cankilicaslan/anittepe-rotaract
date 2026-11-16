@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611161911";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161911";
+import { createStore, trDate } from "./store.js?v=202611161916";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161916";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -595,7 +595,7 @@ async function viewMembers(v) {
     return `<span class="acct ${on ? "on" : ""}" title="${t}" role="img" aria-label="${t}"></span>`;
   };
   const pending = members.filter(m => m.status === "pending");
-  const BOARD = ["baskan", "asbaskan", "sekreter", "sayman"];
+  const BOARD = ["baskan", "asbaskan", "sekreter", "sayman", "ykuye"];
   // İsmin altı: görevi olanlarda düğme görünümlü görev etiketleri; görevi olmayan (üye, GDB) kişide unvan gri yazı.
   const ROLE_CHIP = r => ROLE_LABELS[r];
   const whoCell = m => {
@@ -734,7 +734,8 @@ async function editMember(m) {
   // Unvan "X Komitesi Başkanı" seçilince X komitesinin rolü kendiliğinden işaretlenir.
   const tIn = dlg.querySelector("#m-title");
   if (tIn) tIn.addEventListener("change", () => {
-    const k = Object.keys(ROLE_LABELS).find(r => ROLE_GROUPS[1][1].includes(r) && tIn.value.trim().toLocaleLowerCase("tr") === (ROLE_LABELS[r] + " Başkanı").toLocaleLowerCase("tr"));
+    const v = tIn.value.trim().toLocaleLowerCase("tr");
+    const k = v === "yönetim kurulu üyesi" ? "ykuye" : Object.keys(ROLE_LABELS).find(r => ROLE_GROUPS[1][1].includes(r) && v === (ROLE_LABELS[r] + " Başkanı").toLocaleLowerCase("tr"));
     const cb = k && dlg.querySelector(`input[name=role][value="${k}"]`);
     if (cb && !cb.checked) { cb.checked = true; toast(`${esc(ROLE_LABELS[k])} yetkisi de işaretlendi.`); }
   });
@@ -1511,7 +1512,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611161911");
+  const { mountComposer } = await import("./composer.js?v=202611161916");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1520,7 +1521,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161911");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161916");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

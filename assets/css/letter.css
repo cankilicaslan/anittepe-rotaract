@@ -62,19 +62,21 @@
   pointer-events: none;
 }
 
-/* Altta ortada beyaz logo, örnek mektuptaki gibi (arka plan resmi; oran ≈ 3.7:1).
+/* Altta ortada beyaz logo, örnek mektuptaki gibi (<img>; oran ≈ 3.7:1).
    Kapakta sol üstte, künyede sağ altta (örnekteki gibi). */
 .lt-logo {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 30px;
+  display: block;
   width: 150px;
   height: 41px;
   margin: 0 auto;
-  background: no-repeat center / contain;
+  object-fit: contain;
+  object-position: center;
 }
-.lt-kunye .lt-logo { left: auto; right: 40px; margin: 0; background-position: right center; }
+.lt-kunye .lt-logo { left: auto; right: 40px; margin: 0; object-position: right center; }
 
 /* ------------------------------------------------------------ ortak öğeler */
 
@@ -209,7 +211,8 @@
   bottom: auto;
   width: 230px;
   height: 62px;
-  background-position: left center;
+  margin: 0;
+  object-position: left center;
 }
 .lt-cover-photo {
   position: absolute;
@@ -536,8 +539,6 @@
   gap: 22px;
   align-items: center;
   justify-items: center;
-}
-.lt-collage {
   grid-template-rows: minmax(0, 1fr);
 }
 .lt-collage .lt-polaroid {
@@ -594,5 +595,8 @@
     print-color-adjust: exact;
   }
   .lt-page:last-child { break-after: auto; page-break-after: auto; }
-  .lt-slot-empty { visibility: hidden; }
+  /* Düzenleyici yer tutucuları kâğıda basılmaz. */
+  .lt-slot-empty,
+  .lt-polaroid-add,
+  .lt-polaroid:has(> .lt-slot-empty) { display: none !important; }
 }

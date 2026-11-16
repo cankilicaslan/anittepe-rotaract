@@ -142,29 +142,37 @@ function refPath(ref) {
 // Fotoğraf: <img>. pos {x,y} 0–1 kesirdir (Instagram oluşturucusundaki
 // state.pos ile aynı; 0.5/0.5 ortadır) ve object-position yüzdesine çevrilir.
 // zoom ≥ 1 ölçektir (varsayılan 1).
-const frac = (v) => Math.round(Math.min(1, Math.max(0, +v)) * 1000) / 10;
+// Sayıya çevrilemeyen (null, '', undefined, NaN) değer varsayılana düşer.
+const num = (v, d) => (v == null || v === '' || !Number.isFinite(+v) ? d : +v);
+const pct = (v) => Math.round(Math.min(1, Math.max(0, num(v, 0.5))) * 1000) / 10;
 
-function img(ctx, ref) {
-  const url = ctx.photoUrl ? ctx.photoUrl(ref) : refPath(ref);
+// Fotoğrafın çözülmüş adresi: opts.photoUrl asıl çözücüdür; yoksa path/url.
+function photoSrc(ctx, ref) {
+  if (ref == null || ref === '') return '';
+  const u = ctx.photoUrl ? ctx.photoUrl(ref) : refPath(ref);
+  return blank(u) ? '' : String(u);
+}
+
+function img(ctx, ref, url) {
   let style = '';
   if (ref && typeof ref === 'object') {
-    const p = ref.pos;
-    const pos = p && Number.isFinite(+p.x) && Number.isFinite(+p.y) && !(+p.x === 0.5 && +p.y === 0.5)
-      ? `${frac(p.x)}% ${frac(p.y)}%` : '';
-    const zoom = Number.isFinite(+ref.zoom) && +ref.zoom > 1 ? +ref.zoom : 0;
+    const p = ref.pos && typeof ref.pos === 'object' ? ref.pos : {};
+    const x = pct(p.x);
+    const y = pct(p.y);
+    const pos = x === 50 && y === 50 ? '' : `${x}% ${y}%`;
+    const z = num(ref.zoom, 1);
     if (pos) style += `object-position:${pos};`;
-    if (zoom) style += `transform:scale(${zoom});transform-origin:${pos || '50% 50%'};`;
+    if (z > 1) style += `transform:scale(${z});transform-origin:${pos || '50% 50%'};`;
   }
   return `<img class="lt-img" src="${esc(url)}" alt=""${style ? ` style="${style}"` : ''}>`;
 }
-
-const hasPhoto = (ref) => !blank(refPath(ref));
 
 // Fotoğraf yuvası. Boşsa düzenleyicide yer tutucu, değilse hiçbir şey.
 function slot(ctx, ref, key, cls, index) {
   const idx = index == null ? '' : ` data-index="${index}"`;
   const fa = ctx.editable ? ` data-field="${esc(key)}"${idx}` : '';
-  if (hasPhoto(ref)) return `<div class="lt-slot ${cls}"${fa}>${img(ctx, ref)}</div>`;
+  const url = photoSrc(ctx, ref);
+  if (url) return `<div class="lt-slot ${cls}"${fa}>${img(ctx, ref, url)}</div>`;
   if (!ctx.editable) return '';
   return `<div class="lt-slot lt-slot-empty ${cls}"${fa}><span>Fotoğraf bırakın</span></div>`;
 }
@@ -180,10 +188,12 @@ function polaroid(ctx, photoKey, labelKey, cls = '') {
 
 // Fotoğraf listesi (neler-tam, serbest): en fazla 4, düzenleyicide bir boş yuva.
 function photoList(ctx, key, cls) {
-  const list = (Array.isArray(ctx.f[key]) ? ctx.f[key] : []).filter(hasPhoto).slice(0, MAX_PHOTOS);
-  const items = list.map((r, i) => `<figure class="lt-polaroid">${slot(ctx, r, key, 'lt-polaroid-photo', i)}</figure>`);
+  // data-index, kaynak dizideki sırayı gösterir (boş öğeler atlansa da).
+  const all = Array.isArray(ctx.f[key]) ? ctx.f[key] : [];
+  const list = all.map((r, i) => [r, i]).filter(([r]) => photoSrc(ctx, r)).slice(0, MAX_PHOTOS);
+  const items = list.map(([r, i]) => `<figure class="lt-polaroid">${slot(ctx, r, key, 'lt-polaroid-photo', i)}</figure>`);
   if (ctx.editable && list.length < MAX_PHOTOS) {
-    items.push(`<figure class="lt-polaroid lt-polaroid-add">${slot(ctx, null, key, 'lt-polaroid-photo', list.length)}</figure>`);
+    items.push(`<figure class="lt-polaroid lt-polaroid-add">${slot(ctx, null, key, 'lt-polaroid-photo', all.length)}</figure>`);
   }
   if (!items.length) return '';
   return `<div class="${cls} lt-n${items.length}">${items.join('')}</div>`;
@@ -333,8 +343,8 @@ function decoHearts() {
 
 function logo(ctx, cls = '') {
   if (!ctx.logoUrl) return '';
-  // Arka plan resmi olarak: sayfadaki <img> öğeleri yalnızca içerik fotoğraflarıdır.
-  return `<div class="lt-logo ${cls}" role="img" aria-label="Ankara Anıttepe Rotaract Kulübü" style="background-image:url(&quot;${esc(ctx.logoUrl)}&quot;)"></div>`;
+  // <img> + src: adres yalnızca HTML niteliği olarak kaçışlanır, CSS'e girmez.
+  return `<img class="lt-logo ${cls}" src="${esc(ctx.logoUrl)}" alt="Ankara Anıttepe Rotaract Kulübü">`;
 }
 
 const heading = (html, cls = '') => `<h2 class="lt-heading ${cls}">${html}</h2>`;
@@ -456,7 +466,7 @@ const DRAW = {
 
 // Tek sayfa çizer. opts: { photoUrl(ref)=>string, editable:boolean, logoUrl:string }
 export function renderPage(page, opts = {}) {
-  const key = page && LAYOUTS[page.layout] ? page.layout : 'serbest';
+  const key = page && Object.hasOwn(LAYOUTS, page.layout) ? page.layout : 'serbest';
   const ctx = {
     layout: LAYOUTS[key],
     f: (page && page.fields) || {},
@@ -473,7 +483,7 @@ export function renderPage(page, opts = {}) {
 export function tocFromPages(pages) {
   const out = [];
   for (const p of pages || []) {
-    const lay = LAYOUTS[p?.layout];
+    const lay = p && Object.hasOwn(LAYOUTS, p.layout) ? LAYOUTS[p.layout] : null;
     if (!lay) continue;
     const t = lay.group || (p.layout === 'serbest' ? p.fields?.title : null);
     if (!blank(t) && !out.includes(String(t).trim())) out.push(String(t).trim());

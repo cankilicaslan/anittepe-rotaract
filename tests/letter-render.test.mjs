@@ -67,5 +67,34 @@ test('fotoğraf konumu 0–1 kesirden object-position yüzdesine çevrilir', () 
 test('neler-tam en fazla 4 fotoğraf çizer', () => {
   const photos = ['1.jpg', '2.jpg', '3.jpg', '4.jpg', '5.jpg', '6.jpg'];
   const html = renderPage({ layout: 'neler-tam', fields: { label: 'x', body: 'y', photos } }, opts());
-  assert.equal((html.match(/<img/g) || []).length, 4);
+  // Logo da bir <img>; içerik fotoğrafları lt-img sınıfıyla sayılır.
+  assert.equal((html.match(/<img class="lt-img"/g) || []).length, 4);
+});
+
+test('logo ve fotoğraf URL’leri nitelik ya da CSS dışına taşamaz', () => {
+  const evil = 'x" onerror="alert(1)<b>)\\';
+  const html = renderPage(
+    { layout: 'neler-1', fields: { photo: 'a.jpg' } },
+    { photoUrl: () => evil, logoUrl: evil, editable: false },
+  );
+  assert.ok(!html.includes('onerror="'), html);
+  assert.ok(!html.includes('<b>'));
+  assert.ok(!/style="[^"]*url\(/.test(html), 'logo CSS url() ile çizilmemeli');
+  assert.equal((html.match(/src="/g) || []).length, 2);
+});
+
+test('bilinmeyen ya da miras düzen adı serbest olarak çizilir', () => {
+  for (const k of ['constructor', 'toString', '__proto__', 'yok']) {
+    assert.ok(renderPage({ layout: k, fields: {} }, opts()).includes('class="lt-page lt-serbest"'), k);
+  }
+  const html = renderLetter({ pages: [{ layout: 'icindekiler', fields: {} }, { layout: 'constructor', fields: {} }] }, opts());
+  assert.ok(html.includes('lt-icindekiler'));
+});
+
+test('fotoğraf boşluğu photoUrl ile belirlenir; pos null ise orta', () => {
+  const o = { ...opts(true), photoUrl: (ref) => (ref && ref.id === 'yok' ? '' : 'u.jpg') };
+  assert.ok(renderPage({ layout: 'neler-1', fields: { photo: { id: 'yok' } } }, o).includes('lt-slot-empty'));
+  assert.ok(renderPage({ layout: 'neler-1', fields: { photo: { id: 'var' } } }, o).includes('<img class="lt-img"'));
+  const mid = renderPage({ layout: 'neler-1', fields: { photo: { path: 'a.jpg', pos: { x: null, y: 0 } } } }, opts());
+  assert.ok(mid.includes('object-position:50% 0%'), mid);
 });

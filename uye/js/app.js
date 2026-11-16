@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611161918";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161918";
+import { createStore, trDate } from "./store.js?v=202611161923";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161923";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -710,7 +710,6 @@ async function editMember(m) {
       <label class="f">Meslek / okul<input type="text" name="profession" value="${esc(m.profession || "")}"></label>
       <label class="f">Instagram<input type="text" name="instagram" value="${esc(m.instagram || "")}" placeholder="@kullaniciadi"></label>
       <label class="f">Kan grubu<input type="text" name="blood_type" value="${esc(priv.blood_type || "")}" placeholder="ör. A Rh+"></label>
-      <label class="f">Durum<select name="status">${[["active", "Aktif"], ["pending", "Onay bekliyor"], ["passive", "Pasif"]].map(([k, l]) => `<option value="${k}" ${m.status === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
       <label class="f">Üyelik tarihi<input type="date" name="joined_at" value="${esc(m.joined_at || "")}"></label>
       <label class="f">Yoklamada başladığı toplantı <small>Üye alındığı toplantı; devam oranı buradan itibaren hesaplanır</small><select name="start_meeting_id"><option value="">Dönem başından</option>${meetings.map(x => `<option value="${x.id}" ${m.start_meeting_id === x.id ? "selected" : ""}>${x.term_no}. toplantı · ${trDate(x.date)}</option>`).join("")}</select></label>
     </div>
@@ -718,7 +717,6 @@ async function editMember(m) {
       ${ROLE_GROUPS.map(([g, keys]) => `<p class="role-grp">${g}</p>` + keys.map(k => `<label class="check"><input type="checkbox" name="role" value="${k}" ${(m.roles || []).includes(k) ? "checked" : ""}> ${ROLE_LABELS[k]}</label>`).join("")).join("")}
       <p class="role-grp">Diğer</p>
       <label class="check"><input type="checkbox" name="past_president" ${m.past_president ? "checked" : ""}> Geçmiş dönem başkanı (tüm panelleri görür)</label>
-      <label class="check"><input type="checkbox" name="hide_roles" ${m.hide_roles ? "checked" : ""}> Görevleri listede gösterme (yalnızca GDB ya da "Üye" görünür)</label>
     </div></fieldset>
     <div class="row"><button class="btn" value="save">Kaydet</button><button class="btn ghost" value="cancel" formnovalidate>Vazgeç</button></div>
   </form>`;
@@ -732,7 +730,7 @@ async function editMember(m) {
   dlg.querySelector("form").onsubmit = async e => {
     if (e.submitter?.value !== "save") return;
     const fd = new FormData(e.target);
-    const patch = { full_name: fd.get("full_name"), phone: fd.get("phone"), email: fd.get("email"), birth_date: fd.get("birth_date") || null, profession: fd.get("profession"), instagram: fd.get("instagram"), blood_type: fd.get("blood_type"), status: fd.get("status"), joined_at: fd.get("joined_at") || null, roles: fd.getAll("role"), past_president: fd.has("past_president"), hide_roles: fd.has("hide_roles"), start_meeting_id: fd.get("start_meeting_id") || null };
+    const patch = { full_name: fd.get("full_name"), phone: fd.get("phone"), email: fd.get("email"), birth_date: fd.get("birth_date") || null, profession: fd.get("profession"), instagram: fd.get("instagram"), blood_type: fd.get("blood_type"), status: m.status || "active", joined_at: fd.get("joined_at") || null, roles: fd.getAll("role"), past_president: fd.has("past_president"), hide_roles: false, start_meeting_id: fd.get("start_meeting_id") || null };
     // Komite görevi devri: yeni verilen komite başka bir aktif üyedeyse, görev ve panel erişimi eski kişiden alınıp bu kişiye aktarılır.
     const COMMITTEES = ROLE_GROUPS[1][1];
     const added = (patch.roles || []).filter(r => COMMITTEES.includes(r) && !(m.roles || []).includes(r));
@@ -1502,7 +1500,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611161918");
+  const { mountComposer } = await import("./composer.js?v=202611161923");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1511,7 +1509,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161918");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161923");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

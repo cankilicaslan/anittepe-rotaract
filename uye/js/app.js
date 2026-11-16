@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611161850";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161850";
+import { createStore, trDate } from "./store.js?v=202611161911";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161911";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -603,7 +603,7 @@ async function viewMembers(v) {
     const gdb = m.past_president ? '<span class="m-gray"><abbr title="Geçmiş dönem başkanı">GDB</abbr></span>' : "";
     const sub = rs.length
       ? `<span class="m-roles">${rs.map(r => `<span class="m-role ${BOARD.includes(r) ? "yk" : "gyk"}">${esc(ROLE_CHIP(r))}</span>`).join("")}${gdb}</span>`
-      : `<span class="m-gray">${esc(m.title || (m.past_president ? "Geçmiş Dönem Başkanı" : "Üye"))}</span>`;
+      : `<span class="m-gray">${m.past_president ? "Geçmiş Dönem Başkanı" : "Üye"}</span>`; // tek kaynak: panel rolleri (unvan alanı kullanılmaz)
     const passive = m.status === "passive" ? '<div class="m-tags"><span class="tag">Pasif</span></div>' : "";
     return `<div class="person${acc ? " has-acct" : ""}">${acc ? acctDot(m) : ""}${avatar(m)}<div class="m-name"><b>${esc(m.full_name)}</b>${sub}</div></div>${passive}`;
   };
@@ -1511,7 +1511,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611161850");
+  const { mountComposer } = await import("./composer.js?v=202611161911");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1520,7 +1520,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161850");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161911");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611162020";
-import { createStore, trDate } from "./store.js?v=202611162020";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611162020";
+import * as BP from "./board-plan.js?v=202611162021";
+import { createStore, trDate } from "./store.js?v=202611162021";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611162021";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -486,7 +486,7 @@ async function viewBoardPlan(v, ro = false) {
   const lockFrame = key => {
     const r = find(slots[key]), label = BP_LABEL(key);
     const body = r?.person ? `${bpPic(r.person, "bp-pic")}<b>${esc(r.person.full_name)}</b>` : `<span class="avatar bp-pic bp-empty">${silhouette}</span><b class="muted">Henüz belirlenmedi</b>`;
-    return `<div class="bp-slot filled locked" data-key="${key}"><div class="bp-frame" aria-label="${esc(label)}: ${r?.person ? esc(r.person.full_name) : "belirlenmedi"} (sabit)">${body}</div><span class="bp-role">${esc(label)}</span><span class="bp-lock-note">Bu dönemin asbaşkanı</span></div>`;
+    return `<div class="bp-slot filled locked" data-key="${key}"><div class="bp-frame" aria-label="${esc(label)}: ${r?.person ? esc(r.person.full_name) : "belirlenmedi"} (sabit)">${body}</div><span class="bp-role">${esc(label)}</span></div>`;
   };
   const card = (p, kind) => `<div class="bp-card" draggable="true" data-kind="${kind}" data-id="${p.id}" title="${esc(p.full_name)}">${bpPic(p, "bp-mini")}<span>${esc(p.full_name)}</span></div>`;
   const draw = () => {
@@ -1769,7 +1769,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611162020");
+  const { mountComposer } = await import("./composer.js?v=202611162021");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1778,7 +1778,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611162020");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611162021");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

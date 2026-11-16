@@ -853,3 +853,11 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 .bp-hide .check{min-height:32px}
 /* Sağdaki kişi listesinde GDB etiketi daha küçük */
 .bp-mini + .bp-gdb{font-size:.5rem;padding:2px 3px;border-width:1.5px;border-radius:4px;right:-3px;bottom:0;letter-spacing:.02em}
+/* GDB görünümü (salt okunur): çerçeveler ortalı ve eşit genişlikte */
+.bp-wrap.ro{max-width:960px;margin:0 auto}
+.bp-wrap.ro .bp-sec h2{justify-content:center}
+.bp-wrap.ro .bp-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:18px 14px}
+.bp-wrap.ro .bp-slot{width:160px;flex:0 0 160px}
+@media (max-width:640px){.bp-wrap.ro .bp-slot{width:132px;flex-basis:132px}}
+.bp-wrap.ro .bp-grid{align-items:stretch}
+.bp-wrap.ro .bp-role{margin-top:auto}

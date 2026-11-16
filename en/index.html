@@ -700,6 +700,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 .f-err{display:block;margin-top:6px;color:#B0083C;font-weight:700;font-size:.86rem}
 .apply-form [aria-invalid="true"],form.cf [aria-invalid="true"]{border-color:#C0103F!important;box-shadow:0 0 0 3px rgba(192,16,63,.15)}
 @media (min-width:1201px){.fab,.fab-login{display:none}}
+.mini-ini{display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;background:var(--cran-soft,#FCE6EF);color:var(--cran-deep,#A30C4D)}
 </style>
 
 <div class="progress" id="progress" aria-hidden="true"></div>
@@ -1444,6 +1445,28 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
         if(!img){img=document.createElement("img");img.className="mini";img.alt="";img.loading="lazy";li.insertBefore(img,li.firstChild)}
         if(img.getAttribute("src")!==map[n])img.src=map[n];
       });
+    }).catch(function(){});
+})();
+</script>
+<script>
+/* Komite başkanları: üye panelindeki komite atamalarından gelir (panelde görev değişince burası da değişir).
+   Panele ulaşılamazsa sayfadaki hazır liste kalır. Atanmamış komite gösterilmez. */
+(function(){
+  var ul=document.querySelector('.committees[data-term="2026"] ul.cm');
+  if(!ul||!window.fetch)return;
+  var ORDER=["hizmet","uyelik","uluslararasi","pr","kulup","meslek","afet","hobi","interact"];
+  var L={"hizmet":"Service Projects Committee","uyelik":"Membership and Membership Development Committee","uluslararasi":"International Service Committee","pr":"Public Relations Committee","kulup":"Club Service Committee","meslek":"Vocational Service Committee","afet":"Disaster Response Committee","hobi":"Hobbies Committee","interact":"Interact Committee"};
+  function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+  function ini(n){return String(n||"?").trim().split(/\s+/).map(function(w){return w[0]}).slice(0,2).join("").toLocaleUpperCase("tr")}
+  fetch("https://fyjcgfbooajuljebxnil.supabase.co/rest/v1/rpc/public_committee_chairs",{method:"POST",headers:{"Content-Type":"application/json",apikey:"sb_publishable_HmlR3dKiWqbTJ1id363IDA_OIsC6GhP",Authorization:"Bearer sb_publishable_HmlR3dKiWqbTJ1id363IDA_OIsC6GhP"},body:"{}"})
+    .then(function(r){return r.ok?r.json():null}).then(function(rows){
+      if(!Array.isArray(rows))return;
+      var items=[];
+      ORDER.forEach(function(k){rows.filter(function(r){return r.role===k}).forEach(function(r){
+        var ph=/^https?:/.test(r.photo_url||"")?'<img class="mini" src="'+esc(r.photo_url)+'" alt="" loading="lazy">':'<span class="mini mini-ini" aria-hidden="true">'+esc(ini(r.full_name))+'</span>';
+        items.push('<li>'+ph+'<div><b>'+esc(r.full_name)+'</b><span>'+esc(L[k])+'</span></div></li>');
+      })});
+      if(items.length)ul.innerHTML=items.join("");
     }).catch(function(){});
 })();
 </script>

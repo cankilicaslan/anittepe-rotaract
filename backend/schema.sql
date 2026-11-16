@@ -1397,3 +1397,19 @@ grant execute on function public.is_committee_chair() to authenticated;
 drop policy if exists guests_select on public.guests;
 create policy guests_select on public.guests for select to authenticated
   using (public.has_role('sekreter') or public.is_committee_chair() or public.can_view_all());
+
+-- =====================================================================
+-- v32: Anasayfa komite başkanları panelden: aktif üyelerin komite rolleri (yalnızca ad, rol, fotoğraf)
+-- =====================================================================
+create or replace function public.public_committee_chairs()
+returns table(role text, full_name text, photo_url text)
+language sql stable security definer set search_path = public as $$
+  select r.role, p.full_name, p.photo_url
+    from public.profiles p
+    cross join lateral unnest(p.roles) as r(role)
+   where p.status = 'active' and coalesce(p.hide_roles, false) = false
+     and r.role = any(array['hizmet','uyelik','uluslararasi','pr','kulup','meslek','afet','hobi','interact'])
+   order by p.full_name;
+$$;
+revoke all on function public.public_committee_chairs() from public;
+grant execute on function public.public_committee_chairs() to anon, authenticated;

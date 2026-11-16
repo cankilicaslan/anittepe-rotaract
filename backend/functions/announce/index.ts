@@ -378,7 +378,13 @@ Deno.serve(async (req: Request) => {
       console.error("Alıcılar okunamadı", recErr);
       throw new HttpError(500, "Alıcı bilgileri okunamadı.");
     }
-    const recipients = (rows ?? []) as Recipient[];
+    // Misafirler de alıcı olabilir: aynı kimlik listesinde guests tablosundan da okunur.
+    const { data: guestRows, error: gErr } = await admin
+      .from("guests")
+      .select("id, full_name, email, phone")
+      .in("id", recipientIds);
+    if (gErr) console.error("Misafir alıcılar okunamadı", gErr);
+    const recipients = [...(rows ?? []), ...(guestRows ?? [])] as Recipient[];
 
     const errors: string[] = [];
     const skipped: { email?: string; sms?: string } = {};

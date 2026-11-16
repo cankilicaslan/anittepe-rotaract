@@ -1375,3 +1375,10 @@ create policy app_settings_write on public.app_settings for all to authenticated
   with check (public.has_role('sayman') or public.is_admin()
          or (key = 'letter_kunye' and public.letter_editor())
          or (key like 'komite\_notes\_%' and public.has_role(substr(key, 14))));
+
+-- =====================================================================
+-- v30: Duyurular misafirlere de gider: duyuru yapan HİTK misafir iletişim bilgilerini okuyabilir
+-- =====================================================================
+drop policy if exists guests_select on public.guests;
+create policy guests_select on public.guests for select to authenticated
+  using (public.has_role('sekreter') or public.has_role('pr') or public.can_view_all());

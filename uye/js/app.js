@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611161812";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161812";
+import { createStore, trDate } from "./store.js?v=202611161816";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161816";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1424,7 +1424,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611161812");
+  const { mountComposer } = await import("./composer.js?v=202611161816");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1433,7 +1433,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161812");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161816");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });
@@ -1659,13 +1659,19 @@ const smsNumber = p => { const d = String(p || "").replace(/\D/g, ""); if (!d) r
 
 async function viewAnnounce(v) {
   const ro = !can(me, "duyuru", "edit");
-  const [members, items, log] = await Promise.all([store.listMembers(), calendarItems(), store.listAnnouncements()]);
-  const active = members.filter(m => m.status === "active").sort((a, b) => a.full_name.localeCompare(b.full_name, "tr"));
+  const [members, items, log, guests] = await Promise.all([store.listMembers(), calendarItems(), store.listAnnouncements(), store.listGuests().catch(() => [])]);
+  const tr = (a, b) => a.full_name.localeCompare(b.full_name, "tr");
+  // Alıcı havuzu: aktif üyeler + misafirler (misafirlerin de e-posta/telefonu varsa onlara da gider).
+  const active = [
+    ...members.filter(m => m.status === "active").sort(tr).map(m => ({ ...m, kind: "uye" })),
+    ...(guests || []).filter(g => g.full_name).sort(tr).map(g => ({ ...g, kind: "misafir" }))
+  ];
+  const memberCount = active.filter(p => p.kind === "uye").length, guestCount = active.length - memberCount;
   const upcoming = items.filter(i => i.date >= today() && i.type !== "aidat").slice(0, 12);
   let pre = null; try { pre = JSON.parse(sessionStorage.getItem("ar-announce") || "null"); sessionStorage.removeItem("ar-announce"); } catch {}
   if (!pre && upcoming[0]) pre = announceTemplate(upcoming.find(i => i.type === "toplanti") || upcoming[0]);
   pre ||= { kind: "diger", subject: "", body: "Merhaba,\n\n" + SIGN };
-  const noMail = active.filter(m => !m.email).length, noPhone = active.filter(m => !smsNumber(m.phone)).length;
+
   v.innerHTML = header("Duyurular", "Toplantı ve etkinlik duyurularını üyelerin e-postasına ve telefonuna gönder.") + (ro ? roBanner("duyuru") : "") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda gönderim senin cihazından yapılır: "E-posta ile gönder" e-posta uygulamanı, "SMS gönder" telefonunun mesaj uygulamasını alıcılar ve metin hazır şekilde açar; son adımda Gönder'e sen basarsın. Sunucudan otomatik gönderim için kurulum rehberindeki e-posta ve SMS adımları gerekir.</div>` : "") + `
   <form class="card" id="f-ann"><fieldset ${ro ? "disabled" : ""}>
@@ -1676,11 +1682,15 @@ async function viewAnnounce(v) {
       <label class="f">Mesaj <small>SMS'te de aynı metin gider; kısa tutmak iyi olur</small><textarea name="body" rows="8" required>${esc(pre.body)}</textarea></label>
       <p class="muted" style="margin:-6px 0 0;font-size:.84rem" id="smslen"></p>
     </div>
-    <details style="margin-top:14px" open><summary style="cursor:pointer;font-weight:700">Alıcılar <span class="muted" id="rc"></span></summary>
-      <div class="row" style="margin:10px 0"><button type="button" class="btn ghost sm" id="r-all">Hepsini seç</button><button type="button" class="btn ghost sm" id="r-none">Hiçbirini seçme</button>
-      ${noMail || noPhone ? `<span class="muted" style="font-size:.84rem">${noMail ? `${noMail} üyenin e-postası, ` : ""}${noPhone ? `${noPhone} üyenin telefonu ` : ""}eksik. Üye listesinden ekleyebilirsin.</span>` : ""}</div>
-      <div class="grid g3">${active.map(m => `<label class="check"><input type="checkbox" name="to" value="${m.id}" checked> ${esc(m.full_name)} ${!m.email ? '<span class="tag warn">e-posta yok</span>' : ""}${!smsNumber(m.phone) ? '<span class="tag warn">telefon yok</span>' : ""}</label>`).join("")}</div>
-    </details>
+    <fieldset class="an-rcpt"><legend>Alıcılar</legend>
+      <div class="an-modes" role="radiogroup" aria-label="Kime gönderilsin">
+        <label class="an-mode"><input type="radio" name="rmode" value="all" checked><span><b>Herkese</b><small>${memberCount} üye + ${guestCount} misafir</small></span></label>
+        <label class="an-mode"><input type="radio" name="rmode" value="members"><span><b>Sadece üyelere</b><small>${memberCount} aktif üye</small></span></label>
+        <label class="an-mode"><input type="radio" name="rmode" value="pick"><span><b>Kişi seç</b><small id="pick-sum">Listeden seçilen kişilere</small></span></label>
+      </div>
+      <div class="row an-pick-row" id="pick-row" hidden><button type="button" class="btn ghost sm" id="r-pick">Kişi listesini aç</button><span class="muted" id="pick-names"></span></div>
+      <p class="muted an-count" id="rc" role="status" aria-live="polite"></p>
+    </fieldset>
     <input type="hidden" name="kind" value="${esc(pre.kind)}">
     <div class="row" style="margin-top:16px">
       <button type="button" class="btn" id="s-mail">E-posta ile gönder</button>
@@ -1693,22 +1703,51 @@ async function viewAnnounce(v) {
   <div class="card"><h2>Gönderilen duyurular</h2>${log.length ? `<div class="tbl-wrap"><table><thead><tr><th>Tarih</th><th>Konu</th><th>Kanal</th><th class="num">Alıcı</th></tr></thead><tbody>${log.map(a => `<tr><td>${trDate(a.created_at.slice(0, 10))}</td><td>${esc(a.subject)}</td><td>${(a.channels || []).map(c => `<span class="tag">${c === "email" ? "E-posta" : "SMS"}</span>`).join(" ")}</td><td class="num">${(a.recipient_ids || []).length}</td></tr>`).join("")}</tbody></table></div>` : '<p class="muted">Henüz duyuru gönderilmedi.</p>'}</div>`;
   if (ro) return;
   const f = document.getElementById("f-ann");
-  const sel = () => active.filter(m => f.querySelector(`[name=to][value="${m.id}"]`)?.checked);
+  const picked = new Set();
+  const mode = () => f.querySelector("[name=rmode]:checked")?.value || "all";
+  const sel = () => mode() === "all" ? active : mode() === "members" ? active.filter(p => p.kind === "uye") : active.filter(p => picked.has(p.id));
   const upd = () => {
-    const s = sel(); document.getElementById("rc").textContent = `${s.length} kişi seçili · ${s.filter(m => m.email).length} e-posta · ${s.filter(m => smsNumber(m.phone)).length} telefon`;
+    const s = sel(), noM = s.filter(m => !m.email).length, noP = s.filter(m => !smsNumber(m.phone)).length;
+    document.getElementById("pick-row").hidden = mode() !== "pick";
+    document.getElementById("pick-sum").textContent = picked.size ? `${picked.size} kişi seçildi` : "Listeden seçilen kişilere";
+    const names = active.filter(p => picked.has(p.id)).map(p => p.full_name);
+    document.getElementById("pick-names").textContent = names.length ? names.slice(0, 3).join(", ") + (names.length > 3 ? ` ve ${names.length - 3} kişi daha` : "") : "Henüz kimse seçilmedi.";
+    document.getElementById("rc").textContent = `${s.length} kişiye gidecek · ${s.length - noM} e-posta · ${s.length - noP} telefon${noM || noP ? ` (${noM ? noM + " kişinin e-postası" : ""}${noM && noP ? ", " : ""}${noP ? noP + " kişinin telefonu" : ""} yok)` : ""}`;
     const n = f.body.value.length; document.getElementById("smslen").textContent = `${n} karakter · yaklaşık ${Math.max(1, Math.ceil(n / 153))} SMS`;
   };
   f.addEventListener("input", upd); f.addEventListener("change", upd); upd();
   document.getElementById("tpl").onchange = e => { const it = upcoming[+e.target.value]; if (!it) return; const t = announceTemplate(it); f.subject.value = t.subject; f.body.value = t.body; f.kind.value = t.kind; upd(); };
-  document.getElementById("r-all").onclick = () => { f.querySelectorAll("[name=to]").forEach(c => c.checked = true); upd(); };
-  document.getElementById("r-none").onclick = () => { f.querySelectorAll("[name=to]").forEach(c => c.checked = false); upd(); };
+  // Kişi seç: aramalı, Üyeler / Misafirler gruplu liste penceresi
+  const openPicker = () => {
+    let d = document.getElementById("an-pick"); if (!d) { d = document.createElement("dialog"); d.id = "an-pick"; d.className = "an-pick-dlg"; document.body.appendChild(d); }
+    const tmp = new Set(picked);
+    const group = (kind, title) => { const list = active.filter(p => p.kind === kind); return list.length ? `<section class="an-grp" data-g="${kind}"><div class="an-grp-h"><b>${title} <span class="muted">(${list.length})</span></b><span><button type="button" class="btn ghost sm" data-ga="${kind}">Tümü</button><button type="button" class="btn ghost sm" data-gn="${kind}">Hiçbiri</button></span></div>
+      <div class="an-list">${list.map(p => `<label class="check an-p" data-q="${esc(p.full_name.toLocaleLowerCase("tr"))}"><input type="checkbox" value="${p.id}" ${tmp.has(p.id) ? "checked" : ""}> <span>${esc(p.full_name)}</span>${!p.email ? '<span class="tag warn">e-posta yok</span>' : ""}${!smsNumber(p.phone) ? '<span class="tag warn">telefon yok</span>' : ""}</label>`).join("")}</div></section>` : ""; };
+    d.innerHTML = `<form method="dialog"><h2>Kişi seç</h2>
+      <input type="search" class="an-q" placeholder="İsim ara" aria-label="Kişi ara" autocomplete="off">
+      <div class="an-groups">${group("uye", "Üyeler")}${group("misafir", "Misafirler")}</div>
+      <div class="row an-pick-foot"><span class="muted" id="an-n"></span><div class="spacer"></div><button class="btn ghost" value="cancel" formnovalidate>Vazgeç</button><button class="btn" value="ok">Seçimi kullan</button></div></form>`;
+    const cnt = () => { d.querySelector("#an-n").textContent = `${tmp.size} kişi seçili`; };
+    d.onchange = e => { const c = e.target.closest("input[type=checkbox]"); if (!c) return; c.checked ? tmp.add(c.value) : tmp.delete(c.value); cnt(); };
+    d.onclick = e => {
+      const ga = e.target.closest("[data-ga]"), gn = e.target.closest("[data-gn]");
+      if (ga || gn) { const g = (ga || gn).dataset.ga || (ga || gn).dataset.gn; d.querySelectorAll(`[data-g="${g}"] .an-p:not([hidden]) input`).forEach(c => { c.checked = !!ga; ga ? tmp.add(c.value) : tmp.delete(c.value); }); cnt(); return; }
+      if (e.target === d) { const r = d.getBoundingClientRect(); if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) d.close("cancel"); }
+    };
+    d.querySelector(".an-q").oninput = e => { const q = e.target.value.trim().toLocaleLowerCase("tr"); d.querySelectorAll(".an-p").forEach(l => { l.hidden = !!q && !l.dataset.q.includes(q); }); };
+    // Seçim, kapanma olayını beklemeden düğmeye basıldığı anda uygulanır.
+    d.querySelector("form").onsubmit = e => { if (e.submitter?.value !== "ok") return; picked.clear(); tmp.forEach(id => picked.add(id)); if (!picked.size) toast("Kimse seçilmedi.", "bad"); upd(); };
+    cnt(); d.showModal(); setTimeout(() => d.querySelector(".an-q").focus());
+  };
+  document.getElementById("r-pick").onclick = openPicker;
+  f.querySelectorAll("[name=rmode]").forEach(r => r.addEventListener("change", () => { if (r.checked && r.value === "pick" && !picked.size) openPicker(); }));
   const log1 = (channels, sent_via, result) => store.saveAnnouncement({ kind: f.kind.value, subject: f.subject.value, body: f.body.value, channels, recipient_ids: sel().map(m => m.id), sent_via, result }).catch(() => {});
   const copy = async (txt, what) => { try { await navigator.clipboard.writeText(txt); toast(`${what} panoya kopyalandı.`); } catch { prompt("Kopyalayın:", txt); } };
   const mailBtn = document.getElementById("s-mail");
   const openMailApp = async () => {
     if (!f.reportValidity()) return;
     const to = sel().map(m => m.email).filter(Boolean);
-    if (!to.length) return toast("Seçili üyelerin hiçbirinin e-postası yok.", "bad");
+    if (!to.length) return toast("Seçili kişilerin hiçbirinin e-postası yok.", "bad");
     const url = `mailto:${CLUB_MAIL}?bcc=${to.map(encodeURIComponent).join(",")}&subject=${encodeURIComponent(f.subject.value)}&body=${encodeURIComponent(f.body.value)}`;
     if (url.length > 1900) toast("Alıcı çok fazla olduğu için bazı e-posta uygulamaları kesebilir; gerekirse adresleri kopyalayıp yapıştır.");
     location.href = url; await log1(["email"], "cihaz"); toast(`E-posta uygulaman ${to.length} alıcıyla açıldı. Gönder'e bastığında duyuru gider.`);
@@ -1717,8 +1756,8 @@ async function viewAnnounce(v) {
   mailBtn.onclick = store.mode !== "supabase" ? openMailApp : async () => {
     if (!f.reportValidity()) return;
     const to = sel().filter(m => m.email);
-    if (!to.length) return toast("Seçili üyelerin hiçbirinin e-postası yok.", "bad");
-    if (!confirm(`"${f.subject.value}" duyurusu ${to.length} üyeye e-posta ile gönderilsin mi?`)) return;
+    if (!to.length) return toast("Seçili kişilerin hiçbirinin e-postası yok.", "bad");
+    if (!confirm(`"${f.subject.value}" duyurusu ${to.length} kişiye e-posta ile gönderilsin mi?`)) return;
     mailBtn.disabled = true; mailBtn.textContent = "Gönderiliyor…";
     try {
       const r = await store.sendAnnouncement({ kind: f.kind.value, subject: f.subject.value, body: f.body.value, recipient_ids: to.map(m => m.id), channels: ["email"] });
@@ -1730,7 +1769,7 @@ async function viewAnnounce(v) {
   };  document.getElementById("s-sms").onclick = async () => {
     if (!f.reportValidity()) return;
     const nums = sel().map(m => smsNumber(m.phone)).filter(Boolean);
-    if (!nums.length) return toast("Seçili üyelerin hiçbirinin telefonu yok.", "bad");
+    if (!nums.length) return toast("Seçili kişilerin hiçbirinin telefonu yok.", "bad");
     const body = encodeURIComponent(f.body.value);
     if (!isPhone()) { await copy(nums.join(", "), `${nums.length} telefon numarası`); toast("SMS telefonda açılır. Bu sayfayı telefondan açıp tekrar dene; numaralar şimdilik panoya kopyalandı."); return; }
     location.href = isIOS() ? `sms:/open?addresses=${nums.join(",")}&body=${body}` : `sms:${nums.join(",")}?body=${body}`;

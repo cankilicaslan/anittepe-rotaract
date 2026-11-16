@@ -49,13 +49,30 @@ export function move(slots, from, to) {
 // Yerleşmiş kişiler ("kind:id")
 export function placedIds(slots) {
   const out = new Set();
-  for (const [k, v] of Object.entries(slots || {})) (k === MULTI ? v || [] : [v]).forEach(p => p && out.add(`${p.kind}:${p.id}`));
+  for (const [k, v] of Object.entries(slots || {})) (k === MULTI ? v || [] : [v]).flat().forEach(p => p && out.add(`${p.kind}:${p.id}`));
   return out;
 }
 
 // Çerçevedeki kaydı kişiye çevirir; kişi silinmiş/pasifse { missing: true }.
 export function resolveSlot(ref, members, guests) {
   if (!ref) return null;
+  if (Array.isArray(ref)) return { pair: ref.map(r => resolveSlot(r, members, guests)) };
   const person = ref.kind === "guest" ? guests.find(g => g.id === ref.id) : members.find(m => m.id === ref.id && m.status === "active");
   return person ? { person, kind: ref.kind } : { missing: true };
+}
+
+// İki kişilik görev: dolu tekli çerçeveye ikinci kişiyi ekler (ikinci varsa değiştirir). ykuye hariç.
+export function addSecond(slots, key, person) {
+  const s = copy(slots), cur = s[key];
+  if (!cur) s[key] = person;
+  else s[key] = [Array.isArray(cur) ? cur[0] : cur, person];
+  return s;
+}
+
+// Çiftten birini (0/1) çıkarır; kalan kişiyle tekli çerçeve olur.
+export function removeOne(slots, key, sub) {
+  const s = copy(slots), cur = s[key];
+  if (!Array.isArray(cur)) { delete s[key]; return s; }
+  s[key] = cur[sub === 0 ? 1 : 0];
+  return s;
 }

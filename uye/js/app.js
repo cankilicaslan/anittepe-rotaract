@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611161952";
-import { createStore, trDate } from "./store.js?v=202611161952";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611161952";
+import * as BP from "./board-plan.js?v=202611161959";
+import { createStore, trDate } from "./store.js?v=202611161959";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611161959";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -448,6 +448,17 @@ async function viewBoardPlan(v) {
     const ref = key === BP.MULTI ? (slots[BP.MULTI] || [])[index] : slots[key];
     const r = find(ref), idx = index == null ? "" : ` data-index="${index}"`;
     const label = BP_LABEL(key);
+    // İki kişi: çember sağ üstten sol alta çizgiyle bölünür, üst-sol 1. kişi, alt-sağ 2. kişi
+    const half = (x, cls) => `<span class="bp-half ${cls}">${x?.person?.photo_url ? `<img src="${esc(x.person.photo_url)}" alt="">` : `<i>${esc(x?.person ? ini(x.person.full_name) : "?")}</i>`}</span>`;
+    if (r?.pair) {
+      const names = r.pair.map(x => x?.person ? x.person.full_name : "Kişi artık listede değil");
+      return `<div class="bp-slot filled pair" data-key="${key}"${idx}>
+      <button type="button" class="bp-frame" data-pick="${key}"${idx} draggable="true" aria-label="${esc(label)}: ${esc(names.join(" ve "))}, değiştir"><span class="avatar bp-pic bp-pair">${half(r.pair[0], "a")}${half(r.pair[1], "b")}</span></button>
+      <div class="bp-pair-names">${r.pair.map((x, i) => `<span><b class="${x?.person ? "" : "muted"}">${esc(names[i])}</b>${x?.kind === "guest" ? '<em class="bp-guest">Misafir</em>' : ""}<button type="button" class="bp-x1" data-rm1="${key}" data-sub="${i}" aria-label="${esc(names[i])} kişisini çıkar">×</button></span>`).join("")}</div>
+      <span class="bp-role">${esc(label)}</span>
+      <button type="button" class="bp-x" data-clear="${key}"${idx} aria-label="${esc(label)} çerçevesini boşalt">×</button>
+    </div>`;
+    }
     const body = r?.person ? `${avatar(r.person, "bp-pic")}<b>${esc(r.person.full_name)}</b>${r.kind === "guest" ? '<em class="bp-guest">Misafir</em>' : ""}`
       : r?.missing ? `<span class="avatar bp-pic bp-empty">${silhouette}</span><b class="muted">Kişi artık listede değil</b>`
       : `<span class="avatar bp-pic bp-empty">${silhouette}</span><b class="muted">Boş</b>`;
@@ -455,12 +466,13 @@ async function viewBoardPlan(v) {
       <button type="button" class="bp-frame" data-pick="${key}"${idx} ${ref && !r?.missing ? 'draggable="true"' : ""} aria-label="${esc(label)}: ${r?.person ? esc(r.person.full_name) + ", değiştir" : "kişi seç"}">${body}</button>
       <span class="bp-role">${esc(label)}</span>
       ${ref ? `<button type="button" class="bp-x" data-clear="${key}"${idx} aria-label="${esc(label)} çerçevesini boşalt">×</button>` : ""}
+      ${ref && key !== BP.MULTI && !r?.missing ? `<button type="button" class="bp-plus" data-second="${key}" title="İkinci kişiyi ekle" aria-label="${esc(label)}: ikinci kişiyi ekle">+</button>` : ""}
     </div>`;
   };
   const card = (p, kind) => `<div class="bp-card" draggable="true" data-kind="${kind}" data-id="${p.id}" title="${esc(p.full_name)}">${avatar(p, "bp-mini")}<span>${esc(p.full_name)}</span></div>`;
   const draw = () => {
     const placed = BP.placedIds(slots), multi = slots[BP.MULTI] || [];
-    v.innerHTML = header("Yönetim kurulu planlama", "2027-2028 dönemi için yönetim kurulunu yerleştir. Çerçeveye tıklayıp kişi seç ya da sağdaki listeden sürükleyip bırak. Bu taslak kimseye görev vermez.", `<span class="muted bp-save" id="bp-save" role="status" aria-live="polite"></span>`) + `
+    v.innerHTML = header("Yönetim kurulu planlama", "2027-2028 dönemi için yönetim kurulunu yerleştir. Çerçeveye tıklayıp kişi seç ya da sağdaki listeden sürükleyip bırak. Bir göreve iki kişi için dolu çerçevedeki + düğmesini kullan (ya da kişiyi + üzerine bırak). Bu taslak kimseye görev vermez.", `<span class="muted bp-save" id="bp-save" role="status" aria-live="polite"></span>`) + `
     <div class="bp-wrap">
       <div class="bp-main">
         <section class="card bp-sec"><h2>Yönetim Kurulu</h2>
@@ -485,22 +497,24 @@ async function viewBoardPlan(v) {
   };
   const update = s => { slots = s; draw(); save(); };
   const at = el => ({ key: el.dataset.key || el.dataset.pick || el.dataset.clear, index: el.dataset.index == null ? undefined : +el.dataset.index });
-  const picker = (key, index) => {
+  const picker = (key, index, second = false) => {
     const dlg = document.getElementById("bp-dlg");
     const list = (arr, kind) => arr.map(p => `<button type="button" class="bp-opt" data-kind="${kind}" data-id="${p.id}" data-q="${esc(p.full_name.toLocaleLowerCase("tr"))}">${avatar(p, "bp-mini")}<span>${esc(p.full_name)}</span></button>`).join("");
-    dlg.innerHTML = `<form method="dialog"><div class="bp-dlg-h"><h2>${esc(BP_LABEL(key))}</h2><button class="btn ghost sm" value="cancel">Kapat</button></div>
+    dlg.innerHTML = `<form method="dialog"><div class="bp-dlg-h"><h2>${esc(BP_LABEL(key))}${second ? " · ikinci kişi" : ""}</h2><button class="btn ghost sm" value="cancel">Kapat</button></div>
       <input type="search" class="bp-q" placeholder="İsim ara" aria-label="İsim ara">
       <h3>Üyeler</h3><div class="bp-opts">${list(members, "member")}</div>
       ${guests.length ? `<h3>Misafirler</h3><div class="bp-opts">${list(guests, "guest")}</div>` : ""}</form>`;
     dlg.showModal();
     const q = dlg.querySelector(".bp-q"); q.focus();
     q.oninput = () => { const s = q.value.trim().toLocaleLowerCase("tr"); dlg.querySelectorAll(".bp-opt").forEach(b => b.hidden = !!s && !b.dataset.q.includes(s)); };
-    dlg.querySelectorAll(".bp-opt").forEach(b => b.onclick = () => { dlg.close(); update(BP.place(slots, key, { kind: b.dataset.kind, id: b.dataset.id }, index)); });
+    dlg.querySelectorAll(".bp-opt").forEach(b => b.onclick = () => { dlg.close(); const p = { kind: b.dataset.kind, id: b.dataset.id }; update(second ? BP.addSecond(slots, key, p) : BP.place(slots, key, p, index)); });
     dlg.onclick = e => { if (e.target === dlg) dlg.close(); };
   };
   function bind() {
     v.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => { const p = at(b); picker(p.key, p.index); });
     document.getElementById("bp-add").onclick = () => picker(BP.MULTI, undefined);
+    v.querySelectorAll("[data-second]").forEach(b => b.onclick = () => picker(b.dataset.second, undefined, true));
+    v.querySelectorAll("[data-rm1]").forEach(b => b.onclick = () => update(BP.removeOne(slots, b.dataset.rm1, +b.dataset.sub)));
     v.querySelectorAll("[data-clear]").forEach(b => b.onclick = () => { const p = at(b); update(BP.clear(slots, p.key, p.index)); });
     // Sürükle-bırak: sağdaki kişi kartı ya da dolu çerçeve → çerçeve
     v.querySelectorAll(".bp-card").forEach(c => c.ondragstart = e => { e.dataTransfer.setData("text/plain", JSON.stringify({ person: { kind: c.dataset.kind, id: c.dataset.id } })); e.dataTransfer.effectAllowed = "copy"; });
@@ -512,7 +526,7 @@ async function viewBoardPlan(v) {
         e.preventDefault(); s.classList.remove("over");
         let d; try { d = JSON.parse(e.dataTransfer.getData("text/plain")); } catch { return; }
         const to = at(s);
-        if (d.person) update(BP.place(slots, to.key, d.person, to.index));
+        if (d.person) update(e.target.closest?.(".bp-plus") ? BP.addSecond(slots, to.key, d.person) : BP.place(slots, to.key, d.person, to.index));
         else if (d.from) update(BP.move(slots, d.from, to));
       };
     });
@@ -1642,7 +1656,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611161952");
+  const { mountComposer } = await import("./composer.js?v=202611161959");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1651,7 +1665,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161952");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161959");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

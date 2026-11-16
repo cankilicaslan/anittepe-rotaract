@@ -54,3 +54,28 @@ test('resolveSlot: aktif üye, pasif üye eksik, silinmiş misafir eksik', () =>
   assert.equal(resolveSlot(G, members, guests).person.full_name, 'G');
   assert.equal(resolveSlot(undefined, members, guests), null);
 });
+
+// --- İki kişilik görev (eş başkanlık vb.)
+import { addSecond, removeOne } from '../uye/js/board-plan.js';
+
+test('addSecond: dolu çerçeveye ikinci kişi, ikinci varsa değiştirir', () => {
+  let s = addSecond({ hizmet: A }, 'hizmet', B);
+  assert.deepEqual(s, { hizmet: [A, B] });
+  s = addSecond(s, 'hizmet', G);
+  assert.deepEqual(s, { hizmet: [A, G] });
+  assert.deepEqual(addSecond({}, 'hizmet', A), { hizmet: A });
+});
+
+test('removeOne: çiftten birini çıkarınca tekliye döner', () => {
+  assert.deepEqual(removeOne({ hizmet: [A, B] }, 'hizmet', 0), { hizmet: B });
+  assert.deepEqual(removeOne({ hizmet: [A, B] }, 'hizmet', 1), { hizmet: A });
+});
+
+test('çift: placedIds ikisini sayar, move ikisini birden taşır, resolveSlot ikisini çözer', () => {
+  const s = { hizmet: [A, G] };
+  assert.deepEqual([...placedIds(s)].sort(), ['guest:g', 'member:a']);
+  assert.deepEqual(move(s, { key: 'hizmet' }, { key: 'pr' }), { pr: [A, G] });
+  const members = [{ id: 'a', status: 'active', full_name: 'A' }], guests = [{ id: 'g', full_name: 'G' }];
+  const r = resolveSlot([A, G], members, guests);
+  assert.deepEqual(r.pair.map(x => x.person.full_name), ['A', 'G']);
+});

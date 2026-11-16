@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611161736";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161736";
+import { createStore, trDate } from "./store.js?v=202611161743";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161743";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -559,8 +559,7 @@ async function viewProfile(v) {
 /* ---------------------------- Üye listesi ---------------------------- */
 async function viewMembers(v) {
   const admin = hasRole(me, "baskan");
-  const seeDebt = false; // Üye listesinde aidat borcu gösterilmez (Aidat sayfasında var)
-  const [members, charges, dues, accounts] = await Promise.all([store.listMembers(), seeDebt ? store.listCharges() : [], seeDebt ? store.listDues() : [], store.listAccounts()]);
+  const [members, accounts] = await Promise.all([store.listMembers(), store.listAccounts()]);
   // Hesap belirteci: şifresini oluşturmuş mu? (yalnızca yetkili kişiler görür; veri yoksa hiç gösterilmez)
   const acc = accounts ? new Map(accounts.map(a => [a.id, a])) : null;
   const acctDot = m => {
@@ -570,41 +569,84 @@ async function viewMembers(v) {
     return `<span class="acct ${on ? "on" : ""}" title="${t}" role="img" aria-label="${t}"></span>`;
   };
   const pending = members.filter(m => m.status === "pending");
-  const STATUS = { active: ["Aktif", "ok"], pending: ["Onay bekliyor", "warn"], passive: ["Pasif", ""] };
-  const rows = q => members.filter(m => m.status !== "pending" || admin)
-    .filter(m => !q || [m.full_name, m.title, m.email, m.phone, m.profession].join(" ").toLocaleLowerCase("tr").includes(q))
-    .sort((a, b) => (a.status === "active" ? 0 : 1) - (b.status === "active" ? 0 : 1) || a.full_name.localeCompare(b.full_name, "tr"))
-    .map(m => {
-      const d = seeDebt ? debtOf(m.id, charges, dues) : null;
-      return `<tr>
-        <td>${acc ? person(m).replace(`<div class="person">`, `<div class="person has-acct">` + acctDot(m)) : person(m)}</td>
-        <td>${m.phone ? `<a href="tel:${esc(m.phone.replace(/\s/g, ""))}">${esc(m.phone)}</a>` : '<span class="muted">Eklenmedi</span>'}</td>
-        <td>${m.email ? `<a href="mailto:${esc(m.email)}">${esc(m.email)}</a>` : ""}</td>
-        <td>${m.birth_date ? trDate(m.birth_date) : '<span class="muted">Eklenmedi</span>'}</td>
-        <td>${esc(m.profession) || '<span class="muted">Eklenmedi</span>'}</td>
-        <td>${m.instagram ? `<a href="https://instagram.com/${esc(m.instagram.replace(/^@/, ""))}" target="_blank" rel="noopener">@${esc(m.instagram.replace(/^@/, ""))}</a>` : '<span class="muted">Eklenmedi</span>'}</td>
-        <td>${trDate(m.joined_at)}</td>
-        <td><span class="tag ${STATUS[m.status]?.[1] || ""}">${STATUS[m.status]?.[0] || esc(m.status)}</span>${(m.hide_roles ? [] : m.roles || []).map(r => ` <span class="tag cran">${ROLE_LABELS[r]}</span>`).join("")}${m.past_president ? ' <span class="tag">GDB</span>' : ""}</td>
-        ${seeDebt ? `<td class="num">${d.total ? `<b>${TL(d.total)}</b>${d.overdue.length ? ' <span class="tag bad">Gecikmiş</span>' : ""}` : '<span class="tag ok">Yok</span>'}</td>` : ""}
-        ${admin ? `<td><button class="btn ghost sm" data-edit="${m.id}">Düzenle</button></td>` : ""}
-      </tr>`;
-    }).join("");
-  v.innerHTML = header("Üye listesi", `${members.filter(m => m.status === "active").length} aktif üye`, `<div class="row"><input type="search" id="q" placeholder="İsim, görev, telefon ara" style="max-width:260px" aria-label="Üye ara">${admin ? `<button class="btn" id="addm">Yeni üye ekle</button><label class="btn ghost" style="cursor:pointer">Excel'den bilgileri al<input type="file" id="xls" accept=".xlsx,.xls,.csv" class="sr"></label>` : ""}</div>`) +
-    (admin ? `<p class="muted" style="margin:-8px 0 16px;font-size:.86rem">Excel'den alma yalnızca listedeki mevcut üyelerin telefon, e-posta, doğum tarihi, meslek, Instagram ve kan grubu bilgilerini günceller; yeni kişi eklemez. Dosya bu tarayıcıda okunur, hiçbir yere yüklenmez.</p>` : "") +
-    (admin && pending.length ? `<div class="card" style="margin-bottom:16px"><h2>Onay bekleyen hesaplar</h2>${pending.map(m => `<div class="pay-row">${person(m)}<span class="muted">${esc(m.email)} · ${esc(m.phone)}</span><button class="btn sm" data-approve="${m.id}">Onayla</button><button class="btn danger sm" data-reject="${m.id}">Pasife al</button></div>`).join("")}</div>` : "") +
+  const BOARD = ["baskan", "asbaskan", "sekreter", "sayman"];
+  const roleTags = m => (m.hide_roles ? [] : m.roles || []).filter(r => ROLE_LABELS[r]).map(r => `<span class="tag cran">${ROLE_LABELS[r]}</span>`).join("") + (m.past_president ? '<span class="tag"><abbr title="Geçmiş dönem başkanı">GDB</abbr></span>' : "");
+  const roleText = m => (m.hide_roles ? [] : m.roles || []).map(r => ROLE_LABELS[r] || "").join(" ") + (m.past_president ? " gdb geçmiş dönem başkanı" : "");
+  // WhatsApp bağlantısı: 05xx / 5xx / +90 biçimlerini wa.me için 90… yapar
+  const waNum = p => { let d = String(p || "").replace(/\D/g, ""); if (d.startsWith("00")) d = d.slice(2); if (d.startsWith("0")) d = "90" + d.slice(1); else if (d.length === 10 && d.startsWith("5")) d = "90" + d; return d.length >= 11 ? d : ""; };
+  const thisMonth = new Date().getMonth() + 1;
+  const bday = m => { if (!m.birth_date) return ""; const [, mo, da] = m.birth_date.split("-").map(Number); return `${da} ${MONTHS[mo - 1]}${mo === thisMonth ? ' <span class="tag gold">Bu ay</span>' : ""}`; };
+  const none = '<span class="muted" aria-label="Eklenmedi">—</span>';
+  const ig = m => m.instagram ? m.instagram.replace(/^@/, "").trim() : "";
+
+  const F = { q: "", f: "aktif" };
+  const FILTERS = [
+    ["aktif", "Aktif üyeler", m => m.status === "active"],
+    ["yk", "Yönetim kurulu", m => m.status === "active" && (m.roles || []).some(r => BOARD.includes(r))],
+    ["komite", "Komite başkanları", m => m.status === "active" && (m.roles || []).some(r => ROLE_LABELS[r] && !BOARD.includes(r))],
+    ["dogum", "Bu ay doğanlar", m => m.status === "active" && m.birth_date && +m.birth_date.slice(5, 7) === thisMonth],
+    ["pasif", "Pasif", m => m.status === "passive"]
+  ].filter(([k, , fn]) => k === "aktif" || members.some(fn));
+
+  const row = m => {
+    const wa = waNum(m.phone), handle = ig(m);
+    const actions = [
+      m.phone ? `<a class="qa" href="tel:${esc(m.phone.replace(/\s/g, ""))}" aria-label="${esc(m.full_name)} ara">Ara</a>` : "",
+      wa ? `<a class="qa wa" href="https://wa.me/${wa}" target="_blank" rel="noopener" aria-label="${esc(m.full_name)} WhatsApp">WhatsApp</a>` : "",
+      m.email ? `<a class="qa" href="mailto:${esc(m.email)}" aria-label="${esc(m.full_name)} e-posta">E-posta</a>` : ""
+    ].join("");
+    return `<tr${m.status === "passive" ? ' class="is-passive"' : ""}>
+      <td class="m-who">${acc ? person(m).replace(`<div class="person">`, `<div class="person has-acct">` + acctDot(m)) : person(m)}${roleTags(m) || m.status !== "active" ? `<div class="m-tags">${m.status === "passive" ? '<span class="tag">Pasif</span>' : ""}${roleTags(m)}</div>` : ""}</td>
+      <td data-label="İletişim" class="m-contact"><div class="m-lines">${m.phone ? `<span>${esc(m.phone)}</span>` : ""}${m.email ? `<span class="m-mail">${esc(m.email)}</span>` : ""}${!m.phone && !m.email ? none : ""}</div>${actions ? `<div class="m-qa">${actions}</div>` : ""}</td>
+      <td data-label="Doğum günü">${bday(m) || none}</td>
+      <td data-label="Meslek / okul">${esc(m.profession) || none}</td>
+      <td data-label="Instagram">${handle ? `<a href="https://instagram.com/${esc(handle)}" target="_blank" rel="noopener">@${esc(handle)}</a>` : none}</td>
+      <td data-label="Üyelik">${m.joined_at ? trDate(m.joined_at) : none}</td>
+      ${admin ? `<td class="m-edit"><button class="btn ghost sm" data-edit="${m.id}" aria-label="${esc(m.full_name)} bilgilerini düzenle">Düzenle</button></td>` : ""}
+    </tr>`;
+  };
+  const list = () => {
+    const fn = FILTERS.find(x => x[0] === F.f)?.[2] || FILTERS[0][2];
+    const q = F.q, qd = q.replace(/\D/g, "").replace(/^(90|0)/, "");
+    // Telefon biçimden bağımsız eşleşir ("0532 123" = "+90532123…")
+    return members.filter(fn)
+      .filter(m => !q || [m.full_name, m.title, roleText(m), m.email, m.phone, m.profession, m.instagram].join(" ").toLocaleLowerCase("tr").includes(q)
+        || (qd.length >= 3 && String(m.phone || "").replace(/\D/g, "").includes(qd)))
+      .sort((a, b) => a.full_name.localeCompare(b.full_name, "tr"));
+  };
+
+  const activeCount = members.filter(m => m.status === "active").length;
+  v.innerHTML = header("Üye listesi", `${activeCount} aktif üye`, admin ? `<div class="row"><button class="btn" id="addm">Yeni üye ekle</button><label class="btn ghost" style="cursor:pointer">Excel'den bilgileri al<input type="file" id="xls" accept=".xlsx,.xls,.csv" class="sr"></label></div>` : "") +
+    (admin ? `<details class="m-help"><summary>Excel'den alma nasıl çalışır?</summary><p class="muted">Yalnızca listedeki mevcut üyelerin telefon, e-posta, doğum tarihi, meslek, Instagram ve kan grubu bilgilerini günceller; yeni kişi eklemez. Dosya bu tarayıcıda okunur, hiçbir yere yüklenmez.</p></details>` : "") +
+    (admin && pending.length ? `<div class="card m-pending" style="margin-bottom:16px"><h2>Onay bekleyen hesaplar <span class="tag warn">${pending.length}</span></h2>${pending.map(m => `<div class="pay-row">${person(m)}<span class="muted">${esc(m.email)}${m.phone ? " · " + esc(m.phone) : ""}</span><button class="btn sm" data-approve="${m.id}">Onayla</button><button class="btn danger sm" data-reject="${m.id}">Pasife al</button></div>`).join("")}</div>` : "") +
+    `<div class="m-tools">
+      <div class="m-search"><input type="search" id="q" placeholder="İsim, görev, komite, telefon, okul ara" aria-label="Üye ara" autocomplete="off"></div>
+      <div class="m-filters" role="group" aria-label="Listeyi süz">${FILTERS.map(([k, l, fn]) => `<button type="button" class="m-chip" data-f="${k}" aria-pressed="${k === F.f}">${l} <span class="m-n">${members.filter(fn).length}</span></button>`).join("")}</div>
+    </div>
+    <p class="muted m-count" id="mcount" role="status" aria-live="polite"></p>` +
     (acc ? `<p class="muted acct-legend"><span class="lg"><span class="acct on"></span>Siteye şifresini oluşturdu</span> <span class="lg"><span class="acct"></span>Henüz oluşturmadı</span> <span class="lg">· ${members.filter(m => acc.get(m.id)?.has_password).length}/${members.length} kişi</span></p>` : "") +
-    `<div class="tbl-wrap"><table><thead><tr><th>Üye</th><th>Telefon</th><th>E-posta</th><th>Doğum tarihi</th><th>Meslek / okul</th><th>Instagram</th><th>Üyelik</th><th>Durum</th>${seeDebt ? '<th class="num">Aidat borcu</th>' : ""}${admin ? "<th></th>" : ""}</tr></thead><tbody id="tb">${rows("")}</tbody></table></div>
+    `<div class="tbl-wrap"><table class="stack m-table"><caption class="sr">Üye listesi</caption><thead><tr><th scope="col">Üye</th><th scope="col">İletişim</th><th scope="col">Doğum günü</th><th scope="col">Meslek / okul</th><th scope="col">Instagram</th><th scope="col">Üyelik</th>${admin ? '<th scope="col"><span class="sr">İşlem</span></th>' : ""}</tr></thead><tbody id="tb"></tbody></table></div>
+    <div class="empty m-empty" id="mempty" hidden><p>Aramanla eşleşen üye yok.</p><button type="button" class="btn ghost sm" id="mclear">Aramayı temizle</button></div>
     <dialog id="dlg"></dialog>`;
-  const tb = document.getElementById("tb");
-  const bind = () => tb.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => editMember(members.find(m => m.id === b.dataset.edit)));
-  document.getElementById("q").oninput = e => { tb.innerHTML = rows(e.target.value.trim().toLocaleLowerCase("tr")); bind(); };
-  bind();
+  const tb = document.getElementById("tb"), qEl = document.getElementById("q");
+  const render = () => {
+    const rows = list();
+    tb.innerHTML = rows.map(row).join("");
+    document.getElementById("mempty").hidden = rows.length > 0;
+    v.querySelector(".tbl-wrap").hidden = rows.length === 0;
+    document.getElementById("mcount").textContent = F.q ? `${rows.length} sonuç` : `${rows.length} kişi`;
+    tb.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => editMember(members.find(m => m.id === b.dataset.edit)));
+  };
+  qEl.oninput = () => { F.q = qEl.value.trim().toLocaleLowerCase("tr"); render(); };
+  document.getElementById("mclear").onclick = () => { qEl.value = ""; F.q = ""; F.f = "aktif"; v.querySelectorAll("[data-f]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.f === "aktif"))); render(); qEl.focus(); };
+  v.querySelectorAll("[data-f]").forEach(b => b.onclick = () => { F.f = b.dataset.f; v.querySelectorAll("[data-f]").forEach(x => x.setAttribute("aria-pressed", String(x === b))); render(); });
+  render();
   if (admin) {
     document.getElementById("addm").onclick = () => editMember(null);
     document.getElementById("xls").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) importMembers(f, members); };
   }
   v.querySelectorAll("[data-approve]").forEach(b => b.onclick = async () => { try { await store.approveMember(b.dataset.approve); toast("Üye onaylandı."); refresh(); } catch (e) { fail(e); } });
-  v.querySelectorAll("[data-reject]").forEach(b => b.onclick = async () => { try { await store.updateMember(b.dataset.reject, { status: "passive" }); toast("Hesap pasife alındı."); refresh(); } catch (e) { fail(e); } });
+  v.querySelectorAll("[data-reject]").forEach(b => b.onclick = async () => { if (!confirm("Bu hesap pasife alınsın mı? Kişi panele giremez; sonra üye düzenlemeden yeniden aktif yapılabilir.")) return; try { await store.updateMember(b.dataset.reject, { status: "passive" }); toast("Hesap pasife alındı."); refresh(); } catch (e) { fail(e); } });
 }
 
 async function editMember(m) {
@@ -1329,7 +1371,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611161736");
+  const { mountComposer } = await import("./composer.js?v=202611161743");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1338,7 +1380,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161736");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161743");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

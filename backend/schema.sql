@@ -1682,3 +1682,9 @@ grant execute on function public.board_plan_view() to authenticated;
 -- v40: Asbaşkanın planlama notları (term_board_plans.notes; yalnızca planlayıcı)
 -- =====================================================================
 alter table public.term_board_plans add column if not exists notes text;
+
+-- =====================================================================
+-- v41: Hazır PDF olarak yayımlanan sayılar: sayfalar "gorsel" düzeniyle tam sayfa görsel,
+--      orijinal PDF indirme bağlantısı letters.pdf_url
+-- =====================================================================
+alter table public.letters add column if not exists pdf_url text;

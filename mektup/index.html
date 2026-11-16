@@ -26,7 +26,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,300;1,400&display=swap">
-<link rel="stylesheet" href="/assets/css/letter.css?v=202611162024">
+<link rel="stylesheet" href="/assets/css/letter.css?v=202611162049">
 <style>
 :root{
   --cran:#D41367; --cran-deep:#A30C4D; --cran-soft:#FCE6EF; --gold:#F7A81B;
@@ -132,12 +132,12 @@ h1{font-size:clamp(2rem,5vw,3rem);line-height:1.08;font-weight:800;letter-spacin
 </footer>
 
 <script type="module">
-import { CONFIG } from "/uye/js/config.js?v=202611162024";
-import { renderLetter, renderPage, tocFromPages, esc } from "/assets/js/letter-render.js?v=202611162024";
+import { CONFIG } from "/uye/js/config.js?v=202611162049";
+import { renderLetter, renderPage, tocFromPages, esc } from "/assets/js/letter-render.js?v=202611162049";
 
 const TITLE = "Başkan Mektubu · Ankara Anıttepe Rotaract Kulübü";
 const LOGO = "/assets/logo-beyaz.webp";
-const API = `${CONFIG.SUPABASE_URL}/rest/v1/letters?select=id,term_id,issue_no,period,published_at,published_pages&status=eq.yayinda`;
+const API = `${CONFIG.SUPABASE_URL}/rest/v1/letters?select=id,term_id,issue_no,period,published_at,published_pages,pdf_url&status=eq.yayinda`;
 const app = document.getElementById("app");
 document.getElementById("yr").textContent = new Date().getFullYear();
 
@@ -219,15 +219,15 @@ function showReader(letters, term, issue) {
     <a class="rd-back" href="/mektup/">← Tüm sayılar</a>
     ${head(`Sayı ${esc(l.issue_no)}`, esc([l.period, `${l.term} dönemi`].filter(Boolean).join(" · ")))}
     <div class="rd-bar">
-      <button type="button" class="btn btn-cran" id="pdf">PDF indir</button>
-      <p class="rd-hint">Yazdırma penceresinde Hedef: PDF olarak kaydet seç.</p>
+      ${l.pdf_url ? `<a class="btn btn-cran" href="${esc(l.pdf_url)}" download>PDF indir</a>` : `<button type="button" class="btn btn-cran" id="pdf">PDF indir</button>
+      <p class="rd-hint">Yazdırma penceresinde Hedef: PDF olarak kaydet seç.</p>`}
     </div>
     <div class="lt-pages" id="pages" data-fit>${renderLetter(l, { editable: false, photoUrl, logoUrl: LOGO })}</div>
     <nav class="rd-nav" aria-label="Sayılar">
       ${older ? `<a class="btn btn-line" href="${esc(hrefOf(older))}">← Sayı ${esc(older.issue_no)}</a>` : ""}
       ${newer ? `<a class="btn btn-line next" href="${esc(hrefOf(newer))}">Sayı ${esc(newer.issue_no)} →</a>` : ""}
     </nav>`;
-  document.getElementById("pdf").addEventListener("click", () => window.print());
+  document.getElementById("pdf")?.addEventListener("click", () => window.print());
   fit();
 }
 

@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611162024";
-import { createStore, trDate } from "./store.js?v=202611162024";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611162024";
+import * as BP from "./board-plan.js?v=202611162049";
+import { createStore, trDate } from "./store.js?v=202611162049";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611162049";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1774,7 +1774,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611162024");
+  const { mountComposer } = await import("./composer.js?v=202611162049");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1783,7 +1783,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611162024");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611162049");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

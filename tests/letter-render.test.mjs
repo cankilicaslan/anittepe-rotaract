@@ -98,3 +98,14 @@ test('fotoğraf boşluğu photoUrl ile belirlenir; pos null ise orta', () => {
   const mid = renderPage({ layout: 'neler-1', fields: { photo: { path: 'a.jpg', pos: { x: null, y: 0 } } } }, opts());
   assert.ok(mid.includes('object-position:50% 0%'), mid);
 });
+
+// Tam sayfa görsel (PDF'ten aktarılan sayılar)
+test('gorsel: tam sayfa görsel ve erişilebilir metin', async () => {
+  const { renderPage, tocFromPages, LAYOUTS } = await import('../assets/js/letter-render.js');
+  assert.ok(LAYOUTS.gorsel);
+  const html = renderPage({ layout: 'gorsel', fields: { image: { url: '/assets/mektup/x.webp' }, text: 'Başkan <Mesajı>' } }, { photoUrl: r => r.url });
+  assert.match(html, /class="lt-page lt-gorsel"/);
+  assert.match(html, /src="\/assets\/mektup\/x\.webp"/);
+  assert.match(html, /Başkan &lt;Mesajı&gt;/);
+  assert.deepEqual(tocFromPages([{ layout: 'gorsel', fields: {} }]), []);
+});

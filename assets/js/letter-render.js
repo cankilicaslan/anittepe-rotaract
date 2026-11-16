@@ -74,6 +74,12 @@ export const LAYOUTS = {
     group: 'Neler Yaptık?',
     fields: [T('label', 'Etiket', AI), L('body', 'Metin', AI), LIST('photos', `Fotoğraflar (en fazla ${MAX_PHOTOS})`)],
   },
+  // PDF'ten aktarılan sayı: her sayfa tek bir tam sayfa görsel (810×1012); metin ekran okuyucular için
+  gorsel: {
+    label: 'Tam sayfa görsel',
+    group: null,
+    fields: [P('image', 'Sayfa görseli'), L('text', 'Sayfadaki metin (ekran okuyucu için)')],
+  },
   serbest: {
     label: 'Serbest sayfa',
     group: null, // içindekilerde kendi başlığıyla yer alır
@@ -450,6 +456,13 @@ const DRAW = {
   ${text(ctx, 'body', 'lt-full-body')}
   ${photoList(ctx, 'photos', 'lt-collage')}
 </div>${logo(ctx)}`;
+  },
+
+  gorsel(ctx) {
+    const u = photoSrc(ctx, ctx.f.image);
+    const pic = u ? `<img class="lt-img lt-page-img" src="${esc(u)}" alt="">` : (ctx.editable ? '<p class="lt-page-empty">Sayfa görseli yok</p>' : '');
+    const txt = blank(ctx.f.text) ? '' : `<div class="lt-sr">${esc(ctx.f.text)}</div>`;
+    return pic + txt;
   },
 
   serbest(ctx) {

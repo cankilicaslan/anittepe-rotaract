@@ -600,3 +600,9 @@
   .lt-polaroid-add,
   .lt-polaroid:has(> .lt-slot-empty) { display: none !important; }
 }
+
+/* Tam sayfa görsel (PDF'ten aktarılan sayılar) */
+.lt-page.lt-gorsel { background: #fff; padding: 0; }
+.lt-page-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.lt-page-empty { position: absolute; inset: 0; display: grid; place-items: center; color: #A30C4D; margin: 0; }
+.lt-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

@@ -40,7 +40,8 @@ const PREVIEW_ROLES = () => PREVIEW_GROUPS().flatMap(([, list]) => list);
 function rolePages(role) {
   if (role === "uye") return [];
   const fake = { status: "active", roles: role === "gdb" ? [] : [role], past_president: role === "gdb" };
-  return PAGES.filter(p => p.id && !p.hidden && (p.panel ? can(fake, p.panel, "view") : (p.id === "site" && role === "pr"))).map(p => p.label);
+  const isCommittee = ROLE_GROUPS[1][1].includes(role);
+  return PAGES.filter(p => p.id && !p.hidden && (p.panel ? can(fake, p.panel, "view") : (p.id === "site" && role === "pr") || (p.id === "komite" && isCommittee))).map(p => p.label);
 }
 const rolePagesNote = role => {
   if (role === "baskan") return "Tüm panelleri yönetir";
@@ -308,11 +309,13 @@ function pendingView(passive = false) {
 const PAGES = [
   { id: "profil", label: "Profilim", show: () => true },
   { id: "takvim", label: "Takvim", show: () => true },
-  { id: "uyeler", label: "Üye listesi", show: () => true },
+  { id: "uyeler", label: "Üye-Misafir listesi", show: () => true },
   { id: "kulupler", label: "Diğer kulüplerin etkinlikleri", show: () => true },
   { id: "arsiv", label: "Fotoğraf arşivi", show: () => true },
   { id: "yukle", label: "Fotoğraf yükle", show: () => true, hidden: true },
   { grp: "Yönetim" },
+  // Komite paneli: komite başkanlığı olan herkes kendi komitesini, Başkan/Asbaşkan tüm komiteleri görür.
+  { id: "komite", label: "Komite paneli", show: () => myCommittees().length > 0 || hasRole(me, "baskan") || hasRole(me, "asbaskan") },
   { id: "duyurular", label: "Duyurular", panel: "duyuru" },
   { id: "yoklama", label: "Yoklama", panel: "yoklama" },
   { id: "wa-toplanti", label: "Toplantı duyurusu (WhatsApp)", panel: "wa-toplanti" },
@@ -394,7 +397,7 @@ function shell() {
   const rs = document.getElementById("reset");
   if (rs) rs.onclick = () => { if (confirm("Örnek veriler ilk haline dönsün mü? Bu tarayıcıdaki demo değişiklikleri silinir.")) { store.resetDemo(); location.hash = ""; location.reload(); } };
   const view = document.getElementById("view");
-  const fn = { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram, mektup: viewLetter, site: viewSite, arsiv: viewArchive, yukle: viewUpload, bagislar: viewDonations, "proje-formlari": viewProjectForms, "wa-toplanti": viewWaMeeting, "wa-aidat": viewWaDues }[id];
+  const fn = { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, duyurular: viewAnnounce, uyeler: viewMembers, komite: viewCommittee, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram, mektup: viewLetter, site: viewSite, arsiv: viewArchive, yukle: viewUpload, bagislar: viewDonations, "proje-formlari": viewProjectForms, "wa-toplanti": viewWaMeeting, "wa-aidat": viewWaDues }[id];
   fn(view).catch(e => { view.innerHTML = `<div class="err">${esc(e.message)}</div>`; });
   labelTables(view);
   new MutationObserver(() => labelTables(view)).observe(view, { childList: true, subtree: true });
@@ -514,6 +517,50 @@ function myDuties() {
   }).join("");
   return `<div class="duties"><h3>Görevin</h3><ul>${rowsH}</ul></div>`;
 }
+/* ---------------------------- Komite paneli ---------------------------- */
+// Her komite görevinin kendi paneli. Komitenin özel bir paneli (ör. HİTK → Instagram) varsa buradan da açılır.
+const COMMITTEE_INFO = {
+  hizmet: "Toplum hizmeti projelerini planlar, ortakları ve gönüllüleri koordine eder.",
+  uyelik: "Yeni üye kazanımı, misafir takibi ve üyelerin kulüpte gelişimiyle ilgilenir.",
+  uluslararasi: "Yurt dışı kulüplerle ortak projeler, değişim ve uluslararası iletişimi yürütür.",
+  pr: "Kulübün sosyal medyası, duyuruları ve tanıtımından sorumludur.",
+  kulup: "Kulüp içi buluşmalar, toplantı düzeni ve Başkan Mektubu'nu hazırlar.",
+  meslek: "Kariyer, mesleki gelişim ve meslek ziyareti etkinliklerini düzenler.",
+  afet: "Afet bilinci, ilk yardım eğitimleri ve afet anındaki destek çalışmalarını yürütür.",
+  hobi: "Üyelerin ortak ilgi alanlarına yönelik sosyal ve hobi etkinliklerini düzenler.",
+  interact: "Interact kulüpleriyle iletişimi ve gençlere yönelik ortak çalışmaları yürütür."
+};
+const myCommittees = () => (me?.roles || []).filter(r => ROLE_GROUPS[1][1].includes(r) && (isActiveMe()));
+const isActiveMe = () => !!me && (me.is_owner || me.status === "active");
+async function viewCommittee(v) {
+  const all = hasRole(me, "baskan") || hasRole(me, "asbaskan");
+  const mine = myCommittees();
+  const list = all ? ROLE_GROUPS[1][1] : mine;
+  const members = await store.listMembers().catch(() => []);
+  const notes = await Promise.all(list.map(r => store.getSetting("komite_notes_" + r).catch(() => null)));
+  v.innerHTML = header("Komite paneli", all ? "Tüm komiteler ve başkanları" : "Komite görevin ve notların") +
+    `<div class="kp-grid">${list.map((r, i) => {
+      const chairs = members.filter(m => m.status === "active" && (m.roles || []).includes(r));
+      const pages = rolePages(r).filter(l => l !== "Komite paneli");
+      const canEdit = (mine.includes(r) || hasRole(me, "baskan")) && !preview;
+      const links = pages.map(l => { const p = PAGES.find(x => x.label === l); return p ? `<a class="btn ghost sm" href="#${p.id}">${esc(l)}</a>` : ""; }).join("");
+      return `<section class="card kp" aria-labelledby="kp-${r}"><h2 id="kp-${r}">${esc(ROLE_LABELS[r])}</h2>
+        <p class="muted kp-desc">${esc(COMMITTEE_INFO[r] || "")}</p>
+        <div class="kp-row"><span class="kp-k">Başkan</span><span>${chairs.length ? chairs.map(m => esc(m.full_name)).join(", ") : '<span class="muted">Atanmadı</span>'}</span></div>
+        ${links ? `<div class="kp-row"><span class="kp-k">Panelleri</span><span class="row">${links}</span></div>` : ""}
+        <label class="f kp-notes">Komite notları <small>Plan, yapılacaklar, iletişim kişileri</small>
+          <textarea rows="6" data-kn="${r}" ${canEdit ? "" : "readonly"} placeholder="${canEdit ? "Bu dönem yapmayı planladıklarınız…" : "Henüz not yok."}">${esc(notes[i] || "")}</textarea></label>
+        ${canEdit ? `<div class="row"><button type="button" class="btn sm" data-kns="${r}">Notları kaydet</button></div>` : ""}
+      </section>`;
+    }).join("")}</div>`;
+  v.querySelectorAll("[data-kns]").forEach(b => b.onclick = async () => {
+    const r = b.dataset.kns, ta = v.querySelector(`[data-kn="${r}"]`);
+    b.disabled = true;
+    try { await store.setSetting("komite_notes_" + r, ta.value); toast("Komite notları kaydedildi."); }
+    catch (e) { fail(e); } finally { b.disabled = false; }
+  });
+}
+
 async function viewProfile(v) {
   const [meetings, att, charges, dues, priv] = await Promise.all([store.listMeetings(), store.listAttendance(), store.listCharges(), store.listDues(), store.getPrivate(me.id)]);
   const st = attendanceStats(me.id, meetings, att, memberStartNo(me, meetings));
@@ -587,7 +634,13 @@ async function viewProfile(v) {
 /* ---------------------------- Üye listesi ---------------------------- */
 async function viewMembers(v) {
   const admin = hasRole(me, "baskan");
-  const [members, accounts] = await Promise.all([store.listMembers(), store.listAccounts()]);
+  const [members, accounts, guestsFull, guestNames, gatt] = await Promise.all([store.listMembers(), store.listAccounts(),
+    store.listGuests().catch(() => []), (store.listGuestNames ? store.listGuestNames() : Promise.resolve([])).catch(() => []), store.listGuestAttendance().catch(() => [])]);
+  // Misafirler: bilgileri (telefon, e-posta, not) yalnızca yoklamayı görebilenlere; diğer üyeler yalnızca isimleri görür.
+  const guests = (guestsFull && guestsFull.length ? guestsFull : (guestNames || []).map(n => ({ full_name: n })))
+    .filter(g => g.full_name).sort((x, y) => x.full_name.localeCompare(y.full_name, "tr"));
+  const guestDetail = !!(guestsFull && guestsFull.length);
+  const came = new Map(); (gatt || []).forEach(x => { if (x.status === "geldi") came.set(x.guest_id, (came.get(x.guest_id) || 0) + 1); });
   // Hesap belirteci: şifresini oluşturmuş mu? (yalnızca yetkili kişiler görür; veri yoksa hiç gösterilmez)
   const acc = accounts ? new Map(accounts.map(a => [a.id, a])) : null;
   const acctDot = m => {
@@ -600,8 +653,6 @@ async function viewMembers(v) {
   const BOARD = ["baskan", "asbaskan", "sekreter", "sayman"];
   const roleTags = m => (m.hide_roles ? [] : m.roles || []).filter(r => ROLE_LABELS[r]).map(r => `<span class="tag cran">${ROLE_LABELS[r]}</span>`).join("") + (m.past_president ? '<span class="tag"><abbr title="Geçmiş dönem başkanı">GDB</abbr></span>' : "");
   const roleText = m => (m.hide_roles ? [] : m.roles || []).map(r => ROLE_LABELS[r] || "").join(" ") + (m.past_president ? " gdb geçmiş dönem başkanı" : "");
-  // WhatsApp bağlantısı: 05xx / 5xx / +90 biçimlerini wa.me için 90… yapar
-  const waNum = p => { let d = String(p || "").replace(/\D/g, ""); if (d.startsWith("00")) d = d.slice(2); if (d.startsWith("0")) d = "90" + d.slice(1); else if (d.length === 10 && d.startsWith("5")) d = "90" + d; return d.length >= 11 ? d : ""; };
   const thisMonth = new Date().getMonth() + 1;
   const bday = m => { if (!m.birth_date) return ""; const [, mo, da] = m.birth_date.split("-").map(Number); return `${da} ${MONTHS[mo - 1]}${mo === thisMonth ? ' <span class="tag gold">Bu ay</span>' : ""}`; };
   const none = '<span class="muted" aria-label="Eklenmedi">—</span>';
@@ -617,15 +668,10 @@ async function viewMembers(v) {
   ].filter(([k, , fn]) => k === "aktif" || members.some(fn));
 
   const row = m => {
-    const wa = waNum(m.phone), handle = ig(m);
-    const actions = [
-      m.phone ? `<a class="qa" href="tel:${esc(m.phone.replace(/\s/g, ""))}" aria-label="${esc(m.full_name)} ara">Ara</a>` : "",
-      wa ? `<a class="qa wa" href="https://wa.me/${wa}" target="_blank" rel="noopener" aria-label="${esc(m.full_name)} WhatsApp">WhatsApp</a>` : "",
-      m.email ? `<a class="qa" href="mailto:${esc(m.email)}" aria-label="${esc(m.full_name)} e-posta">E-posta</a>` : ""
-    ].join("");
+    const handle = ig(m);
     return `<tr${m.status === "passive" ? ' class="is-passive"' : ""}>
       <td class="m-who">${acc ? person(m).replace(`<div class="person">`, `<div class="person has-acct">` + acctDot(m)) : person(m)}${roleTags(m) || m.status !== "active" ? `<div class="m-tags">${m.status === "passive" ? '<span class="tag">Pasif</span>' : ""}${roleTags(m)}</div>` : ""}</td>
-      <td data-label="İletişim" class="m-contact"><div class="m-lines">${m.phone ? `<span>${esc(m.phone)}</span>` : ""}${m.email ? `<span class="m-mail">${esc(m.email)}</span>` : ""}${!m.phone && !m.email ? none : ""}</div>${actions ? `<div class="m-qa">${actions}</div>` : ""}</td>
+      <td data-label="İletişim" class="m-contact"><div class="m-lines">${m.phone ? `<a href="tel:${esc(m.phone.replace(/\s/g, ""))}">${esc(m.phone)}</a>` : ""}${m.email ? `<a class="m-mail" href="mailto:${esc(m.email)}">${esc(m.email)}</a>` : ""}${!m.phone && !m.email ? none : ""}</div></td>
       <td data-label="Doğum günü">${bday(m) || none}</td>
       <td data-label="Meslek / okul">${esc(m.profession) || none}</td>
       <td data-label="Instagram">${handle ? `<a href="https://instagram.com/${esc(handle)}" target="_blank" rel="noopener">@${esc(handle)}</a>` : none}</td>
@@ -644,25 +690,40 @@ async function viewMembers(v) {
   };
 
   const activeCount = members.filter(m => m.status === "active").length;
-  v.innerHTML = header("Üye listesi", `${activeCount} aktif üye`, admin ? `<div class="row"><button class="btn" id="addm">Yeni üye ekle</button><label class="btn ghost" style="cursor:pointer">Excel'den bilgileri al<input type="file" id="xls" accept=".xlsx,.xls,.csv" class="sr"></label></div>` : "") +
+  v.innerHTML = header("Üye-Misafir listesi", `${activeCount} aktif üye · ${guests.length} misafir`, admin ? `<div class="row"><button class="btn" id="addm">Yeni üye ekle</button><label class="btn ghost" style="cursor:pointer">Excel'den bilgileri al<input type="file" id="xls" accept=".xlsx,.xls,.csv" class="sr"></label></div>` : "") +
     (admin ? `<details class="m-help"><summary>Excel'den alma nasıl çalışır?</summary><p class="muted">Yalnızca listedeki mevcut üyelerin telefon, e-posta, doğum tarihi, meslek, Instagram ve kan grubu bilgilerini günceller; yeni kişi eklemez. Dosya bu tarayıcıda okunur, hiçbir yere yüklenmez.</p></details>` : "") +
     (admin && pending.length ? `<div class="card m-pending" style="margin-bottom:16px"><h2>Onay bekleyen hesaplar <span class="tag warn">${pending.length}</span></h2>${pending.map(m => `<div class="pay-row">${person(m)}<span class="muted">${esc(m.email)}${m.phone ? " · " + esc(m.phone) : ""}</span><button class="btn sm" data-approve="${m.id}">Onayla</button><button class="btn danger sm" data-reject="${m.id}">Pasife al</button></div>`).join("")}</div>` : "") +
     `<div class="m-tools">
-      <div class="m-search"><input type="search" id="q" placeholder="İsim, görev, komite, telefon, okul ara" aria-label="Üye ara" autocomplete="off"></div>
+      <div class="m-search"><input type="search" id="q" placeholder="Üye ya da misafir ara: isim, görev, komite, telefon, okul" aria-label="Üye ya da misafir ara" autocomplete="off"></div>
       <div class="m-filters" role="group" aria-label="Listeyi süz">${FILTERS.map(([k, l, fn]) => `<button type="button" class="m-chip" data-f="${k}" aria-pressed="${k === F.f}">${l} <span class="m-n">${members.filter(fn).length}</span></button>`).join("")}</div>
     </div>
     <p class="muted m-count" id="mcount" role="status" aria-live="polite"></p>` +
     (acc ? `<p class="muted acct-legend"><span class="lg"><span class="acct on"></span>Siteye şifresini oluşturdu</span> <span class="lg"><span class="acct"></span>Henüz oluşturmadı</span> <span class="lg">· ${members.filter(m => acc.get(m.id)?.has_password).length}/${members.length} kişi</span></p>` : "") +
     `<div class="tbl-wrap"><table class="stack m-table"><caption class="sr">Üye listesi</caption><thead><tr><th scope="col">Üye</th><th scope="col">İletişim</th><th scope="col">Doğum günü</th><th scope="col">Meslek / okul</th><th scope="col">Instagram</th><th scope="col">Üyelik</th>${admin ? '<th scope="col"><span class="sr">İşlem</span></th>' : ""}</tr></thead><tbody id="tb"></tbody></table></div>
     <div class="empty m-empty" id="mempty" hidden><p>Aramanla eşleşen üye yok.</p><button type="button" class="btn ghost sm" id="mclear">Aramayı temizle</button></div>
+    ${guests.length ? `<section class="m-guests" aria-labelledby="g-h"><div class="m-guests-h"><h2 id="g-h">Misafirler</h2><span class="tag">${guests.length}</span></div>
+      ${guestDetail ? "" : '<p class="muted m-gnote">Misafirlerin iletişim bilgilerini Sekreter ve yönetim görür.</p>'}
+      <div class="tbl-wrap"><table class="stack m-table m-gtable"><caption class="sr">Misafir listesi</caption><thead><tr><th scope="col">Misafir</th>${guestDetail ? '<th scope="col">İletişim</th><th scope="col">Not</th><th scope="col">Katıldığı toplantı</th>' : ""}</tr></thead><tbody id="gtb"></tbody></table></div>
+      <p class="muted m-empty-g" id="gempty" hidden>Aramanla eşleşen misafir yok.</p></section>` : ""}
     <dialog id="dlg"></dialog>`;
   const tb = document.getElementById("tb"), qEl = document.getElementById("q");
   const render = () => {
     const rows = list();
     tb.innerHTML = rows.map(row).join("");
-    document.getElementById("mempty").hidden = rows.length > 0;
+    document.getElementById("mempty").hidden = rows.length > 0 || !F.q && F.f !== "aktif";
     v.querySelector(".tbl-wrap").hidden = rows.length === 0;
-    document.getElementById("mcount").textContent = F.q ? `${rows.length} sonuç` : `${rows.length} kişi`;
+    document.getElementById("mcount").textContent = F.q ? `${rows.length} üye sonucu` : `${rows.length} kişi`;
+    const gtb = document.getElementById("gtb");
+    if (gtb) {
+      const q = F.q, qd = q.replace(/\D/g, "").replace(/^(90|0)/, "");
+      const gs = guests.filter(g => !q || [g.full_name, g.email, g.phone, g.note].join(" ").toLocaleLowerCase("tr").includes(q) || (qd.length >= 3 && String(g.phone || "").replace(/\D/g, "").includes(qd)));
+      gtb.innerHTML = gs.map(g => `<tr><td class="m-who"><div class="person">${avatar(g)}<div><b>${esc(g.full_name)}</b><span>Misafir</span></div></div></td>${guestDetail ? `
+        <td data-label="İletişim" class="m-contact"><div class="m-lines">${g.phone ? `<a href="tel:${esc(String(g.phone).replace(/\s/g, ""))}">${esc(g.phone)}</a>` : ""}${g.email ? `<a class="m-mail" href="mailto:${esc(g.email)}">${esc(g.email)}</a>` : ""}${!g.phone && !g.email ? none : ""}</div></td>
+        <td data-label="Not">${esc(g.note) || none}</td>
+        <td data-label="Katıldığı toplantı">${g.id && came.get(g.id) ? came.get(g.id) : none}</td>` : ""}</tr>`).join("");
+      document.getElementById("gempty").hidden = gs.length > 0;
+      gtb.closest(".tbl-wrap").hidden = gs.length === 0;
+    }
     tb.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => editMember(members.find(m => m.id === b.dataset.edit)));
   };
   qEl.oninput = () => { F.q = qEl.value.trim().toLocaleLowerCase("tr"); render(); };
@@ -687,7 +748,7 @@ async function editMember(m) {
     ${isNew && store.mode === "supabase" ? `<p class="muted" style="margin:0">Üyeye e-postasına bir davet gider; bağlantıya tıklayıp şifresini belirleyince panele girebilir.</p>` : ""}
     <div class="grid g2">
       <label class="f">Ad soyad<input type="text" name="full_name" value="${esc(m.full_name)}" required></label>
-      <label class="f">Görev<input type="text" name="title" value="${esc(m.title)}" list="titles"></label>
+      <label class="f">Görev<input type="text" name="title" value="${esc(m.title)}" list="titles" id="m-title"></label>
       <label class="f">Telefon<input type="tel" name="phone" value="${esc(m.phone)}" placeholder="05xx xxx xx xx"></label>
       <label class="f">E-posta<input type="email" name="email" value="${esc(m.email)}" ${isNew && store.mode === "supabase" ? "required" : ""}></label>
       <label class="f">Doğum tarihi<input type="date" name="birth_date" value="${esc(m.birth_date || "")}"></label>
@@ -708,6 +769,13 @@ async function editMember(m) {
     <div class="row"><button class="btn" value="save">Kaydet</button><button class="btn ghost" value="cancel" formnovalidate>Vazgeç</button></div>
   </form>`;
   if (!dlg.open) dlg.showModal();
+  // Unvan "X Komitesi Başkanı" seçilince X komitesinin rolü kendiliğinden işaretlenir.
+  const tIn = dlg.querySelector("#m-title");
+  if (tIn) tIn.addEventListener("change", () => {
+    const k = Object.keys(ROLE_LABELS).find(r => ROLE_GROUPS[1][1].includes(r) && tIn.value.trim().toLocaleLowerCase("tr") === (ROLE_LABELS[r] + " Başkanı").toLocaleLowerCase("tr"));
+    const cb = k && dlg.querySelector(`input[name=role][value="${k}"]`);
+    if (cb && !cb.checked) { cb.checked = true; toast(`${esc(ROLE_LABELS[k])} yetkisi de işaretlendi.`); }
+  });
   dlg.querySelector("form").onsubmit = async e => {
     if (e.submitter?.value !== "save") return;
     const fd = new FormData(e.target);

@@ -581,18 +581,11 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 .m-tags abbr{text-decoration:none}
 .m-lines{display:flex;flex-direction:column;gap:1px;font-size:.88rem}
 .m-mail{color:var(--muted);font-size:.82rem;word-break:break-all}
-.m-qa{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-.qa{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink);font-size:.82rem;font-weight:700;text-decoration:none}
-.qa:hover{border-color:var(--cran);color:var(--cran-deep)}
-.qa:focus-visible{outline:3px solid var(--cran);outline-offset:2px}
-.qa.wa{background:#1F8A4C;border-color:#1F8A4C;color:#fff}
-.qa.wa:hover{background:#17703D;color:#fff}
 .tag.gold{background:var(--gold-soft);color:#7A4A00}
 .m-table tr.is-passive .person{opacity:.7}
 .m-empty{text-align:center;padding:28px 12px;border:1px dashed var(--line);border-radius:var(--r);background:#fff}
 .m-empty p{margin:0 0 10px;color:var(--muted)}
 .person.has-acct .acct{background:#B9AAB2;box-shadow:0 0 0 1px #8A7A84}
-@media (pointer:coarse){.qa{min-height:44px;padding:0 14px}.m-chip{min-height:44px}}
 @media (max-width:860px){
   /* Kart: üst kısımda kişi ve hızlı eylemler, ikincil bilgiler küçük ve iki sütunda */
   .m-table tr{display:grid !important;grid-template-columns:1fr 1fr;gap:2px 12px}
@@ -602,8 +595,6 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
   .m-table td:not(.m-who):not(.m-contact):not(.m-edit)::before{max-width:none !important;font-size:.72rem !important}
   .m-table td.m-contact{flex-direction:column;align-items:stretch !important;text-align:left !important}
   .m-table td.m-contact::before{display:none}
-  .m-table .m-qa{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr))}
-  .m-table .qa{min-height:44px}
   .m-table td.m-edit::before{display:none}
   .m-table td.m-edit{justify-content:flex-end !important}
   .m-tags{margin-left:46px}
@@ -635,3 +626,34 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 .duties ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .duties li{display:flex;flex-direction:column;gap:1px}
 .duties li span{font-size:.84rem;color:var(--muted)}
+
+/* Üye-Misafir listesi: sütun dengesi (meslek/okul ile Instagram arası boşluk) */
+@media (min-width:861px){
+  .m-table{table-layout:fixed}
+  .m-table th:nth-child(1){width:30%}
+  .m-table th:nth-child(2){width:24%}
+  .m-table th:nth-child(3){width:11%}
+  .m-table th:nth-child(4){width:15%}
+  .m-table th:nth-child(5){width:12%}
+  .m-table th:nth-child(6){width:10%}
+  .m-table th:nth-child(7){width:96px}
+  .m-table td{overflow-wrap:anywhere}
+  .m-table .m-who .person{min-width:0}
+  .m-gtable{table-layout:auto}
+  .m-gtable th{width:auto !important}
+}
+.m-lines a{color:inherit;text-decoration:none}
+.m-lines a:hover{color:var(--cran-deep);text-decoration:underline}
+.m-guests{margin-top:28px}
+.m-guests-h{display:flex;align-items:center;gap:8px;margin:0 0 8px}
+.m-guests-h h2{margin:0;font-size:1.15rem}
+.m-gnote{margin:0 0 10px;font-size:.84rem}
+.m-empty-g{margin:8px 0 0;font-size:.86rem}
+/* Komite paneli */
+.kp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+.kp h2{margin:0 0 4px;font-size:1.1rem}
+.kp-desc{margin:0 0 12px;font-size:.88rem}
+.kp-row{display:flex;gap:10px;align-items:baseline;margin:0 0 10px;font-size:.9rem;flex-wrap:wrap}
+.kp-k{font-weight:700;font-size:.78rem;color:var(--muted);min-width:64px}
+.kp-notes textarea{width:100%;min-height:120px}
+@media (max-width:640px){.kp-grid{grid-template-columns:1fr}}

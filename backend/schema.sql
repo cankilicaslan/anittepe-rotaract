@@ -1526,10 +1526,16 @@ create policy projects_term_gate on public.projects as restrictive for all to au
 drop policy if exists projects_anon_gate on public.projects;
 create policy projects_anon_gate on public.projects as restrictive for select to anon
   using (public.term_is_current(term_id));
+-- charges kapısı dues politikalarını tetiklemesin (dues_select charges okur → sonsuz döngü): security definer yardımcı
+create or replace function public.due_term_ok(p_due uuid)
+returns boolean language sql stable security definer set search_path = public as $
+  select exists (select 1 from public.dues d where d.id = p_due and (public.term_is_current(d.term_id) or public.is_planner()));
+$;
+revoke all on function public.due_term_ok(uuid) from public, anon;
+grant execute on function public.due_term_ok(uuid) to authenticated;
 drop policy if exists charges_term_gate on public.charges;
 create policy charges_term_gate on public.charges as restrictive for all to authenticated
-  using (exists (select 1 from public.dues d where d.id = due_id and (public.term_is_current(d.term_id) or public.is_planner())))
-  with check (exists (select 1 from public.dues d where d.id = due_id and (public.term_is_current(d.term_id) or public.is_planner())));
+  using (public.due_term_ok(due_id)) with check (public.due_term_ok(due_id));
 drop policy if exists terms_plan_gate on public.terms;
 create policy terms_plan_gate on public.terms as restrictive for select to authenticated
   using (is_current or public.is_planner());
@@ -1609,3 +1615,44 @@ end $$;
 --   commit;
 --   Sonra: aktif üyeler için 2027-28 taksitlerine charge üret, toplantıları oluştur,
 --   YK planına bakıp görevleri panelden ata.
+
+-- =====================================================================
+-- v37: (1) Görevi olan herkes fotoğraf arşivi klasörlerini yönetir (ad değiştirir, siler)
+--      (2) Asbaşkan rolünü ve geçmiş dönem başkanlığını yalnızca site sahibi atar
+--      (3) Misafir bilgileri: doğum tarihi, meslek/okul, Instagram; kan grubu ayrı (gizli) tabloda
+-- =====================================================================
+create or replace function public.can_manage_albums()
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.is_admin() or exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid() and p.status = 'active' and coalesce(array_length(p.roles, 1), 0) > 0);
+$$;
+
+create or replace function public.guard_owner_only_roles()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  -- Sunucu (servis anahtarı / SQL editörü) için auth.uid() boştur; kısıtlama yalnızca panel kullanıcılarına
+  if auth.uid() is null or public.is_owner() then return new; end if;
+  if ('asbaskan' = any(coalesce(new.roles, '{}'))) is distinct from ('asbaskan' = any(coalesce(old.roles, '{}')))
+     or new.past_president is distinct from old.past_president then
+    raise exception 'Asbaşkan ve geçmiş dönem başkanı görevlerini yalnızca site sahibi değiştirebilir';
+  end if;
+  return new;
+end $$;
+drop trigger if exists profiles_owner_only_roles on public.profiles;
+create trigger profiles_owner_only_roles before update on public.profiles
+  for each row execute function public.guard_owner_only_roles();
+
+alter table public.guests add column if not exists birth_date date;
+alter table public.guests add column if not exists profession text;
+alter table public.guests add column if not exists instagram  text;
+
+create table if not exists public.guest_private (
+  guest_id   uuid primary key references public.guests(id) on delete cascade,
+  blood_type text
+);
+alter table public.guest_private enable row level security;
+drop policy if exists guest_private_rw on public.guest_private;
+create policy guest_private_rw on public.guest_private for all to authenticated
+  using (public.has_role('sekreter') or public.is_admin())
+  with check (public.has_role('sekreter') or public.is_admin());

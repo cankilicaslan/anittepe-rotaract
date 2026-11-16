@@ -1344,6 +1344,7 @@ create policy app_settings_write on public.app_settings for all to authenticated
 
 -- =====================================================================
 -- v28: Başkan Mektubu yeniden yayın: ilk yayın tarihi korunur (sitede sıra ve dönem kaymasın)
+-- ==============================================================
 -- =====================================================================
 create or replace function public.publish_letter(p_id uuid)
 returns void language plpgsql security definer set search_path = public as $$
@@ -1355,3 +1356,22 @@ begin
 end $$;
 revoke all on function public.publish_letter(uuid) from public, anon;
 grant execute on function public.publish_letter(uuid) to authenticated;
+=======
+-- v29: Üye-Misafir listesi (misafir adları tüm aktif üyelere) ve komite paneli notları
+-- =====================================================================
+create or replace function public.guest_names()
+returns table(full_name text)
+language sql stable security definer set search_path = public as $$
+  select g.full_name from public.guests g
+   where public.is_active()
+   order by g.full_name;
+$$;
+-- Komite notları: app_settings anahtarı komite_notes_<rol>; yalnızca o komitenin başkanı ya da Başkan yazar.
+drop policy if exists app_settings_write on public.app_settings;
+create policy app_settings_write on public.app_settings for all to authenticated
+  using (public.has_role('sayman') or public.is_admin()
+         or (key = 'letter_kunye' and public.letter_editor())
+         or (key like 'komite\_notes\_%' and public.has_role(substr(key, 14))))
+  with check (public.has_role('sayman') or public.is_admin()
+         or (key = 'letter_kunye' and public.letter_editor())
+         or (key like 'komite\_notes\_%' and public.has_role(substr(key, 14))));

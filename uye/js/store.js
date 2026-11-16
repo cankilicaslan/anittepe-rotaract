@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611161758";
-import { can, hasRole } from "./roles.js?v=202611161758";
+import { CONFIG } from "./config.js?v=202611161802";
+import { can, hasRole } from "./roles.js?v=202611161802";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -290,7 +290,13 @@ function demoStore() {
     async listGuests() { return can(me(), "yoklama") ? clone(S.guests) : []; },
     async listGuestNames() { return (S.guests || []).map(g => g.full_name); },
     async getSetting(key) { return (S.settings ||= {})[key] ?? null; },
-    async setSetting(key, value) { need("wa-aidat"); (S.settings ||= {})[key] = value; save(); },
+    async setSetting(key, value) {
+      const m = me(), k = String(key);
+      if (k.startsWith("komite_notes_")) { if (!(hasRole(m, k.slice(13)) || hasRole(m, "baskan"))) throw new Error("Bu komitenin notlarını yalnızca komite başkanı düzenler."); }
+      else if (k === "letter_kunye") need("mektup");
+      else need("wa-aidat");
+      (S.settings ||= {})[key] = value; save();
+    },
     async listSiteEdits() { return clone((S.siteEdits ||= []).slice().sort((a, b) => b.created_at.localeCompare(a.created_at))); },
     async siteEdit(body) {
       const list = (S.siteEdits ||= []), m = me(), now = new Date().toISOString();

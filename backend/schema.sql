@@ -1663,3 +1663,17 @@ create policy guest_private_rw on public.guest_private for all to authenticated
 drop policy if exists terms_planner_update on public.terms;
 create policy terms_planner_update on public.terms for update to authenticated
   using (not is_current and public.is_planner()) with check (not is_current and public.is_planner());
+
+-- =====================================================================
+-- v39: Geçmiş dönem başkanları 2027-28 YK-GYK planını görüntüler (yalnız okuma)
+-- =====================================================================
+create or replace function public.board_plan_view()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+begin
+  if not (public.is_planner() or exists (select 1 from public.profiles p where p.id = auth.uid() and p.status = 'active' and p.past_president)) then
+    raise exception 'Bu planı görüntüleme yetkin yok';
+  end if;
+  return coalesce((select b.slots from public.term_board_plans b join public.terms t on t.id = b.term_id where t.name = '2027-28'), '{}'::jsonb);
+end $$;
+revoke all on function public.board_plan_view() from public, anon;
+grant execute on function public.board_plan_view() to authenticated;

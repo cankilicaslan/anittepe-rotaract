@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611162002";
-import { createStore, trDate } from "./store.js?v=202611162002";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611162002";
+import * as BP from "./board-plan.js?v=202611162005";
+import { createStore, trDate } from "./store.js?v=202611162005";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611162005";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -332,7 +332,9 @@ const PAGES = [
   // Site düzenleme: yalnızca Halkla İlişkiler ve Tanıtım (HİTK) görevlisi.
   { id: "site", label: "Site düzenleme", show: () => hasRole(me, "pr") },
   // Gelecek dönemi planla: yalnızca asbaşkan ve site sahibi (taslak; veritabanı da yalnız onlara açar)
-  { id: "plan", label: "Gelecek dönemi planla", show: () => isPlanner() }
+  { id: "plan", label: "Gelecek dönemi planla", show: () => isPlanner() },
+  // Geçmiş dönem başkanları YK-GYK planını yalnızca görüntüler
+  { id: "yk-plan", label: "Gelecek Dönem YK-GYK Planı", show: () => !preview && !isPlanner() && me?.status === "active" && !!me.past_president }
 ];
 const isPlanner = () => !preview && hasRole(realPlanMe || me, "asbaskan");
 const PLAN_NAME = "2027-2028 dönemi planlama";
@@ -416,7 +418,7 @@ function shell() {
     const t = await store.ensurePlanTerm(); store.setViewTerm(t);
     if (planSub === "takvim" && !(cal2Month >= "2027-07" && cal2Month <= "2028-06")) cal2Month = "2027-07";
     return planFn(v);
-  } : { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, "kulup-projeleri": viewClubProjects, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram, mektup: viewLetter, site: viewSite, arsiv: viewArchive, yukle: viewUpload, bagislar: viewDonations, "proje-formlari": viewProjectForms, "wa-toplanti": viewWaMeeting, "wa-aidat": viewWaDues, plan: viewBoardPlan }[id];
+  } : { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, "kulup-projeleri": viewClubProjects, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram, mektup: viewLetter, site: viewSite, arsiv: viewArchive, yukle: viewUpload, bagislar: viewDonations, "proje-formlari": viewProjectForms, "wa-toplanti": viewWaMeeting, "wa-aidat": viewWaDues, plan: viewBoardPlan, "yk-plan": v => viewBoardPlan(v, true) }[id];
   fn(view).catch(e => { view.innerHTML = `<div class="err">${esc(e.message)}</div>`; });
   labelTables(view);
   new MutationObserver(() => labelTables(view)).observe(view, { childList: true, subtree: true });
@@ -439,8 +441,8 @@ const refresh = () => shell();
 const GDB_BADGE = p => p?.past_president ? '<span class="bp-gdb" title="Geçmiş dönem başkanı">GDB</span>' : "";
 const bpPic = (p, cls) => `<span class="bp-pw">${avatar(p, cls)}${GDB_BADGE(p)}</span>`;
 const BP_LABEL = k => k === BP.MULTI ? "Yönetim Kurulu Üyesi" : ROLE_LABELS[k];
-async function viewBoardPlan(v) {
-  const [plan, members0, guests] = await Promise.all([store.getBoardPlan(), store.listMembers(), store.listGuests().catch(() => [])]);
+async function viewBoardPlan(v, ro = false) {
+  const [plan, members0, guests] = await Promise.all([ro ? store.getBoardPlanView() : store.getBoardPlan(), store.listMembers(), store.listGuests().catch(() => [])]);
   const members = members0.filter(m => m.status === "active").sort((x, y) => x.full_name.localeCompare(y.full_name, "tr"));
   guests.sort((x, y) => x.full_name.localeCompare(y.full_name, "tr"));
   let slots = plan.slots || {}, saveT = null;
@@ -474,11 +476,12 @@ async function viewBoardPlan(v) {
   const card = (p, kind) => `<div class="bp-card" draggable="true" data-kind="${kind}" data-id="${p.id}" title="${esc(p.full_name)}">${bpPic(p, "bp-mini")}<span>${esc(p.full_name)}</span></div>`;
   const draw = () => {
     const placed = BP.placedIds(slots), multi = slots[BP.MULTI] || [];
-    v.innerHTML = header("Yönetim kurulu planlama", "2027-2028 dönemi için yönetim kurulunu yerleştir. Çerçeveye tıklayıp kişi seç ya da sağdaki listeden sürükleyip bırak. Bir göreve iki kişi için dolu çerçevedeki + düğmesini kullan (ya da kişiyi + üzerine bırak). Bu taslak kimseye görev vermez.", `<span class="muted bp-save" id="bp-save" role="status" aria-live="polite"></span>`) + `
+    v.innerHTML = (ro ? header("Gelecek Dönem YK-GYK Planı", "2027-2028 dönemi için asbaşkanın hazırladığı taslak yönetim kurulu ve genişletilmiş yönetim kurulu. Yalnızca görüntüleme; görevler dönem başında atanır.") : "") + (ro ? "" : header("Yönetim kurulu planlama", "2027-2028 dönemi için yönetim kurulunu yerleştir. Çerçeveye tıklayıp kişi seç ya da sağdaki listeden sürükleyip bırak. Bir göreve iki kişi için dolu çerçevedeki + düğmesini kullan (ya da kişiyi + üzerine bırak). Bu taslak kimseye görev vermez.", `<span class="muted bp-save" id="bp-save" role="status" aria-live="polite"></span>`)) + `
     <div class="bp-wrap">
       <div class="bp-main">
         <section class="card bp-sec"><h2>Yönetim Kurulu</h2>
-          <div class="bp-grid">${BP.BOARD_SLOTS.map(k => frame(k)).join("")}${multi.map((_, i) => frame(BP.MULTI, i)).join("")}
+          <div class="bp-top">${frame("baskan")}</div>
+          <div class="bp-grid">${BP.BOARD_SLOTS.filter(k => k !== "baskan").map(k => frame(k)).join("")}${Array.from({ length: Math.max(2, multi.length) }, (_, i) => frame(BP.MULTI, i)).join("")}
             <div class="bp-slot"><button type="button" class="bp-frame bp-add" id="bp-add" aria-label="Yönetim kurulu üyesi ekle"><span class="avatar bp-pic bp-empty">+</span><b>Üye ekle</b></button><span class="bp-role">Yönetim Kurulu Üyesi</span></div>
           </div></section>
         <section class="card bp-sec"><h2>Genişletilmiş Yönetim Kurulu</h2>
@@ -490,6 +493,15 @@ async function viewBoardPlan(v) {
         ${guests.length ? `<h2>Misafirler <span class="tag">${guests.length}</span></h2><div class="bp-people">${guests.map(p => card(p, "guest").replace('class="bp-card"', `class="bp-card${placed.has("guest:" + p.id) ? " placed" : ""}"`)).join("")}</div>` : ""}
       </aside>
     </div><dialog id="bp-dlg" class="bp-dlg"></dialog>`;
+    if (ro) {
+      v.querySelectorAll(".bp-x,.bp-x1,.bp-plus,.bp-side").forEach(x => x.remove());
+      v.querySelector("#bp-add")?.closest(".bp-slot").remove();
+      v.querySelectorAll(".bp-frame").forEach(b => { b.disabled = true; b.removeAttribute("draggable"); b.setAttribute("aria-label", b.getAttribute("aria-label").replace(/, (değiştir|kişi seç)$/, "")); });
+      v.querySelectorAll(".bp-slot").forEach(s => { const b = s.querySelector(".bp-frame b.muted"); if (b && b.textContent === "Boş") b.textContent = "Henüz belirlenmedi"; });
+      v.querySelector(".bp-wrap").classList.add("ro");
+      v.querySelector("#bp-save")?.remove();
+      return;
+    }
     bind();
   };
   const save = () => {
@@ -1677,7 +1689,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611162002");
+  const { mountComposer } = await import("./composer.js?v=202611162005");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1686,7 +1698,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611162002");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611162005");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

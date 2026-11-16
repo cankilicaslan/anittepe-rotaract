@@ -1269,8 +1269,9 @@ create trigger letters_guard before insert or update on public.letters
 drop policy if exists letters_select_anon on public.letters;
 create policy letters_select_anon on public.letters for select to anon using (status = 'yayinda');
 drop policy if exists letters_select on public.letters;
+-- Giriş yapmış üyeler taslağı (pages, folders) görmesin: sitede yayın anon olarak okunur.
 create policy letters_select on public.letters for select to authenticated
-  using (status = 'yayinda' or public.letter_editor() or public.can_view_all());
+  using (public.letter_editor() or public.can_view_all());
 drop policy if exists letters_insert on public.letters;
 create policy letters_insert on public.letters for insert to authenticated with check (public.letter_editor());
 drop policy if exists letters_update on public.letters;

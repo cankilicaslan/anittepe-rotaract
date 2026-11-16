@@ -140,3 +140,19 @@ test('üretilen düzen ve alan anahtarları LAYOUTS ile uyumlu', () => {
     for (const k of Object.keys(p.fields)) assert.ok(keys.includes(k), `${p.layout}.${k}`);
   }
 });
+
+test('sayfalar madde sırasını izler; kısa madde sonraki kısayla eşleşir', () => {
+  const f = base();
+  f.items = [
+    item({ label: 'A', title: 'A' }),
+    item({ label: 'B', title: 'B', text: words(100) }),
+    item({ label: 'C', title: 'C' }),
+    item({ label: 'D', title: 'D' }),
+  ];
+  const ps = assemblePages(f).filter((p) => p.layout.startsWith('neler'));
+  assert.deepEqual(ps.map((p) => p.layout), ['neler-2', 'neler-tam', 'neler-1']);
+  assert.equal(ps[0].fields.label1, 'A');
+  assert.equal(ps[0].fields.label2, 'C');
+  assert.equal(ps[1].fields.label, 'B');
+  assert.equal(ps[2].fields.label, 'D');
+});

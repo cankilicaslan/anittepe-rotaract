@@ -109,23 +109,24 @@ export function assemblePages(folders) {
 
   const items = f.items || [];
   const isLong = (it) => wordCount(bodyOf(it)) > LONG_WORDS;
-  for (const it of items.filter(isLong)) {
-    pages.push(page('neler-tam', {
-      label: labelOf(it),
-      body: bodyOf(it),
-      photos: (it.photos || []).slice(0, MAX_FULL_PHOTOS),
-    }));
-  }
-  for (const g of pairs(items.filter((it) => !isLong(it)))) {
-    if (g.length === 2) {
-      pages.push(page('neler-2', {
-        label1: labelOf(g[0]), photo1: pickPhoto(g[0]), body1: bodyOf(g[0]),
-        label2: labelOf(g[1]), photo2: pickPhoto(g[1]), body2: bodyOf(g[1]),
+  let pending = null; // bekleyen kısa madde: {idx, item}
+  for (const it of items) {
+    if (isLong(it)) {
+      pages.push(page('neler-tam', {
+        label: labelOf(it),
+        body: bodyOf(it),
+        photos: (it.photos || []).slice(0, MAX_FULL_PHOTOS),
       }));
+    } else if (pending) {
+      const a = pending.item;
+      pages[pending.idx] = { id: pages[pending.idx].id, layout: 'neler-2', fields: {
+        label1: labelOf(a), photo1: pickPhoto(a), body1: bodyOf(a),
+        label2: labelOf(it), photo2: pickPhoto(it), body2: bodyOf(it),
+      } };
+      pending = null;
     } else {
-      pages.push(page('neler-1', {
-        label: labelOf(g[0]), photo: pickPhoto(g[0]), body: bodyOf(g[0]),
-      }));
+      pending = { idx: pages.length, item: it };
+      pages.push(page('neler-1', { label: labelOf(it), photo: pickPhoto(it), body: bodyOf(it) }));
     }
   }
   return pages;

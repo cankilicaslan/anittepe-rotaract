@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611161923";
-import { can, hasRole } from "./roles.js?v=202611161923";
+import { CONFIG } from "./config.js?v=202611161946";
+import { can, hasRole, hasAnyRole } from "./roles.js?v=202611161946";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -169,6 +169,7 @@ function demoStore() {
   save();
   const me = () => S.profiles.find(p => p.id === S.session) || null;
   const need = (panel, mode = "edit") => { if (!can(me(), panel, mode)) throw new Error("Bu işlem için yetkiniz yok."); };
+  const needAlbums = () => { if (!(can(me(), "arsiv-yonetim", "edit") || hasAnyRole(me()))) throw new Error("Bu işlem için yetkiniz yok."); };
   const clone = x => JSON.parse(JSON.stringify(x));
 
   return {
@@ -209,13 +210,13 @@ function demoStore() {
     },
     async getAlbum(id) { const a = S.albums.find(x => x.id === id); return a ? clone(a) : null; },
     async createAlbum({ type, name, date }) {
-      need("arsiv-yonetim");
+      needAlbums();
       if (!(name || "").trim() || !date) throw new Error("Etkinlik adı ve tarihi zorunlu.");
       const a = { id: uid(), type, name: name.trim(), date, cover_path: null, created_by: me().id, created_at: new Date().toISOString() };
       S.albums.push(a); save(); return clone(a);
     },
-    async updateAlbum(id, patch) { need("arsiv-yonetim"); Object.assign(S.albums.find(a => a.id === id), patch); save(); },
-    async deleteAlbum(id) { need("arsiv-yonetim"); S.albums = S.albums.filter(a => a.id !== id); S.albumPhotos = S.albumPhotos.filter(p => p.album_id !== id); save(); },
+    async updateAlbum(id, patch) { needAlbums(); Object.assign(S.albums.find(a => a.id === id), patch); save(); },
+    async deleteAlbum(id) { needAlbums(); S.albums = S.albums.filter(a => a.id !== id); S.albumPhotos = S.albumPhotos.filter(p => p.album_id !== id); save(); },
     async listPhotos(albumId) {
       return clone(S.albumPhotos.filter(p => p.album_id === albumId)).map(p => ({ ...p, thumb_url: p.data, url: p.data, uploader: S.profiles.find(x => x.id === p.uploaded_by)?.full_name || "" }));
     },
@@ -241,6 +242,9 @@ function demoStore() {
     },
     async updateMember(id, patch) {
       const m = me(), p = S.profiles.find(x => x.id === id);
+      { const cur = S.profiles.find(p => p.id === id), m = me();
+        if (cur && !m?.is_owner && ((patch.roles && (patch.roles.includes("asbaskan") !== (cur.roles || []).includes("asbaskan"))) || (patch.past_president !== undefined && !!patch.past_president !== !!cur.past_president)))
+          throw new Error("Asbaşkan ve geçmiş dönem başkanı görevlerini yalnızca site sahibi değiştirebilir."); }
       if (!p) throw new Error("Üye bulunamadı.");
       const admin = hasRole(m, "baskan");
       if (!admin && m?.id !== id) throw new Error("Bu işlem için yetkiniz yok.");
@@ -343,6 +347,16 @@ function demoStore() {
       S.guests = S.guests.filter(x => x.id !== guest_id); S.guestAtt = S.guestAtt.filter(a => a.guest_id !== guest_id);
       save(); return { profile: clone(prof), attendance: atts.length, charges: dues.length };
     },
+    async updateGuestInfo(id, patch) {
+      need("yoklama");
+      const g = S.guests.find(x => x.id === id); if (!g) throw new Error("Misafir bulunamadı.");
+      const { blood_type, ...rest } = patch;
+      if (!(rest.full_name || g.full_name || "").trim()) throw new Error("Misafirin adını yaz.");
+      Object.assign(g, rest);
+      if (blood_type !== undefined) (S.guestPrivates ||= {})[id] = { blood_type };
+      save(); return clone(g);
+    },
+    async getGuestPrivate(id) { return can(me(), "yoklama") ? clone((S.guestPrivates || {})[id] || {}) : {}; },
     async deleteGuest(id) { need("yoklama"); S.guests = S.guests.filter(g => g.id !== id); S.guestAtt = S.guestAtt.filter(a => a.guest_id !== id); save(); },
     async listGuestAttendance() { return can(me(), "yoklama") ? clone(S.guestAtt) : []; },
     async setGuestAttendance(meeting_id, guest_id, status) {
@@ -611,6 +625,14 @@ async function supabaseStore() {
       const row = { full_name: g.full_name.trim(), phone: g.phone || null, email: g.email || null, note: g.note || null };
       return g.id ? ok(await sb.from("guests").update(row).eq("id", g.id).select().single()) : ok(await sb.from("guests").insert(row).select().single());
     },
+    async updateGuestInfo(id, patch) {
+      const { blood_type, ...rest } = patch;
+      if (!(rest.full_name || "").trim()) throw new Error("Misafirin adını yaz.");
+      const row = ok(await sb.from("guests").update(rest).eq("id", id).select().single());
+      if (blood_type !== undefined) ok(await sb.from("guest_private").upsert({ guest_id: id, blood_type: blood_type || null }));
+      return row;
+    },
+    async getGuestPrivate(id) { const { data } = await sb.from("guest_private").select("*").eq("guest_id", id).maybeSingle(); return data || {}; },
     async deleteGuest(id) { ok(await sb.from("guests").delete().eq("id", id)); },
     async listGuestAttendance() {
       const t = await term();

@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611161923";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161923";
+import { createStore, trDate } from "./store.js?v=202611161946";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611161946";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -675,7 +675,8 @@ async function viewMembers(v) {
       gtb.innerHTML = gs.map(g => `<tr><td class="m-who"><div class="person">${avatar(g)}<div><b>${esc(g.full_name)}</b><span>Misafir</span></div></div></td>${guestDetail ? `
         <td data-label="İletişim" class="m-contact"><div class="m-lines">${g.phone ? `<a href="tel:${esc(String(g.phone).replace(/\s/g, ""))}">${esc(g.phone)}</a>` : ""}${g.email ? `<a class="m-mail" href="mailto:${esc(g.email)}">${esc(g.email)}</a>` : ""}${!g.phone && !g.email ? none : ""}</div></td>
         <td data-label="Not">${esc(g.note) || none}</td>
-        <td data-label="Katıldığı toplantı">${g.id && came.get(g.id) ? came.get(g.id) : none}</td>` : ""}${admin && guestDetail && g.id ? `<td class="m-edit"><button class="btn sm" data-conv="${g.id}" aria-label="${esc(g.full_name)} üye al">Üye al</button></td>` : ""}</tr>`).join("");
+        <td data-label="Katıldığı toplantı">${g.id && came.get(g.id) ? came.get(g.id) : none}</td>` : ""}${admin && guestDetail && g.id ? `<td class="m-edit"><div class="m-gacts"><button class="btn ghost sm" data-gedit="${g.id}" aria-label="${esc(g.full_name)} bilgilerini düzenle">Düzenle</button><button class="btn sm" data-conv="${g.id}" aria-label="${esc(g.full_name)} üye al">Üye al</button></div></td>` : ""}</tr>`).join("");
+      gtb.querySelectorAll("[data-gedit]").forEach(b => b.onclick = () => editGuest(guests.find(x => x.id === b.dataset.gedit)));
       gtb.querySelectorAll("[data-conv]").forEach(b => b.onclick = () => convertGuestDialog(guests.find(x => x.id === b.dataset.conv), came.get(b.dataset.conv) || 0));
       document.getElementById("gempty").hidden = gs.length > 0;
       gtb.closest(".tbl-wrap").hidden = gs.length === 0;
@@ -694,6 +695,8 @@ async function viewMembers(v) {
   v.querySelectorAll("[data-reject]").forEach(b => b.onclick = async () => { if (!confirm("Bu hesap pasife alınsın mı? Kişi panele giremez; sonra üye düzenlemeden yeniden aktif yapılabilir.")) return; try { await store.updateMember(b.dataset.reject, { status: "passive" }); toast("Hesap pasife alındı."); refresh(); } catch (e) { fail(e); } });
 }
 
+// Asbaşkan ve geçmiş dönem başkanlığını yalnızca site sahibi atar (veritabanı da engeller)
+const OWNER_ONLY = ["asbaskan"];
 async function editMember(m) {
   const isNew = !m;
   m ||= { full_name: "", title: "Üye", phone: "", email: "", status: "active", joined_at: today(), roles: [], past_president: false };
@@ -714,9 +717,9 @@ async function editMember(m) {
       <label class="f">Yoklamada başladığı toplantı <small>Üye alındığı toplantı; devam oranı buradan itibaren hesaplanır</small><select name="start_meeting_id"><option value="">Dönem başından</option>${meetings.map(x => `<option value="${x.id}" ${m.start_meeting_id === x.id ? "selected" : ""}>${x.term_no}. toplantı · ${trDate(x.date)}</option>`).join("")}</select></label>
     </div>
     <fieldset><legend style="font-weight:700;margin-bottom:6px">Dönem görevi</legend><div class="grid g2">
-      ${ROLE_GROUPS.map(([g, keys]) => `<p class="role-grp">${g}</p>` + keys.map(k => `<label class="check"><input type="checkbox" name="role" value="${k}" ${(m.roles || []).includes(k) ? "checked" : ""}> ${ROLE_LABELS[k]}</label>`).join("")).join("")}
+      ${ROLE_GROUPS.map(([g, keys]) => `<p class="role-grp">${g}</p>` + keys.map(k => { const lock = OWNER_ONLY.includes(k) && !me.is_owner; return `<label class="check${lock ? " locked" : ""}"${lock ? ' title="Yalnızca site sahibi değiştirebilir"' : ""}><input type="checkbox" name="role" value="${k}" ${(m.roles || []).includes(k) ? "checked" : ""}${lock ? " disabled" : ""}> ${ROLE_LABELS[k]}</label>`; }).join("")).join("")}
       <p class="role-grp">Diğer</p>
-      <label class="check"><input type="checkbox" name="past_president" ${m.past_president ? "checked" : ""}> Geçmiş dönem başkanı (tüm panelleri görür)</label>
+      <label class="check${me.is_owner ? "" : " locked"}"${me.is_owner ? "" : ' title="Yalnızca site sahibi değiştirebilir"'}><input type="checkbox" name="past_president" ${m.past_president ? "checked" : ""}${me.is_owner ? "" : " disabled"}> Geçmiş dönem başkanı (tüm panelleri görür)</label>
     </div></fieldset>
     <div class="row"><button class="btn" value="save">Kaydet</button><button class="btn ghost" value="cancel" formnovalidate>Vazgeç</button></div>
   </form>`;
@@ -730,7 +733,7 @@ async function editMember(m) {
   dlg.querySelector("form").onsubmit = async e => {
     if (e.submitter?.value !== "save") return;
     const fd = new FormData(e.target);
-    const patch = { full_name: fd.get("full_name"), phone: fd.get("phone"), email: fd.get("email"), birth_date: fd.get("birth_date") || null, profession: fd.get("profession"), instagram: fd.get("instagram"), blood_type: fd.get("blood_type"), status: m.status || "active", joined_at: fd.get("joined_at") || null, roles: fd.getAll("role"), past_president: fd.has("past_president"), hide_roles: false, start_meeting_id: fd.get("start_meeting_id") || null };
+    const patch = { full_name: fd.get("full_name"), phone: fd.get("phone"), email: fd.get("email"), birth_date: fd.get("birth_date") || null, profession: fd.get("profession"), instagram: fd.get("instagram"), blood_type: fd.get("blood_type"), status: m.status || "active", joined_at: fd.get("joined_at") || null, roles: me.is_owner ? fd.getAll("role") : [...fd.getAll("role").filter(r => !OWNER_ONLY.includes(r)), ...(m.roles || []).filter(r => OWNER_ONLY.includes(r))], past_president: me.is_owner ? fd.has("past_president") : !!m.past_president, hide_roles: false, start_meeting_id: fd.get("start_meeting_id") || null };
     // Komite görevi devri: yeni verilen komite başka bir aktif üyedeyse, görev ve panel erişimi eski kişiden alınıp bu kişiye aktarılır.
     const COMMITTEES = ROLE_GROUPS[1][1];
     const added = (patch.roles || []).filter(r => COMMITTEES.includes(r) && !(m.roles || []).includes(r));
@@ -765,6 +768,41 @@ async function editMember(m) {
 /* ------------------------- Misafiri üye yap ------------------------- */
 // Başkan/sahip: misafiri üye statüsüne geçirir. Davet e-postası gider, üyelik tarihinden sonraki taksitler borç olur,
 // misafirken geldiği toplantılar devamına aktarılır, misafir listesinden çıkar.
+// Misafir bilgileri (Başkan/sahip): üyelerdeki alanlar; kan grubu gizli tabloda
+async function editGuest(g) {
+  if (!g) return;
+  const priv = await store.getGuestPrivate(g.id).catch(() => ({}));
+  const dlg = document.getElementById("dlg");
+  dlg.innerHTML = `<form method="dialog"><h2>${esc(g.full_name)} <span class="tag">Misafir</span></h2>
+    <div class="grid g2">
+      <label class="f">Ad soyad<input type="text" name="full_name" value="${esc(g.full_name)}" required></label>
+      <label class="f">Telefon<input type="tel" name="phone" value="${esc(g.phone || "")}" placeholder="05xx xxx xx xx"></label>
+      <label class="f">E-posta<input type="email" name="email" value="${esc(g.email || "")}"></label>
+      <label class="f">Doğum tarihi<input type="date" name="birth_date" value="${esc(g.birth_date || "")}"></label>
+      <label class="f">Meslek / okul<input type="text" name="profession" value="${esc(g.profession || "")}"></label>
+      <label class="f">Instagram<input type="text" name="instagram" value="${esc(g.instagram || "")}" placeholder="@kullaniciadi"></label>
+      <label class="f">Kan grubu<input type="text" name="blood_type" value="${esc(priv.blood_type || "")}" placeholder="ör. A Rh+"></label>
+      <label class="f">Not<input type="text" name="note" value="${esc(g.note || "")}"></label>
+    </div>
+    <div class="row"><button class="btn" value="save">Kaydet</button><button class="btn ghost" value="cancel" formnovalidate>Vazgeç</button></div>
+  </form>`;
+  if (!dlg.open) dlg.showModal();
+  const outside = e => { if (e.target !== dlg) return false; const r = dlg.getBoundingClientRect(); return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom; };
+  let downOut = false;
+  dlg.onpointerdown = e => { downOut = outside(e); };
+  dlg.onclick = e => { if (downOut && outside(e)) dlg.close(); downOut = false; };
+  const form = dlg.querySelector("form");
+  form.onsubmit = async e => {
+    if (e.submitter?.value !== "save") return;
+    e.preventDefault();
+    const fd = new FormData(form), s = k => String(fd.get(k) || "").trim();
+    try {
+      await store.updateGuestInfo(g.id, { full_name: s("full_name"), phone: s("phone") || null, email: s("email") || null, birth_date: s("birth_date") || null, profession: s("profession") || null, instagram: s("instagram").replace(/^@/, "") || null, note: s("note") || null, blood_type: s("blood_type") });
+      dlg.close(); toast("Misafir bilgileri kaydedildi."); refresh();
+    } catch (er) { fail(er); }
+  };
+}
+
 async function convertGuestDialog(g, cameCount) {
   if (!g) return;
   const dues = await store.listDues().catch(() => []);
@@ -1500,7 +1538,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611161923");
+  const { mountComposer } = await import("./composer.js?v=202611161946");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1509,7 +1547,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161923");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161946");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });
@@ -2040,7 +2078,8 @@ async function viewWaDues(v) {
 const ALBUM_TYPES = { toplanti: ["Toplantılar", "Toplantı"], ocakbasi: ["Ocakbaşları", "Ocakbaşı"], proje: ["Projeler", "Proje"], etkinlik: ["Etkinlik ve organizasyonlar", "Etkinlik / organizasyon"], diger: ["Diğer", "Diğer"] };
 const uploadLink = id => `${location.origin}${location.pathname}${location.search}#yukle/${id}`;
 const albumHref = a => `#arsiv/${a.type}/${a.id}`;
-const canManageAlbums = () => can(me, "arsiv-yonetim", "edit");
+// Görevi olan herkes (YK ya da komite) klasörleri yönetir: ad/tarih/tür değiştirir, siler.
+const canManageAlbums = () => can(me, "arsiv-yonetim", "edit") || hasAnyRole(me);
 const crumbs = list => `<nav class="crumbs" aria-label="Konum">${list.map(([href, label], i) => i < list.length - 1 ? `<a href="${href}">${esc(label)}</a><span aria-hidden="true">›</span>` : `<span aria-current="page">${esc(label)}</span>`).join("")}</nav>`;
 const shareLinkBox = a => `<div class="linkbox">
     <label class="f">Yükleme linki<input type="text" readonly value="${esc(uploadLink(a.id))}" id="ul-${a.id}"></label>
@@ -2063,10 +2102,16 @@ async function viewArchive(v) {
   if (type && ALBUM_TYPES[type]) {
     const list = albums.filter(a => a.type === type).sort((a, b) => b.date.localeCompare(a.date));
     v.innerHTML = crumbs([["#arsiv", "Fotoğraf arşivi"], ["", ALBUM_TYPES[type][0]]]) + header(ALBUM_TYPES[type][0], `${list.length} etkinlik · ${list.reduce((s, a) => s + a.photo_count, 0)} fotoğraf`) +
-      (list.length ? `<div class="album-grid">${list.map(a => `<a class="album-card" href="${albumHref(a)}">
+      (list.length ? `<div class="album-grid">${list.map(a => `<div class="album-item"><a class="album-card" href="${albumHref(a)}">
         <div class="cover">${a.cover_url ? `<img src="${esc(a.cover_url)}" alt="" loading="lazy">` : `<span class="empty">Henüz fotoğraf yok</span>`}</div>
-        <div class="meta"><b>${esc(a.name)}</b><span>${trDate(a.date)} · ${a.photo_count} fotoğraf</span></div></a>`).join("")}</div>`
+        <div class="meta"><b>${esc(a.name)}</b><span>${trDate(a.date)} · ${a.photo_count} fotoğraf</span></div></a>${manager ? `<div class="album-acts"><button type="button" class="btn ghost sm" data-aedit="${a.id}" aria-label="${esc(a.name)} klasörünü düzenle">Düzenle</button><button type="button" class="btn ghost sm danger-t" data-adel="${a.id}" aria-label="${esc(a.name)} klasörünü sil">Sil</button></div>` : ""}</div>`).join("")}</div><dialog id="adlg"></dialog>`
         : `<div class="card"><p class="muted" style="margin:0">Bu klasörde henüz etkinlik yok.${manager ? " Fotoğraf arşivi ana sayfasından yükleme linki oluşturabilirsin." : ""}</p></div>`);
+    v.querySelectorAll("[data-aedit]").forEach(b => b.onclick = () => editAlbumDialog(list.find(a => a.id === b.dataset.aedit), () => viewArchive(v)));
+    v.querySelectorAll("[data-adel]").forEach(b => b.onclick = async () => {
+      const a = list.find(x => x.id === b.dataset.adel);
+      if (!confirm(`"${a.name}" klasörü ve içindeki ${a.photo_count} fotoğraf kalıcı olarak silinsin mi? Bu geri alınamaz.`)) return;
+      try { await store.deleteAlbum(a.id); toast("Klasör silindi."); viewArchive(v); } catch (e) { fail(e); }
+    });
     return;
   }
 
@@ -2105,6 +2150,26 @@ async function viewArchive(v) {
   };
 }
 
+// Klasör (albüm) adı, tarihi ve türü
+function editAlbumDialog(a, done) {
+  const dlg = document.getElementById("adlg"); if (!a || !dlg) return;
+  dlg.innerHTML = `<form method="dialog"><h2>Klasörü düzenle</h2>
+    <div class="grid g2">
+      <label class="f">Klasör adı<input type="text" name="name" required value="${esc(a.name)}"></label>
+      <label class="f">Tarih<input type="date" name="date" required value="${esc(a.date)}"></label>
+      <label class="f">Ana klasör<select name="type">${Object.entries(ALBUM_TYPES).map(([k, [label]]) => `<option value="${k}" ${k === a.type ? "selected" : ""}>${label}</option>`).join("")}</select></label>
+    </div>
+    <div class="row" style="margin-top:14px"><button class="btn" value="ok">Kaydet</button><button class="btn ghost" value="cancel" formnovalidate>Vazgeç</button></div></form>`;
+  dlg.showModal();
+  const f = dlg.querySelector("form");
+  f.onsubmit = async e => {
+    if (e.submitter?.value !== "ok") return;
+    e.preventDefault();
+    const name = f.name.value.trim(); if (!name) return;
+    try { await store.updateAlbum(a.id, { name, date: f.date.value, type: f.type.value }); dlg.close(); toast("Klasör güncellendi."); if (f.type.value !== a.type) location.hash = `#arsiv/${f.type.value}`; else done(); } catch (er) { fail(er); }
+  };
+}
+
 async function viewAlbum(v, albumId) {
   const album = await store.getAlbum(albumId);
   if (!album) { v.innerHTML = crumbs([["#arsiv", "Fotoğraf arşivi"], ["", "Bulunamadı"]]) + `<div class="card"><p class="muted" style="margin:0">Bu albüm bulunamadı ya da silinmiş.</p></div>`; return; }
@@ -2114,12 +2179,14 @@ async function viewAlbum(v, albumId) {
   v.innerHTML = crumbs([["#arsiv", "Fotoğraf arşivi"], [`#arsiv/${album.type}`, T[0]], ["", album.name]]) +
     header(esc(album.name), `${T[1]} · ${trDate(album.date)} · ${photos.length} fotoğraf`, `<a class="btn" href="#yukle/${album.id}">Fotoğraf yükle</a>`) +
     (manager ? `<details class="card"><summary style="cursor:pointer;font-weight:700">Yükleme linki ve albüm ayarları</summary>${shareLinkBox(album)}
-      <div class="row" style="margin-top:14px"><button type="button" class="btn danger sm" id="delalbum">Albümü ve tüm fotoğrafları sil</button></div></details>` : "") +
+      <div class="row" style="margin-top:14px"><button type="button" class="btn ghost sm" id="editalbum">Adını ve tarihini düzenle</button><button type="button" class="btn danger sm" id="delalbum">Albümü ve tüm fotoğrafları sil</button></div></details><dialog id="adlg"></dialog>` : "") +
     (photos.some(p => p.uploaded_by === me.id) ? `<p class="muted" style="font-size:.86rem;margin:4px 0 0">Kendi yüklediğin fotoğrafların köşesinde silme düğmesi var; yanlış yüklediğini oradan kaldırabilirsin.</p>` : "") +
     (photos.length ? `<div class="photo-grid">${photos.map((p, i) => `<div class="ph-wrap"><button type="button" class="ph" data-i="${i}" aria-label="Fotoğraf ${i + 1}${p.uploader ? ", yükleyen " + esc(p.uploader) : ""}"><img src="${esc(p.thumb_url)}" alt="" loading="lazy"></button>${p.uploaded_by === me.id ? `<button type="button" class="ph-del" data-del="${i}" aria-label="Yüklediğin ${i + 1}. fotoğrafı sil" title="Sil">✕</button>` : ""}</div>`).join("")}</div>`
       : `<div class="card"><p class="muted" style="margin:0">Bu albümde henüz fotoğraf yok. İlk yükleyen sen ol.</p></div>`) +
     `<dialog id="lb" class="lightbox"></dialog>`;
   bindShare(v, [album]);
+  const ea = document.getElementById("editalbum");
+  if (ea) ea.onclick = () => editAlbumDialog(album, () => viewAlbum(v, albumId));
   const del = document.getElementById("delalbum");
   if (del) del.onclick = async () => {
     if (!confirm(`"${album.name}" albümü ve içindeki ${photos.length} fotoğraf kalıcı olarak silinsin mi? Bu geri alınamaz.`)) return;

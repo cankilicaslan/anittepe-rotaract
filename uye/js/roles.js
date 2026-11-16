@@ -22,6 +22,8 @@ const VIEW_ROLES = { bagis: ["sekreter"], projeler: ["sekreter"] };
 
 export const isActive = p => !!p && p.status === "active";
 // is_owner yalnızca giriş yapan kişinin kendi profilinde (me) bulunur ve arayüzde hiçbir yerde gösterilmez.
+// Panelde tanımlı bir görevi var mı? (YK ya da komite)
+export const hasAnyRole = p => !!p?.is_owner || (isActive(p) && Array.isArray(p.roles) && p.roles.some(r => ROLE_LABELS[r]));
 export const hasRole = (p, r) => !!p?.is_owner || (isActive(p) && Array.isArray(p.roles) && p.roles.includes(r));
 
 export function can(p, panel, mode = "view") {

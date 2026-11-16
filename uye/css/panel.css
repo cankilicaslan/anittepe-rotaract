@@ -754,3 +754,12 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 }
 .person .m-role{white-space:nowrap}
 .m-table td[data-label="Instagram"] a{font-size:.88rem}
+
+/* Arşiv: klasör kartında düzenle/sil */
+.album-item{display:flex;flex-direction:column;gap:6px}
+.album-acts{display:flex;gap:6px;justify-content:flex-end}
+.btn.danger-t{color:#B42318}
+/* Düzenle penceresi: yalnız sahibin değiştirebildiği görevler */
+.check.locked{opacity:.55;cursor:not-allowed}
+/* Misafir satırı: Düzenle + Üye al */
+.m-gacts{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}

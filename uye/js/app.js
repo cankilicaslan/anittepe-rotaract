@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611161656";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161656";
+import { createStore, trDate } from "./store.js?v=202611161728";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161728";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -95,7 +95,16 @@ async function boot() {
     return;
   }
   store.onRecovery(() => setPasswordView());
-  window.addEventListener("hashchange", render);
+  // Mektupta kaydedilmemiş değişiklik varken başka ekrana geçmeden önce sorulur.
+  let lastHash = location.hash;
+  window.addEventListener("hashchange", () => {
+    if (letterInst?.isDirty?.() && !confirm("Mektupta kaydedilmemiş değişiklikler var. Kaydetmeden çıkılsın mı?")) {
+      history.replaceState(null, "", lastHash || location.pathname + location.search);
+      return;
+    }
+    lastHash = location.hash;
+    render();
+  });
   if (linkError) { history.replaceState(null, "", location.pathname + location.search); return linkErrorView(linkError); }
   if (pwLink && me) { history.replaceState(null, "", location.pathname + location.search); return setPasswordView(); }
   pwMode = false;
@@ -299,12 +308,14 @@ const PAGES = [
   { id: "proje-formlari", label: "Proje formları", panel: "proje-form" },
   // Instagram: yalnızca paylaşım yapabilenler (başkan ve Halkla İlişkiler / HİTK) görür ve açar.
   { id: "instagram", label: "Instagram paylaşımı", panel: "instagram" },
+  // Başkan Mektubu: Başkan, Sekreter ve Kulüp Hizmetleri hazırlar; asbaşkan görüntüler; yalnızca Başkan yayınlar.
+  { id: "mektup", label: "Başkan Mektubu", panel: "mektup" },
   // Site düzenleme: yalnızca Halkla İlişkiler ve Tanıtım (HİTK) görevlisi.
   { id: "site", label: "Site düzenleme", show: () => hasRole(me, "pr") }
 ];
 const visible = p => p.panel ? can(me, p.panel, "view") : p.show?.();
 
-let composerInst = null;
+let composerInst = null, letterInst = null;
 // Adresin alt parçaları: #arsiv/toplanti/<albümId>, #yukle/<albümId>
 let route = [];
 // Menüde salt görüntülenen paneller: asbaşkanda panelin görevlisi parantez içinde yazar, diğerlerinde "Görüntüle" etiketi çıkar.
@@ -319,6 +330,7 @@ function navSuffix(p) {
 }
 function shell() {
   try { composerInst?.destroy?.(); } catch {} composerInst = null;
+  try { letterInst?.destroy?.(); } catch {} letterInst = null;
   [route] = [(location.hash || "#profil").slice(1).split("/").map(decodeURIComponent)];
   let id = route.shift();
   const page = PAGES.find(p => p.id === id);
@@ -351,7 +363,7 @@ function shell() {
     <div class="scrim" id="scrim" hidden></div>
     <nav class="tabbar" aria-label="Hızlı geçiş">${[["profil", "Profil", "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 8a7 7 0 0 1 14 0"], ["takvim", "Takvim", "M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"], ["uyeler", "Üyeler", "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm-6 9a6 6 0 0 1 12 0M17 11a3 3 0 1 0-1-5.8M21 20a5 5 0 0 0-4-4.9"], ["arsiv", "Arşiv", "M4 6h16v13H4zM4 15l4.5-4.5 3.5 3.5 2.5-2.5L20 17M15.5 9.5h.01"]].map(([h, l, d]) => `<a href="#${h}" ${h === navId ? 'aria-current="page"' : ""}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg><span>${l}</span></a>`).join("")}<button type="button" id="more"${["profil", "takvim", "uyeler", "arsiv"].includes(navId) ? "" : ' class="on"'}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menü</span></button></nav>
   </div>`;
-  document.getElementById("logout").onclick = async () => { if (preview) { me = realMe; store = realStore; realMe = realStore = preview = null; } await store.signOut(); me = null; location.hash = ""; render(); };
+  document.getElementById("logout").onclick = async () => { if (letterInst?.isDirty?.() && !confirm("Mektupta kaydedilmemiş değişiklikler var. Kaydetmeden çıkılsın mı?")) return; try { letterInst?.destroy?.(); } catch {} letterInst = null; if (preview) { me = realMe; store = realStore; realMe = realStore = preview = null; } await store.signOut(); me = null; location.hash = ""; render(); };
   document.getElementById("pv-open")?.addEventListener("click", previewPicker);
   document.getElementById("pv-end")?.addEventListener("click", endPreview);
   const side = document.getElementById("side"), mb = document.getElementById("menu");
@@ -366,7 +378,7 @@ function shell() {
   const rs = document.getElementById("reset");
   if (rs) rs.onclick = () => { if (confirm("Örnek veriler ilk haline dönsün mü? Bu tarayıcıdaki demo değişiklikleri silinir.")) { store.resetDemo(); location.hash = ""; location.reload(); } };
   const view = document.getElementById("view");
-  const fn = { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram, site: viewSite, arsiv: viewArchive, yukle: viewUpload, bagislar: viewDonations, "proje-formlari": viewProjectForms, "wa-toplanti": viewWaMeeting, "wa-aidat": viewWaDues }[id];
+  const fn = { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram, mektup: viewLetter, site: viewSite, arsiv: viewArchive, yukle: viewUpload, bagislar: viewDonations, "proje-formlari": viewProjectForms, "wa-toplanti": viewWaMeeting, "wa-aidat": viewWaDues }[id];
   fn(view).catch(e => { view.innerHTML = `<div class="err">${esc(e.message)}</div>`; });
   labelTables(view);
   new MutationObserver(() => labelTables(view)).observe(view, { childList: true, subtree: true });
@@ -1317,8 +1329,19 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611161656");
+  const { mountComposer } = await import("./composer.js?v=202611161728");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
+}
+
+/* --------------------------- Başkan Mektubu --------------------------- */
+// #mektup: sayılar listesi; #mektup/<id>: mektubun düzenleyicisi.
+async function viewLetter(v) {
+  const id = route[0] || null;
+  v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161728");
+  const host = document.getElementById("letter");
+  if (!host || !v.isConnected) return;
+  letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });
 }
 
 /* ------------------------------- Takvim ------------------------------- */

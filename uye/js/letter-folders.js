@@ -3,8 +3,8 @@
 // fotoğraf yükleme, kişi seçici ve onay penceresini sağlar (bkz. editörde `ctx`).
 // Ayrıca künye, isim/unvan biçimi ve madde eşleme gibi saf yardımcılar burada.
 
-import { esc } from "../../assets/js/letter-render.js?v=202611161728";
-import { defaultFolders, meetingLabel, missingFor, wordCount, assemblePages, LONG_WORDS } from "../../assets/js/letter-assemble.js?v=202611161728";
+import { esc } from "../../assets/js/letter-render.js?v=202611161736";
+import { defaultFolders, meetingLabel, missingFor, wordCount, assemblePages, LONG_WORDS } from "../../assets/js/letter-assemble.js?v=202611161736";
 
 export const CLUB = "Ankara Anıttepe Rotaract Kulübü";
 const MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
@@ -15,7 +15,9 @@ const NEW_TITLE = { proje: "Yeni proje", etkinlik: "Yeni etkinlik", ocakbasi: "O
 const BOARD = [["baskan", "Dönem Başkanı", "Başkanı"], ["asbaskan", "Dönem Asbaşkanı", "Asbaşkanı"], ["sekreter", "Dönem Sekreteri", "Sekreteri"], ["sayman", "Dönem Saymanı", "Saymanı"]];
 
 const uid = () => (globalThis.crypto?.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
-const str = v => (v == null ? "" : String(v));
+// Kayıtlı kimlikler HTML niteliklerine ve seçicilere girer: biçimi bozuksa yenisi verilir.
+export const safeId = id => (typeof id === "string" && /^[\w-]+$/.test(id) ? id : uid());
+const str = v =>(v == null ? "" : String(v));
 const blank = v => str(v).trim() === "";
 export const norm = s => str(s).trim().replace(/\s+/g, " ").toLocaleLowerCase("tr");
 const pad = n => String(n).padStart(2, "0");
@@ -124,8 +126,8 @@ export function ensureFolders(letter, refs) {
     f.kunye ||= { rows: [] };
     f.president ||= { photo: null, body: "", name: "", role: "", club: CLUB };
     for (const k of ["board", "corner", "items"]) if (!Array.isArray(f[k])) f[k] = [];
-    for (const k of ["board", "corner"]) f[k].forEach(p => { p.id ||= uid(); });
-    f.items.forEach(it => { it.id ||= uid(); if (!Array.isArray(it.photos)) it.photos = []; });
+    for (const k of ["board", "corner"]) f[k].forEach(p => { p.id = safeId(p.id); });
+    f.items.forEach(it => { it.id = safeId(it.id); if (!Array.isArray(it.photos)) it.photos = []; });
     if (!f.from || !f.to) Object.assign(f, periodRange(letter.period) || recentRange());
     return f;
   }
@@ -232,7 +234,7 @@ export function mountFolders(host, ctx) {
   function updateBadges() {
     const b = badges();
     for (const [k, v] of Object.entries(b)) { const el = wrap.querySelector(`[data-badge="${k}"]`); if (el) el.innerHTML = v; }
-    for (const it of F().items) { const el = wrap.querySelector(`[data-ib="${it.id}"]`); if (el) el.outerHTML = itemBadge(it); }
+    for (const it of F().items) { const el = wrap.querySelector(`[data-ib="${CSS.escape(it.id)}"]`); if (el) el.outerHTML = itemBadge(it); }
     const sum = wrap.querySelector("#lf-go-sum");
     if (sum) {
       const miss = missingFor(F()).length, n = F().items.length;
@@ -240,32 +242,32 @@ export function mountFolders(host, ctx) {
     }
   }
   const itemMissing = it => [...(it.photos?.length ? [] : ["Fotoğraf yok"]), ...(blank(it.notes) && blank(it.text) ? ["Açıklama yok"] : [])];
-  const itemBadge = it => { const m = itemMissing(it); return `<span class="lf-badge ${m.length ? "warn" : "ok"}" data-ib="${it.id}">${m.length ? esc(m.join(" · ")) : "✓ Hazır"}</span>`; };
+  const itemBadge = it => { const m = itemMissing(it); return `<span class="lf-badge ${m.length ? "warn" : "ok"}" data-ib="${esc(it.id)}">${m.length ? esc(m.join(" · ")) : "✓ Hazır"}</span>`; };
   const wc = (v, long = Infinity) => { const n = wordCount(v); return `<small class="le-wc${n > long ? " is-long" : ""}" data-wc>${n} kelime</small>`; };
 
   const avatar = (name, url) => `<span class="lf-av">${url ? `<img src="${esc(url)}" alt="">` : esc(str(name).replace(/^Rtc\.\s*/, "").split(/\s+/).filter(Boolean).map(w => w[0]).slice(0, 2).join("").toLocaleUpperCase("tr") || "?")}</span>`;
 
   function photoOne(h, { avatarFor = null, label = "Fotoğraf" } = {}) {
     const ref = holder(h)?.photo, url = ctx.photoUrl(ref);
-    const av = !ro && !url && avatarFor?.photo_url ? `<button type="button" class="btn ghost sm" data-a="avatar" data-h="${h}">Profil fotoğrafını kullan</button>` : "";
-    return `<div class="lf-one${url ? " has" : ""}" data-drop="${h}">
+    const av = !ro && !url && avatarFor?.photo_url ? `<button type="button" class="btn ghost sm" data-a="avatar" data-h="${esc(h)}">Profil fotoğrafını kullan</button>` : "";
+    return `<div class="lf-one${url ? " has" : ""}" data-drop="${esc(h)}">
       ${url ? `<img src="${esc(url)}" alt="${esc(label)}">` : `<span class="lf-one-ph" aria-hidden="true">＋</span>`}
       <div class="lf-one-txt">${url ? `<b>${esc(label)} eklendi</b><small>Konumu ve yakınlığı elle düzenleyicide ayarlanır.</small>` : `<b>${esc(label)} yok</b><small>${ro ? "" : "Sürükleyip bırak ya da seç."}</small>`}</div>
-      ${ro ? "" : `<div class="lf-one-acts"><button type="button" class="btn ghost sm" data-a="pick" data-h="${h}">${url ? "Değiştir" : "Fotoğraf seç"}</button>${url ? `<button type="button" class="btn ghost sm" data-a="unphoto" data-h="${h}">Kaldır</button>` : ""}${av}</div>`}
+      ${ro ? "" : `<div class="lf-one-acts"><button type="button" class="btn ghost sm" data-a="pick" data-h="${esc(h)}">${url ? "Değiştir" : "Fotoğraf seç"}</button>${url ? `<button type="button" class="btn ghost sm" data-a="unphoto" data-h="${esc(h)}">Kaldır</button>` : ""}${av}</div>`}
     </div>`;
   }
 
   function photosMany(it) {
     const h = `item:${it.id}`, photos = it.photos || [];
     const hasStar = photos.some(r => isStar(r, it.star));
-    return `<div class="lf-photos" data-drop="${h}" data-multi>
+    return `<div class="lf-photos" data-drop="${esc(h)}" data-multi>
       ${photos.map((r, i) => {
         const on = isStar(r, it.star), auto = !hasStar && i === 0;
         return `<figure class="lf-ph${on ? " is-star" : auto ? " is-auto" : ""}"><img src="${esc(ctx.photoUrl(r))}" alt="${i + 1}. fotoğraf">
-          <button type="button" class="lf-star" data-a="star" data-h="${h}" data-i="${i}" aria-pressed="${on}" aria-label="${i + 1}. fotoğrafı sayfada kullan" title="${on ? "Sayfada bu fotoğraf kullanılacak" : auto ? "Seçim yok: ilk fotoğraf kullanılır" : "Sayfada bunu kullan"}"${ro ? " disabled" : ""}>★</button>
-          ${ro ? "" : `<button type="button" class="lf-del" data-a="del-photo" data-h="${h}" data-i="${i}" aria-label="${i + 1}. fotoğrafı kaldır">✕</button>`}</figure>`;
+          <button type="button" class="lf-star" data-a="star" data-h="${esc(h)}" data-i="${i}" aria-pressed="${on}" aria-label="${i + 1}. fotoğrafı sayfada kullan" title="${on ? "Sayfada bu fotoğraf kullanılacak" : auto ? "Seçim yok: ilk fotoğraf kullanılır" : "Sayfada bunu kullan"}"${ro ? " disabled" : ""}>★</button>
+          ${ro ? "" : `<button type="button" class="lf-del" data-a="del-photo" data-h="${esc(h)}" data-i="${i}" aria-label="${i + 1}. fotoğrafı kaldır">✕</button>`}</figure>`;
       }).join("")}
-      ${ro ? (photos.length ? "" : `<p class="lf-hint">Fotoğraf yok.</p>`) : `<button type="button" class="lf-add" data-a="pick-multi" data-h="${h}"><span aria-hidden="true">＋</span>Fotoğraf ekle<small>ya da sürükle</small></button>`}
+      ${ro ? (photos.length ? "" : `<p class="lf-hint">Fotoğraf yok.</p>`) : `<button type="button" class="lf-add" data-a="pick-multi" data-h="${esc(h)}"><span aria-hidden="true">＋</span>Fotoğraf ekle<small>ya da sürükle</small></button>`}
     </div>`;
   }
 
@@ -305,16 +307,16 @@ export function mountFolders(host, ctx) {
     const list = F()[kind], isBoard = kind === "board";
     const cards = list.map((p, i) => {
       const h = `${kind}:${p.id}`, m = memberOf(p);
-      return `<article class="lf-card" data-card="${h}">
+      return `<article class="lf-card" data-card="${esc(h)}">
         <header class="lf-who">${avatar(p.name, m?.photo_url)}<div><b>${esc(p.name || "İsimsiz")}</b><small>${p.guest ? "Misafir" : "Üye"}</small></div>
-          ${ro ? "" : `<span class="lf-card-acts"><button type="button" class="le-ib" data-a="move" data-d="-1" data-h="${h}" aria-label="Yukarı taşı"${i === 0 ? " disabled" : ""}>↑</button><button type="button" class="le-ib" data-a="move" data-d="1" data-h="${h}" aria-label="Aşağı taşı"${i === list.length - 1 ? " disabled" : ""}>↓</button><button type="button" class="le-ib le-ib-del" data-a="del-person" data-h="${h}" aria-label="${esc(p.name || "Kişiyi")} kaldır">✕</button></span>`}
+          ${ro ? "" : `<span class="lf-card-acts"><button type="button" class="le-ib" data-a="move" data-d="-1" data-h="${esc(h)}" aria-label="Yukarı taşı"${i === 0 ? " disabled" : ""}>↑</button><button type="button" class="le-ib" data-a="move" data-d="1" data-h="${esc(h)}" aria-label="Aşağı taşı"${i === list.length - 1 ? " disabled" : ""}>↓</button><button type="button" class="le-ib le-ib-del" data-a="del-person" data-h="${esc(h)}" aria-label="${esc(p.name || "Kişiyi")} kaldır">✕</button></span>`}
         </header>
         <div class="grid g2">
-          <label class="f">İmzadaki isim<input type="text" data-h="${h}" data-f="name" value="${esc(p.name)}"></label>
-          <label class="f">Unvan satırı<input type="text" data-h="${h}" data-f="role" value="${esc(p.role)}"></label>
+          <label class="f">İmzadaki isim<input type="text" data-h="${esc(h)}" data-f="name" value="${esc(p.name)}"></label>
+          <label class="f">Unvan satırı<input type="text" data-h="${esc(h)}" data-f="role" value="${esc(p.role)}"></label>
         </div>
-        <div class="le-field"><div class="le-field-h"><label for="lf-b-${p.id}">${isBoard ? "Mesaj" : "Yazı"}</label>${wc(p.body)}</div>
-          <textarea id="lf-b-${p.id}" rows="7" data-h="${h}" data-f="body">${esc(p.body)}</textarea>
+        <div class="le-field"><div class="le-field-h"><label for="lf-b-${esc(p.id)}">${isBoard ? "Mesaj" : "Yazı"}</label>${wc(p.body)}</div>
+          <textarea id="lf-b-${esc(p.id)}" rows="7" data-h="${esc(h)}" data-f="body">${esc(p.body)}</textarea>
           <small class="lf-hint">Kişinin kendi metni; yapay zekâ kullanılmaz.</small></div>
         <div class="lf-sub"><h3>${isBoard ? `Görsel <small>isteğe bağlı; tek kalan mesajın yanında büyük görünür</small>` : `Fotoğraf <small>yuvarlak çerçevede görünür</small>`}</h3>${photoOne(h, { avatarFor: m, label: isBoard ? "Görsel" : "Fotoğraf" })}</div>
       </article>`;
@@ -326,21 +328,21 @@ export function mountFolders(host, ctx) {
 
   function itemCard(it) {
     const h = `item:${it.id}`;
-    return `<article class="lf-item t-${KIND_CLS[it.kind] || "diger"}" data-card="${h}">
+    return `<article class="lf-item t-${KIND_CLS[it.kind] || "diger"}" data-card="${esc(h)}">
       <header class="lf-item-h">
         <span class="tag t-${KIND_CLS[it.kind] || "diger"}">${esc(KIND[it.kind] || "Madde")}</span>
-        <input class="lf-title" type="text" data-h="${h}" data-f="title" value="${esc(it.title)}" aria-label="Klasör adı (${esc(KIND[it.kind] || "madde")})"${ro ? " disabled" : ""}>
+        <input class="lf-title" type="text" data-h="${esc(h)}" data-f="title" value="${esc(it.title)}" aria-label="Klasör adı (${esc(KIND[it.kind] || "madde")})"${ro ? " disabled" : ""}>
         ${itemBadge(it)}
-        ${ro ? "" : `<button type="button" class="le-ib le-ib-del" data-a="del-item" data-h="${h}" aria-label="${esc(it.title)} klasörünü sil">✕</button>`}
+        ${ro ? "" : `<button type="button" class="le-ib le-ib-del" data-a="del-item" data-h="${esc(h)}" aria-label="${esc(it.title)} klasörünü sil">✕</button>`}
       </header>
       <div class="grid g2">
-        <label class="f">Fotoğraf altı etiketi <small>Boşsa klasör adı yazar</small><input type="text" data-h="${h}" data-f="label" value="${esc(it.label)}" placeholder="${esc(it.title)}"></label>
-        <label class="f">Tarih<input type="date" data-h="${h}" data-f="date" value="${esc(it.date)}"></label>
+        <label class="f">Fotoğraf altı etiketi <small>Boşsa klasör adı yazar</small><input type="text" data-h="${esc(h)}" data-f="label" value="${esc(it.label)}" placeholder="${esc(it.title)}"></label>
+        <label class="f">Tarih<input type="date" data-h="${esc(h)}" data-f="date" value="${esc(it.date)}"></label>
       </div>
-      ${it.kind === "ocakbasi" ? `<div class="lf-host"><span>Ev sahibi</span><b>${esc(it.host || "Seçilmedi")}</b>${ro ? "" : `<button type="button" class="btn ghost sm" data-a="pick-host" data-h="${h}">${it.host ? "Değiştir" : "Seç"}</button>${it.host ? `<button type="button" class="btn ghost sm" data-a="clear-host" data-h="${h}">Kaldır</button>` : ""}`}</div>` : ""}
+      ${it.kind === "ocakbasi" ? `<div class="lf-host"><span>Ev sahibi</span><b>${esc(it.host || "Seçilmedi")}</b>${ro ? "" : `<button type="button" class="btn ghost sm" data-a="pick-host" data-h="${esc(h)}">${it.host ? "Değiştir" : "Seç"}</button>${it.host ? `<button type="button" class="btn ghost sm" data-a="clear-host" data-h="${esc(h)}">Kaldır</button>` : ""}`}</div>` : ""}
       ${photosMany(it)}
-      <div class="le-field"><div class="le-field-h"><label for="lf-n-${it.id}">Notlar</label>${wc(it.notes)}</div>
-        <textarea id="lf-n-${it.id}" rows="4" data-h="${h}" data-f="notes" placeholder="Ne yaptık, kimler vardı, öne çıkan an… Yapay zekâ yalnızca bu notları kullanır.">${esc(it.notes)}</textarea></div>
+      <div class="le-field"><div class="le-field-h"><label for="lf-n-${esc(it.id)}">Notlar</label>${wc(it.notes)}</div>
+        <textarea id="lf-n-${esc(it.id)}" rows="4" data-h="${esc(h)}" data-f="notes" placeholder="Ne yaptık, kimler vardı, öne çıkan an… Yapay zekâ yalnızca bu notları kullanır.">${esc(it.notes)}</textarea></div>
       ${blank(it.text) ? "" : `<details class="lf-ai-text"><summary>✦ Yapay zekâ metni · ${wordCount(it.text)} kelime${wordCount(it.text) > LONG_WORDS ? " · tam sayfa olur" : ""}</summary><p>${esc(it.text)}</p></details>`}
     </article>`;
   }
@@ -550,8 +552,8 @@ export function mountFolders(host, ctx) {
       const p = { id: uid(), member_id: m?.id || null, guest: !m, name: m ? rtcName(m.full_name) : rtcName(sel.name, false), role: m ? roleFor(m, ctx.refs.term) : "Misafir Üye", body: "", photo: null };
       f[kind].push(p);
       open.add(kind); ctx.markDirty(); render();
-      wrap.querySelector(`#lf-b-${p.id}`)?.focus();
-      if (kind === "corner" && m?.photo_url) await useAvatar(`${kind}:${p.id}`, m);
+      wrap.querySelector(`#lf-b-${CSS.escape(p.id)}`)?.focus();
+      if (m?.photo_url) await useAvatar(`${kind}:${p.id}`, m);
       return;
     }
     if (a === "move") {
@@ -576,7 +578,7 @@ export function mountFolders(host, ctx) {
       if (kind === "ocakbasi") it.host = "";
       f.items.push(it);
       open.add("items"); ctx.markDirty(); render();
-      const ti = wrap.querySelector(`[data-h="item:${it.id}"][data-f="title"]`);
+      const ti = wrap.querySelector(`[data-h="item:${CSS.escape(it.id)}"][data-f="title"]`);
       ti?.scrollIntoView({ block: "center", behavior: "smooth" });
       ti?.focus(); ti?.select();
       return;
@@ -639,9 +641,12 @@ export function mountFolders(host, ctx) {
     let note = "";
     try {
       if (f.items.length) {
-        const res = await ctx.store.letterAi(f.items.map(it => aiItem(it, ctx.refs.meetings)));
+        const items = [...f.items]; // beklerken liste değişse de metinler doğru maddeye gitsin
+        const res = await ctx.store.letterAi(items.map(it => aiItem(it, ctx.refs.meetings)));
+        // Beklerken ekran kapandıysa ya da başka mektup açıldıysa sonucu uygulama.
+        if (gone || ctx.folders !== f) return;
         const texts = Array.isArray(res?.texts) ? res.texts : [];
-        f.items.forEach((it, i) => { const t = texts[i]; if (typeof t === "string" && t.trim()) it.text = t.trim(); });
+        items.forEach((it, i) => { const t = texts[i]; if (typeof t === "string" && t.trim()) it.text = t.trim(); });
         if (res?.source === "sablon") note = ctx.isDemo ? " Demo modunda yapay zekâ kapalı; notlardan şablon metin kullanıldı." : " Yapay zekâya ulaşılamadı; notlardan şablon metin kullanıldı.";
       }
       const pages = assemblePages(f);

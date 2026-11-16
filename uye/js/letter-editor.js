@@ -6,13 +6,13 @@
 // "Yapay zekâ ile oluştur" klasörleri: letter-folders.js.
 // Sayfa çizimi assets/js/letter-render.js, klasör → sayfa assets/js/letter-assemble.js.
 
-import { LAYOUTS, renderPage, renderLetter, tocFromPages, MAX_PHOTOS, esc } from "../../assets/js/letter-render.js?v=202611161728";
-import { LONG_WORDS, wordCount } from "../../assets/js/letter-assemble.js?v=202611161728";
-import { hasRole } from "./roles.js?v=202611161728";
+import { LAYOUTS, renderPage, renderLetter, tocFromPages, MAX_PHOTOS, esc } from "../../assets/js/letter-render.js?v=202611161736";
+import { LONG_WORDS, wordCount } from "../../assets/js/letter-assemble.js?v=202611161736";
+import { hasRole } from "./roles.js?v=202611161736";
 import {
   mountFolders, ensureFolders, aiItem, findItem, guessItem, kunyeDefaults, suggestPeriod, norm,
-  rowsHtml, rowsAction, rowsInput, parseKunye, CLUB,
-} from "./letter-folders.js?v=202611161728";
+  rowsHtml, rowsAction, rowsInput, parseKunye, safeId, CLUB,
+} from "./letter-folders.js?v=202611161736";
 
 // ---------------------------------------------------------------- yardımcılar
 
@@ -29,7 +29,12 @@ const statusChip = s => (s === "yayinda" ? `<span class="tag ok">Yayında</span>
 const stable = v => JSON.stringify(v ?? null, (k, x) => (x && typeof x === "object" && !Array.isArray(x)
   ? Object.keys(x).sort().reduce((o, key) => ((o[key] = x[key]), o), {}) : x));
 
-const GROUP_NAMES = { "neler-2": "madde", "mesaj-2": "mesaj", kose: "yazı" };
+// Kayıtlı sayfalar: nesne olmayanlar atılır, kimliği bozuk olanlara yenisi verilir.
+const normPages = pages => (Array.isArray(pages) ? pages : [])
+  .filter(p => p && typeof p === "object")
+  .map(p => ({ ...p, id: safeId(p.id), fields: p.fields && typeof p.fields === "object" ? p.fields : {} }));
+
+const GROUP_NAMES ={ "neler-2": "madde", "mesaj-2": "mesaj", kose: "yazı" };
 const LAYOUT_HINT = {
   kapak: "Sayı ve dönem boşsa mektubun bilgileri yazılır.",
   kunye: "Rotary yöneticileri ve kulüp yönetim kurulu.",
@@ -274,7 +279,7 @@ export function mountLetterEditor(root, { store, me, toast: toastFn, readOnly = 
       return;
     }
     if (destroyed) return;
-    letter.pages = Array.isArray(letter.pages) ? letter.pages : [];
+    letter.pages = normPages(letter.pages);
     letter.folders = ensureFolders(letter, refs);
     E = { letter, rev: 0, savedRev: 0, tab: letter.pages.length ? "manual" : "ai", sel: 0, refs, saving: false, folders: null, photoSel: {} };
     root.innerHTML = `<div class="le">
@@ -378,7 +383,7 @@ export function mountLetterEditor(root, { store, me, toast: toastFn, readOnly = 
   async function reread() {
     const fresh = await store.getLetter(E.letter.id);
     if (destroyed) return;
-    fresh.pages = Array.isArray(fresh.pages) ? fresh.pages : [];
+    fresh.pages = normPages(fresh.pages);
     fresh.folders = ensureFolders(fresh, E.refs);
     E.letter = fresh;
     E.rev = E.savedRev = 0;
@@ -976,6 +981,14 @@ export function mountLetterEditor(root, { store, me, toast: toastFn, readOnly = 
       const text = res?.texts?.[0];
       const pg = E.letter.pages.find(x => x.id === pageId);
       if (pg && typeof text === "string" && text.trim()) {
+        // Kutudaki metin birkaç kelimeden uzunsa (notlar ya da elle yazılmış metin) sormadan silinmesin.
+        const before = String(pg.fields[key] || "");
+        if (wordCount(before) > 5 && !(await confirmDlg({
+          title: "Mevcut metin yapay zekânın metniyle değiştirilsin mi?",
+          body: `<p class="muted">Şu anki metin (${wordCount(before)} kelime) silinir. Yeni metin:</p><blockquote class="le-ai-new">${esc(text.trim())}</blockquote>`,
+          ok: "Değiştir", cancel: "Mevcut metni koru",
+        }))) return;
+        if (destroyed || !E) return;
         pg.fields[key] = text.trim();
         if (it) it.text = text.trim();
         markDirty();

@@ -109,6 +109,7 @@
   background: var(--cran-soft); color: var(--cran-deep);
 }
 .le-print-tip span { color: var(--ink); font-size: .86rem; }
+.le-ai-new { margin: 0; padding: 10px 14px; max-height: 40vh; overflow: auto; border-left: 3px solid var(--cran); border-radius: 0 10px 10px 0; background: var(--cran-soft); white-space: pre-wrap; font-size: .9rem; }
 .le-layouts { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; padding: 2px; }
 .le-layout {
   display: grid; justify-items: center; align-content: start; gap: 8px; padding: 12px 8px;

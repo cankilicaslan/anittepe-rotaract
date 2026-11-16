@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611162005";
-import { can, hasRole, hasAnyRole } from "./roles.js?v=202611162005";
+import { CONFIG } from "./config.js?v=202611162007";
+import { can, hasRole, hasAnyRole } from "./roles.js?v=202611162007";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -293,6 +293,8 @@ function demoStore() {
       S.planTerm ||= { id: uid(), name: "2027-28", start_date: "2027-07-01", meeting_count: 24, club_meeting_offset: (S.term.club_meeting_offset || 599) + (S.term.meeting_count || 24), opening_balance: 0, is_current: false };
       save(); return clone(S.planTerm);
     },
+    async getPlanNotes() { if (!planner() || !S.planTerm) throw new Error("Bu işlem için yetkiniz yok."); return ((S.planNotes ||= {})[S.planTerm.id]) || ""; },
+    async savePlanNotes(text) { if (!planner() || !S.planTerm) throw new Error("Bu işlem için yetkiniz yok."); (S.planNotes ||= {})[S.planTerm.id] = String(text || ""); save(); },
     async getBoardPlanView() {
       const m = me(); if (!(planner() || (m?.status === "active" && m.past_president))) throw new Error("Bu işlem için yetkiniz yok.");
       return { slots: clone(((S.boardPlans ||= {})[S.planTerm?.id]) || {}) };
@@ -633,6 +635,15 @@ async function supabaseStore() {
     getViewTerm() { return viewTerm; },
     async ensurePlanTerm() { return ok(await sb.rpc("ensure_plan_term")); },
     async getBoardPlanView() { return { slots: ok(await sb.rpc("board_plan_view")) || {} }; },
+    async getPlanNotes() {
+      const t = await term(); if (!viewTerm) throw new Error("Önce planlama moduna gir.");
+      const d = ok(await sb.from("term_board_plans").select("notes").eq("term_id", t.id).maybeSingle());
+      return d?.notes || "";
+    },
+    async savePlanNotes(text) {
+      const t = await term(); if (!viewTerm) throw new Error("Önce planlama moduna gir.");
+      ok(await sb.from("term_board_plans").upsert({ term_id: t.id, notes: String(text || ""), updated_at: new Date().toISOString(), updated_by: await meId() }));
+    },
     async getBoardPlan() {
       const t = await term(); if (!viewTerm) throw new Error("Önce planlama moduna gir.");
       const d = ok(await sb.from("term_board_plans").select("slots").eq("term_id", t.id).maybeSingle());

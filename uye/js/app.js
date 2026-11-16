@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611162005";
-import { createStore, trDate } from "./store.js?v=202611162005";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611162005";
+import * as BP from "./board-plan.js?v=202611162007";
+import { createStore, trDate } from "./store.js?v=202611162007";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611162007";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -338,7 +338,7 @@ const PAGES = [
 ];
 const isPlanner = () => !preview && hasRole(realPlanMe || me, "asbaskan");
 const PLAN_NAME = "2027-2028 dönemi planlama";
-const PLAN_PAGES = [["yk", "Yönetim kurulu planlama"], ["takvim", "Takvim"], ["kulup-projeleri", "Kulüp projeleri"], ["aidat", "Aidat"], ["kasa", "Kulüp kasası"]];
+const PLAN_PAGES = [["yk", "Yönetim kurulu planlama"], ["takvim", "Takvim"], ["kulup-projeleri", "Planlanan projeler"], ["aidat", "Aidat"], ["kasa", "Kulüp kasası"], ["notlar", "Notlar"]];
 // Plan modunda planlayıcı bu dört ekranı düzenleyebilir (taslak satırlarda veritabanı planlayıcıya izin verir)
 let realPlanMe = null, planSub = null;
 function enterPlanMe() { if (!realPlanMe) { realPlanMe = me; me = { ...me, roles: [...new Set([...(me.roles || []), "sayman", "hizmet"])] }; } }
@@ -413,7 +413,7 @@ function shell() {
   const rs = document.getElementById("reset");
   if (rs) rs.onclick = () => { if (confirm("Örnek veriler ilk haline dönsün mü? Bu tarayıcıdaki demo değişiklikleri silinir.")) { store.resetDemo(); location.hash = ""; location.reload(); } };
   const view = document.getElementById("view");
-  const planFn = { yk: viewBoardPlan, takvim: viewCalendar, "kulup-projeleri": viewClubProjects, aidat: viewDues, kasa: viewTreasury }[planSub];
+  const planFn = { yk: viewBoardPlan, takvim: viewCalendar, "kulup-projeleri": viewPlannedProjects, aidat: viewDues, kasa: viewTreasury, notlar: viewPlanNotes }[planSub];
   const fn = planSub ? async v => {
     const t = await store.ensurePlanTerm(); store.setViewTerm(t);
     if (planSub === "takvim" && !(cal2Month >= "2027-07" && cal2Month <= "2028-06")) cal2Month = "2027-07";
@@ -1481,6 +1481,70 @@ async function viewClubProjects(v) {
       : '<div class="card empty"><p>Henüz proje girilmedi. Projeler Hizmet Projeleri Komitesi tarafından eklenince burada görünür.</p></div>');
 }
 
+/* ------------------------- Planlama: projeler ve notlar ------------------------- */
+// 2027-28 için planlanan projeler (yalnızca planlama modunda; asbaşkan ekler/düzenler)
+async function viewPlannedProjects(v) {
+  const list = (await store.listProjects().catch(() => [])).sort((a, b) => String(a.date || "9999").localeCompare(String(b.date || "9999")));
+  const card = p => {
+    const st = PROJ_STATUS[p.status] || [esc(p.status || ""), ""];
+    const meta = [p.date ? trDate(p.date) + (p.time ? " · " + esc(p.time) : "") : "Tarih belirlenmedi", p.location ? esc(p.location) : ""].filter(Boolean).join(" · ");
+    return `<article class="card kp-card"><div class="kp-top"><span class="tag cran">${esc(PROJ_KIND[p.kind] || "Proje")}</span><span class="tag ${st[1]}">${st[0]}</span></div>
+      <h3>${esc(p.title)}</h3><p class="muted kp-meta">${meta}</p>
+      ${p.description ? `<p class="kp-desc" style="white-space:pre-line">${esc(p.description)}</p>` : ""}
+      ${p.owner ? `<p class="muted kp-owner">Sorumlu: ${esc(p.owner)}</p>` : ""}
+      <div class="row kp-acts"><button type="button" class="btn ghost sm" data-pe="${p.id}">Düzenle</button><button type="button" class="btn ghost sm danger-t" data-pd="${p.id}">Sil</button></div></article>`;
+  };
+  v.innerHTML = header("Planlanan projeler", "2027-2028 dönemi için planlanan projeler ve etkinlikler. Takvimde de görünür.", `<button class="btn" id="pp-add">Proje ekle</button>`) +
+    (list.length ? `<div class="kp-list">${list.map(card).join("")}</div>` : '<div class="card empty"><p>Henüz planlanan proje yok. "Proje ekle" ile başla.</p></div>') +
+    `<dialog id="pp-dlg"></dialog>`;
+  const dlg = document.getElementById("pp-dlg");
+  const open = p => {
+    p ||= { kind: "hizmet", status: "planlandi" };
+    dlg.innerHTML = `<form method="dialog"><h2>${p.id ? "Projeyi düzenle" : "Yeni planlanan proje"}</h2>
+      <div class="grid g2">
+        <label class="f">Proje adı<input type="text" name="title" required value="${esc(p.title || "")}"></label>
+        <label class="f">Tür<select name="kind">${Object.entries(PROJ_KIND).map(([k, l]) => `<option value="${k}" ${p.kind === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+        <label class="f">Tarih <small>Boş bırakılabilir</small><input type="date" name="date" min="2027-07-01" max="2028-06-30" value="${esc(p.date || "")}"></label>
+        <label class="f">Saat<input type="text" name="time" placeholder="ör. 14.00" value="${esc(p.time || "")}"></label>
+        <label class="f">Yer<input type="text" name="location" value="${esc(p.location || "")}"></label>
+        <label class="f">Sorumlu<input type="text" name="owner" value="${esc(p.owner || "")}"></label>
+        <label class="f">Durum<select name="status">${Object.entries(PROJ_STATUS).map(([k, [l]]) => `<option value="${k}" ${p.status === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+      </div>
+      <label class="f" style="margin-top:12px">Açıklama<textarea name="description" rows="4">${esc(p.description || "")}</textarea></label>
+      <div class="row" style="margin-top:14px"><button class="btn" value="ok">Kaydet</button><button class="btn ghost" value="cancel" formnovalidate>Vazgeç</button></div></form>`;
+    dlg.showModal();
+    const f = dlg.querySelector("form");
+    f.onsubmit = async e => {
+      if (e.submitter?.value !== "ok") return;
+      e.preventDefault();
+      const fd = new FormData(f), s = k => String(fd.get(k) || "").trim();
+      const row = { title: s("title"), kind: s("kind"), date: s("date") || null, time: s("time") || null, location: s("location") || null, owner: s("owner") || null, status: s("status"), description: s("description") || null };
+      if (!row.title) return;
+      try { await store.saveProject(p.id ? { id: p.id, ...row } : row); dlg.close(); toast(p.id ? "Proje güncellendi." : "Proje eklendi."); viewPlannedProjects(v); } catch (er) { fail(er); }
+    };
+  };
+  document.getElementById("pp-add").onclick = () => open(null);
+  v.querySelectorAll("[data-pe]").forEach(b => b.onclick = () => open(list.find(p => p.id === b.dataset.pe)));
+  v.querySelectorAll("[data-pd]").forEach(b => b.onclick = async () => {
+    const p = list.find(x => x.id === b.dataset.pd);
+    if (!confirm(`"${p.title}" planlanan projelerden silinsin mi?`)) return;
+    try { await store.deleteProject(p.id); toast("Proje silindi."); viewPlannedProjects(v); } catch (er) { fail(er); }
+  });
+}
+
+// Asbaşkanın planlama notları (otomatik kaydedilir; yalnızca planlayıcı görür)
+async function viewPlanNotes(v) {
+  const notes = await store.getPlanNotes();
+  v.innerHTML = header("Notlar", "2027-2028 dönemi için kendi notların. Yalnızca sen (ve site sahibi) görürsün; yazdıkça kaydedilir.", '<span class="muted bp-save" id="pn-save" role="status" aria-live="polite"></span>') +
+    `<div class="card"><label class="sr" for="pn">Planlama notları</label><textarea id="pn" class="pn-area" rows="18" placeholder="ör. Bütçe öncelikleri, aday komite başkanları, dönem hedefleri, yapılacaklar…">${esc(notes || "")}</textarea></div>`;
+  const ta = document.getElementById("pn"), st = document.getElementById("pn-save");
+  let t = null;
+  ta.oninput = () => {
+    st.textContent = "Kaydediliyor…"; clearTimeout(t);
+    t = setTimeout(async () => { try { await store.savePlanNotes(ta.value); st.textContent = "Kaydedildi"; } catch (e) { st.textContent = ""; fail(e); } }, 600);
+  };
+}
+
 async function viewProjects(v) {
   const ro = !can(me, "projeler", "edit");
   const [projects, meetings] = await Promise.all([store.listProjects(), store.listMeetings()]);
@@ -1689,7 +1753,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611162005");
+  const { mountComposer } = await import("./composer.js?v=202611162007");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1698,7 +1762,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611162005");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611162007");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

@@ -1677,3 +1677,8 @@ begin
 end $$;
 revoke all on function public.board_plan_view() from public, anon;
 grant execute on function public.board_plan_view() to authenticated;
+
+-- =====================================================================
+-- v40: Asbaşkanın planlama notları (term_board_plans.notes; yalnızca planlayıcı)
+-- =====================================================================
+alter table public.term_board_plans add column if not exists notes text;

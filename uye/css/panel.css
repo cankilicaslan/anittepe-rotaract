@@ -733,3 +733,24 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 .kp-meta{margin:0 0 8px;font-size:.86rem}
 .kp-desc{margin:0 0 8px;font-size:.92rem;line-height:1.55}
 .kp-owner{margin:0;font-size:.82rem}
+
+/* Görev etiketleri yumuşak tonlar: Yönetim kurulu (YK) bordo, komite başkanları (GYK) mavi */
+.person .m-role{box-shadow:none;font-weight:700;border:1px solid transparent}
+.person .m-role.yk{background:#FCE8F0;color:#9A0B48;border-color:#F6CADB}
+.person .m-role.gyk{background:#E8F1FA;color:#1B4F86;border-color:#C9DDF1}
+/* Instagram ve sütun başlıkları tek satır: sütun en uzun yazı kadar genişler */
+.m-table thead th{white-space:nowrap}
+.m-table td[data-label="Instagram"]{white-space:nowrap}
+@media (max-width:860px){.m-table td[data-label="Instagram"]{white-space:normal}.m-table td[data-label="Instagram"] a{white-space:nowrap}}
+@media (min-width:861px){
+  .m-table{table-layout:auto}
+  .m-table th:nth-child(n+2):nth-child(-n+6){width:auto}
+  .m-table td[data-label="Instagram"]{overflow-wrap:normal}
+}
+@media (min-width:861px){
+  .m-table:not(.m-gtable) td{overflow-wrap:break-word}
+  .m-table:not(.m-gtable) .m-who .person{min-width:210px}
+  .m-table:not(.m-gtable) .m-contact{min-width:160px}
+}
+.person .m-role{white-space:nowrap}
+.m-table td[data-label="Instagram"] a{font-size:.88rem}

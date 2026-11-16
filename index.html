@@ -702,6 +702,12 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 @media (min-width:1201px){.fab,.fab-login{display:none}}
 .mini-ini{display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;background:var(--cran-soft,#FCE6EF);color:var(--cran-deep,#A30C4D)}
 .committees ul.cm[data-live]:not(.ready){visibility:hidden}
+/* Footer: gereksiz boşluklar azaltıldı (kayan düğme 1201px+ gizli, alt boşluk gerekmez) */
+#iletisim{padding-bottom:clamp(44px,6vw,72px)}
+footer.site{padding-top:44px}
+.foot-bottom{margin-top:28px;padding-top:16px}
+.foot li a{padding-block:6px}
+@media (min-width:1201px){footer.site{padding-bottom:calc(28px + env(safe-area-inset-bottom,0px))}}
 </style>
 
 <div class="progress" id="progress" aria-hidden="true"></div>

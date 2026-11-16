@@ -1219,3 +1219,124 @@ grant execute on function public.guest_names() to authenticated;
 alter table public.profiles drop constraint if exists profiles_roles_chk;
 alter table public.profiles add constraint profiles_roles_chk
   check (roles <@ array['baskan','asbaskan','sayman','sekreter','pr','hizmet','uyelik','uluslararasi','kulup','meslek','afet','hobi','interact']::text[]);
+
+-- =====================================================================
+-- v27: Başkan Mektubu (panelde hazırlanır, PDF indirilir, yalnızca Başkan yayınlar)
+-- =====================================================================
+create or replace function public.letter_editor()
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.is_admin() or public.has_role('sekreter') or public.has_role('kulup');
+$$;
+revoke all on function public.letter_editor() from public, anon;
+grant execute on function public.letter_editor() to authenticated;
+
+create table if not exists public.letters (
+  id              uuid primary key default gen_random_uuid(),
+  term_id         uuid not null references public.terms(id) on delete cascade,
+  issue_no        int  not null check (issue_no > 0),
+  period          text not null default '',
+  status          text not null default 'taslak',
+  pages           jsonb not null default '[]'::jsonb,
+  folders         jsonb not null default '{}'::jsonb,
+  published_pages jsonb,
+  published_at    timestamptz,
+  updated_at      timestamptz not null default now(),
+  updated_by      uuid,
+  constraint letters_status_chk check (status in ('taslak','yayinda')),
+  constraint letters_issue_uniq unique (term_id, issue_no)
+);
+alter table public.letters enable row level security;
+
+-- Yayın alanlarını (status, published_pages, published_at) yalnızca yayın fonksiyonları değiştirir.
+create or replace function public.letters_guard()
+returns trigger language plpgsql set search_path = public as $$
+begin
+  if coalesce(current_setting('app.letter_publish', true), '') <> '1' then
+    if tg_op = 'INSERT' then
+      new.status := 'taslak'; new.published_pages := null; new.published_at := null;
+    else
+      new.status := old.status; new.published_pages := old.published_pages; new.published_at := old.published_at;
+    end if;
+  end if;
+  new.updated_at := now();
+  new.updated_by := coalesce(auth.uid(), new.updated_by);
+  return new;
+end $$;
+drop trigger if exists letters_guard on public.letters;
+create trigger letters_guard before insert or update on public.letters
+  for each row execute function public.letters_guard();
+
+drop policy if exists letters_select_anon on public.letters;
+create policy letters_select_anon on public.letters for select to anon using (status = 'yayinda');
+drop policy if exists letters_select on public.letters;
+create policy letters_select on public.letters for select to authenticated
+  using (status = 'yayinda' or public.letter_editor() or public.can_view_all());
+drop policy if exists letters_insert on public.letters;
+create policy letters_insert on public.letters for insert to authenticated with check (public.letter_editor());
+drop policy if exists letters_update on public.letters;
+create policy letters_update on public.letters for update to authenticated
+  using (public.letter_editor()) with check (public.letter_editor());
+drop policy if exists letters_delete on public.letters;
+create policy letters_delete on public.letters for delete to authenticated using (public.is_admin());
+
+-- Ziyaretçi (anon) yalnızca yayın sütunlarını görür; taslak içerik (pages, folders) kapalı.
+revoke all on public.letters from anon;
+grant select (id, term_id, issue_no, period, status, published_pages, published_at) on public.letters to anon;
+grant select, insert, update, delete on public.letters to authenticated;
+
+create or replace function public.publish_letter(p_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Yalnızca Başkan yayınlayabilir'; end if;
+  perform set_config('app.letter_publish', '1', true);
+  update public.letters set status = 'yayinda', published_pages = pages, published_at = now() where id = p_id;
+  if not found then raise exception 'Mektup bulunamadı'; end if;
+end $$;
+create or replace function public.unpublish_letter(p_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+begin
+  if not public.is_admin() then raise exception 'Yalnızca Başkan yayından kaldırabilir'; end if;
+  perform set_config('app.letter_publish', '1', true);
+  update public.letters set status = 'taslak', published_pages = null, published_at = null where id = p_id;
+  if not found then raise exception 'Mektup bulunamadı'; end if;
+end $$;
+revoke all on function public.publish_letter(uuid) from public, anon;
+revoke all on function public.unpublish_letter(uuid) from public, anon;
+grant execute on function public.publish_letter(uuid) to authenticated;
+grant execute on function public.unpublish_letter(uuid) to authenticated;
+
+-- Mektup görselleri: herkes okur, yalnızca düzenleyiciler yazar/siler.
+insert into storage.buckets (id, name, public) values ('letters', 'letters', true) on conflict (id) do nothing;
+drop policy if exists "letters_read" on storage.objects;
+create policy "letters_read" on storage.objects for select to anon, authenticated using (bucket_id = 'letters');
+drop policy if exists "letters_insert" on storage.objects;
+create policy "letters_insert" on storage.objects for insert to authenticated
+  with check (bucket_id = 'letters' and public.letter_editor());
+drop policy if exists "letters_update" on storage.objects;
+create policy "letters_update" on storage.objects for update to authenticated
+  using (bucket_id = 'letters' and public.letter_editor());
+drop policy if exists "letters_delete" on storage.objects;
+create policy "letters_delete" on storage.objects for delete to authenticated
+  using (bucket_id = 'letters' and public.letter_editor());
+
+-- Misafir adları (Anıttepeliler Köşesi için) Kulüp Hizmetleri'ne de açık.
+create or replace function public.guest_names()
+returns table(full_name text)
+language sql stable security definer set search_path = public as $$
+  select g.full_name from public.guests g
+   where public.has_role('pr') or public.has_role('sekreter') or public.has_role('kulup') or public.can_view_all()
+   order by g.full_name;
+$$;
+
+-- Künye: Rotary ve bölge yöneticileri (herkese açık görevler). Kulüp yönetim kurulu panelden okunur.
+insert into public.app_settings (key, value) values ('letter_kunye', '[
+ {"title":"Uluslararası Rotary Kurucusu","name":"Paul HARRIS"},
+ {"title":"Uluslararası Rotary Başkanı","name":"Rtn. Olayinka Hakeem BABALOLA"},
+ {"title":"UR Bölge 2430 Guvernörü","name":"Rtn. Orhan ULUDAĞ & Zeynep"},
+ {"title":"UR Bölge 2430 Bölge Rotaract Temsilcisi","name":"Rtn. Rtc. Alper ABACIGİL & Irmak"},
+ {"title":"1.Grup Kulüplerinden Sorumlu BRT Yardımcısı","name":"Rtc. Mert TOKTAŞ"}
+]') on conflict (key) do nothing;
+drop policy if exists app_settings_write on public.app_settings;
+create policy app_settings_write on public.app_settings for all to authenticated
+  using (public.has_role('sayman') or public.is_admin() or (key = 'letter_kunye' and public.letter_editor()))
+  with check (public.has_role('sayman') or public.is_admin() or (key = 'letter_kunye' and public.letter_editor()));

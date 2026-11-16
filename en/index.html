@@ -701,6 +701,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 .apply-form [aria-invalid="true"],form.cf [aria-invalid="true"]{border-color:#C0103F!important;box-shadow:0 0 0 3px rgba(192,16,63,.15)}
 @media (min-width:1201px){.fab,.fab-login{display:none}}
 .mini-ini{display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;background:var(--cran-soft,#FCE6EF);color:var(--cran-deep,#A30C4D)}
+.committees ul.cm[data-live]:not(.ready){visibility:hidden}
 </style>
 
 <div class="progress" id="progress" aria-hidden="true"></div>
@@ -978,7 +979,7 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
         </div>
       </div>
       <div class="board" data-term="2026"><div class="person lead-p"><div class="avatar"><img src="../assets/uyeler/simay-oguzkurt.jpg" alt="Simay Oğuzkurt" loading="lazy"></div><div><b>Simay Oğuzkurt</b><span>President</span></div></div><div class="person"><div class="avatar"><img src="../assets/uyeler/selva-tuluy.jpg" alt="Selva Tuluy" loading="lazy"></div><div><b>Selva Tuluy</b><span>Vice President</span></div></div><div class="person"><div class="avatar"><img src="../assets/uyeler/ogulcan-gorgulu.jpg" alt="Oğulcan Görgülü" loading="lazy"></div><div><b>Oğulcan Görgülü</b><span>Secretary</span></div></div><div class="person"><div class="avatar"><img src="../assets/uyeler/umut-ekin-akkus.jpg" alt="Umut Ekin Akkuş" loading="lazy"></div><div><b>Umut Ekin Akkuş</b><span>Treasurer</span></div></div><div class="person"><div class="avatar"><img src="../assets/uyeler/can-kilicaslan.jpg" alt="Can Kılıçaslan" loading="lazy"></div><div><b>Can Kılıçaslan</b><span>Board Member</span></div></div></div>
-      <div class="committees" data-term="2026"><h3>Committee chairs</h3><ul class="cm"><li><img class="mini" src="../assets/uyeler/melishan-ozkan-agca.jpg" alt="" loading="lazy"><div><b>Melishan Özkan Ağca</b><span>Service Projects Committee</span></div></li><li><img class="mini" src="../assets/uyeler/begum-gozupek.jpg" alt="" loading="lazy"><div><b>Begüm Gözüpek</b><span>Membership and Membership Development Committee</span></div></li><li><img class="mini" src="../assets/uyeler/muhammed-alperen-celik.jpg" alt="" loading="lazy"><div><b>Muhammed Alperen Çelik</b><span>International Service Committee</span></div></li><li><img class="mini" src="../assets/uyeler/muhammed-alperen-celik.jpg" alt="" loading="lazy"><div><b>Muhammed Alperen Çelik</b><span>Public Relations Committee</span></div></li><li><img class="mini" src="../assets/uyeler/ezgi-erdogan.jpg" alt="" loading="lazy"><div><b>Ezgi Erdoğan</b><span>Club Service Committee</span></div></li><li><img class="mini" src="../assets/uyeler/gizem-hanoglu.jpg" alt="" loading="lazy"><div><b>Gizem Hanoğlu</b><span>Vocational Service Committee</span></div></li><li><img class="mini" src="../assets/uyeler/zehra-cansu-tasanlar.jpg" alt="" loading="lazy"><div><b>Zehra Cansu Taşanlar</b><span>Disaster Response Committee</span></div></li><li><img class="mini" src="../assets/uyeler/ezgi-erdogan.jpg" alt="" loading="lazy"><div><b>Ezgi Erdoğan</b><span>Hobbies Committee</span></div></li></ul></div>
+      <div class="committees" data-term="2026"><h3>Committee chairs</h3><ul class="cm" data-live><li><img class="mini" src="../assets/uyeler/ezgi-erdogan.jpg" alt="" loading="lazy"><div><b>Ezgi Erdoğan</b><span>Service Projects Committee</span></div></li><li><img class="mini" src="../assets/uyeler/muhammed-alperen-celik.jpg" alt="" loading="lazy"><div><b>Muhammed Alperen Çelik</b><span>Public Relations Committee</span></div></li><li><img class="mini" src="../assets/uyeler/gizem-hanoglu.jpg" alt="" loading="lazy"><div><b>Gizem Hanoğlu</b><span>Vocational Service Committee</span></div></li><li><img class="mini" src="../assets/uyeler/zehra-cansu-tasanlar.jpg" alt="" loading="lazy"><div><b>Zehra Cansu Taşanlar</b><span>Disaster Response Committee</span></div></li></ul></div>
       <div class="board" data-term="2025" hidden><div class="person lead-p"><div class="avatar"><img src="../assets/uyeler/can-kilicaslan.jpg" alt="Can Kılıçaslan" loading="lazy"></div><div><b>Can Kılıçaslan</b><span>President</span></div></div><div class="person"><div class="avatar"><img src="../assets/uyeler/metehan-can-cirak.jpg" alt="Metehan Can Çırak" loading="lazy"></div><div><b>Metehan Can Çırak</b><span>Vice President</span></div></div><div class="person"><div class="avatar"><img src="../assets/uyeler/selva-tuluy.jpg" alt="Selva Tuluy" loading="lazy"></div><div><b>Selva Tuluy</b><span>Secretary</span></div></div><div class="person"><div class="avatar"><img src="../assets/uyeler/simay-oguzkurt.jpg" alt="Simay Oğuzkurt" loading="lazy"></div><div><b>Simay Oğuzkurt</b><span>Treasurer</span></div></div><div class="person"><div class="avatar"><img src="../assets/uyeler/begum-gozupek.jpg" alt="Begüm Gözüpek" loading="lazy"></div><div><b>Begüm Gözüpek</b><span>Immediate Past President</span></div></div></div>
       <div class="committees" data-term="2025" hidden></div>
     </div>
@@ -1453,7 +1454,10 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
    Panele ulaşılamazsa sayfadaki hazır liste kalır. Atanmamış komite gösterilmez. */
 (function(){
   var ul=document.querySelector('.committees[data-term="2026"] ul.cm');
-  if(!ul||!window.fetch)return;
+  if(!ul)return;
+  var ready=function(){ul.classList.add("ready")};
+  setTimeout(ready,2500);
+  if(!window.fetch){ready();return;}
   var ORDER=["hizmet","uyelik","uluslararasi","pr","kulup","meslek","afet","hobi","interact"];
   var L={"hizmet":"Service Projects Committee","uyelik":"Membership and Membership Development Committee","uluslararasi":"International Service Committee","pr":"Public Relations Committee","kulup":"Club Service Committee","meslek":"Vocational Service Committee","afet":"Disaster Response Committee","hobi":"Hobbies Committee","interact":"Interact Committee"};
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
@@ -1467,6 +1471,6 @@ footer.site{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
         items.push('<li>'+ph+'<div><b>'+esc(r.full_name)+'</b><span>'+esc(L[k])+'</span></div></li>');
       })});
       if(items.length)ul.innerHTML=items.join("");
-    }).catch(function(){});
+    }).catch(function(){}).then(ready);
 })();
 </script>

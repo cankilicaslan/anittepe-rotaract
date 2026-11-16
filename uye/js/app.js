@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611162007";
-import { createStore, trDate } from "./store.js?v=202611162007";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611162007";
+import * as BP from "./board-plan.js?v=202611162009";
+import { createStore, trDate } from "./store.js?v=202611162009";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611162009";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -482,7 +482,6 @@ async function viewBoardPlan(v, ro = false) {
         <section class="card bp-sec"><h2>Yönetim Kurulu</h2>
           <div class="bp-top">${frame("baskan")}</div>
           <div class="bp-grid">${BP.BOARD_SLOTS.filter(k => k !== "baskan").map(k => frame(k)).join("")}${Array.from({ length: Math.max(2, multi.length) }, (_, i) => frame(BP.MULTI, i)).join("")}
-            <div class="bp-slot"><button type="button" class="bp-frame bp-add" id="bp-add" aria-label="Yönetim kurulu üyesi ekle"><span class="avatar bp-pic bp-empty">+</span><b>Üye ekle</b></button><span class="bp-role">Yönetim Kurulu Üyesi</span></div>
           </div></section>
         <section class="card bp-sec"><h2>Genişletilmiş Yönetim Kurulu</h2>
           <div class="bp-grid">${ROLE_GROUPS[1][1].map(k => frame(k)).join("")}</div></section>
@@ -526,7 +525,7 @@ async function viewBoardPlan(v, ro = false) {
   };
   function bind() {
     v.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => { const p = at(b); picker(p.key, p.index); });
-    document.getElementById("bp-add").onclick = () => picker(BP.MULTI, undefined);
+    // "Üye ekle" çerçevesi kaldırıldı: YK üyesi için iki sabit çerçeve var
     v.querySelectorAll("[data-second]").forEach(b => b.onclick = () => picker(b.dataset.second, undefined, true));
     v.querySelectorAll("[data-rm1]").forEach(b => b.onclick = () => update(BP.removeOne(slots, b.dataset.rm1, +b.dataset.sub)));
     v.querySelectorAll("[data-clear]").forEach(b => b.onclick = () => { const p = at(b); update(BP.clear(slots, p.key, p.index)); });
@@ -1753,7 +1752,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611162007");
+  const { mountComposer } = await import("./composer.js?v=202611162009");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1762,7 +1761,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611162007");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611162009");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

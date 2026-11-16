@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611162016";
-import { createStore, trDate } from "./store.js?v=202611162016";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611162016";
+import * as BP from "./board-plan.js?v=202611162018";
+import { createStore, trDate } from "./store.js?v=202611162018";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611162018";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -446,12 +446,18 @@ async function viewBoardPlan(v, ro = false) {
   const members = members0.filter(m => m.status === "active").sort((x, y) => x.full_name.localeCompare(y.full_name, "tr"));
   guests.sort((x, y) => x.full_name.localeCompare(y.full_name, "tr"));
   let slots = plan.slots || {}, saveT = null;
+  // Gelecek dönemin başkanı bu dönemin asbaşkanıdır: çerçeve sabit, değiştirilemez, ikinci kişi eklenemez
+  const LOCK = new Set(["baskan"]);
+  const nextPres = members.find(m => (m.roles || []).includes("asbaskan"));
+  let presFix = false;
+  if (!ro && nextPres && (Array.isArray(slots.baskan) || slots.baskan?.id !== nextPres.id || slots.baskan?.kind !== "member")) { slots = { ...slots, baskan: { kind: "member", id: nextPres.id } }; presFix = true; }
   // Sağdaki kişi listesi: GDB'leri / misafirleri gizleme (bu tarayıcıda hatırlanır)
   const H = { gdb: false, guests: false };
   try { const o = JSON.parse(localStorage.getItem("ar-bp-hide") || "{}"); H.gdb = !!o.gdb; H.guests = !!o.guests; } catch {}
   const find = ref => BP.resolveSlot(ref, members, guests);
   const silhouette = '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="24" r="12"/><path d="M10 58c2-13 11-20 22-20s20 7 22 20"/></svg>';
   const frame = (key, index) => {
+    if (LOCK.has(key) && !ro) return lockFrame(key);
     const ref = key === BP.MULTI ? (slots[BP.MULTI] || [])[index] : slots[key];
     const r = find(ref), idx = index == null ? "" : ` data-index="${index}"`;
     const label = BP_LABEL(key);
@@ -475,6 +481,12 @@ async function viewBoardPlan(v, ro = false) {
       ${ref ? `<button type="button" class="bp-x" data-clear="${key}"${idx} aria-label="${esc(label)} çerçevesini boşalt">×</button>` : ""}
       ${ref && key !== BP.MULTI && !r?.missing ? `<button type="button" class="bp-plus" data-second="${key}" title="İkinci kişiyi ekle" aria-label="${esc(label)}: ikinci kişiyi ekle">+</button>` : ""}
     </div>`;
+  };
+  // Sabit (kilitli) çerçeve: tıklanmaz, sürüklenmez, × ve + yok
+  const lockFrame = key => {
+    const r = find(slots[key]), label = BP_LABEL(key);
+    const body = r?.person ? `${bpPic(r.person, "bp-pic")}<b>${esc(r.person.full_name)}</b>` : `<span class="avatar bp-pic bp-empty">${silhouette}</span><b class="muted">Henüz belirlenmedi</b>`;
+    return `<div class="bp-slot filled locked" data-key="${key}"><div class="bp-frame" aria-label="${esc(label)}: ${r?.person ? esc(r.person.full_name) : "belirlenmedi"} (sabit)">${body}</div><span class="bp-role">${esc(label)}</span><span class="bp-lock-note">Bu dönemin asbaşkanı</span></div>`;
   };
   const card = (p, kind) => `<div class="bp-card" draggable="true" data-kind="${kind}" data-id="${p.id}" title="${esc(p.full_name)}">${bpPic(p, "bp-mini")}<span>${esc(p.full_name)}</span></div>`;
   const draw = () => {
@@ -540,6 +552,7 @@ async function viewBoardPlan(v, ro = false) {
     v.querySelectorAll(".bp-card").forEach(c => c.ondragstart = e => { e.dataTransfer.setData("text/plain", JSON.stringify({ person: { kind: c.dataset.kind, id: c.dataset.id } })); e.dataTransfer.effectAllowed = "copy"; });
     v.querySelectorAll(".bp-frame[draggable]").forEach(f => f.ondragstart = e => { e.dataTransfer.setData("text/plain", JSON.stringify({ from: at(f) })); e.dataTransfer.effectAllowed = "move"; });
     v.querySelectorAll(".bp-slot[data-key]").forEach(s => {
+      if (LOCK.has(s.dataset.key)) return;
       s.ondragover = e => { e.preventDefault(); s.classList.add("over"); };
       s.ondragleave = () => s.classList.remove("over");
       s.ondrop = e => {
@@ -552,6 +565,7 @@ async function viewBoardPlan(v, ro = false) {
     });
   }
   draw();
+  if (presFix) save();
 }
 
 /* --------------------------- Yardımcı hesaplar --------------------------- */
@@ -1753,7 +1767,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611162016");
+  const { mountComposer } = await import("./composer.js?v=202611162018");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1762,7 +1776,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611162016");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611162018");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

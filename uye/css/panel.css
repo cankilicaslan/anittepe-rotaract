@@ -861,3 +861,6 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 @media (max-width:640px){.bp-wrap.ro .bp-slot{width:132px;flex-basis:132px}}
 .bp-wrap.ro .bp-grid{align-items:stretch}
 .bp-wrap.ro .bp-role{margin-top:auto}
+/* YK planlama: sabit başkan çerçevesi */
+.bp-slot.locked .bp-frame{cursor:default}
+.bp-lock-note{font-size:.7rem;color:var(--muted);font-weight:600}

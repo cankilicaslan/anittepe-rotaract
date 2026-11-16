@@ -1258,7 +1258,7 @@ begin
       new.status := old.status; new.published_pages := old.published_pages; new.published_at := old.published_at;
     end if;
   end if;
-  new.updated_at := now();
+  new.updated_at := clock_timestamp();  -- her kayıtta farklı damga (çakışma kontrolü buna dayanır)
   new.updated_by := coalesce(auth.uid(), new.updated_by);
   return new;
 end $$;

@@ -851,3 +851,5 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 /* YK planlama: sağ listede gizleme seçenekleri */
 .bp-hide{display:flex;flex-direction:column;gap:2px;margin:0 0 12px;padding:0 0 10px;border-bottom:1px solid var(--line);font-size:.9rem}
 .bp-hide .check{min-height:32px}
+/* Sağdaki kişi listesinde GDB etiketi daha küçük */
+.bp-mini + .bp-gdb{font-size:.5rem;padding:2px 3px;border-width:1.5px;border-radius:4px;right:-3px;bottom:0;letter-spacing:.02em}

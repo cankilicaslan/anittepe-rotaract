@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611162011";
-import { createStore, trDate } from "./store.js?v=202611162011";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611162011";
+import * as BP from "./board-plan.js?v=202611162013";
+import { createStore, trDate } from "./store.js?v=202611162013";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611162013";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -41,7 +41,7 @@ const PREVIEW_ROLES = () => PREVIEW_GROUPS().flatMap(([, list]) => list);
 function rolePages(role) {
   if (role === "uye") return [];
   const fake = { status: "active", roles: role === "gdb" ? [] : [role], past_president: role === "gdb" };
-  return PAGES.filter(p => p.id && !p.hidden && (p.panel ? can(fake, p.panel, "view") : (p.id === "site" && role === "pr"))).map(p => p.label);
+  return PAGES.filter(p => p.id && !p.hidden && (p.panel ? can(fake, p.panel, "view") : (p.id === "site" && role === "pr") || (p.id === "yk-plan" && role === "gdb"))).map(p => p.label);
 }
 const rolePagesNote = role => {
   if (role === "baskan") return "Tüm panelleri yönetir";
@@ -54,7 +54,7 @@ function readOnlyStore(st) {
   return new Proxy(st, { get(t, k) {
     const v = t[k];
     if (k === "me") return async () => JSON.parse(JSON.stringify(me));
-    if (typeof v === "function" && /^(save|create|update|delete|set|upload|send|approve|add|reset|publish|unpublish|invite|remove|mark|copy|siteEdit)/.test(String(k)) && k !== "resetDemo") return block;
+    if (typeof v === "function" && /^(save|create|update|delete|set|upload|send|approve|add|reset|publish|unpublish|invite|remove|mark|copy|siteEdit)/.test(String(k)) && k !== "resetDemo" && k !== "setViewTerm") return block;
     return typeof v === "function" ? v.bind(t) : v;
   } });
 }
@@ -334,7 +334,7 @@ const PAGES = [
   // Gelecek dönemi planla: yalnızca asbaşkan ve site sahibi (taslak; veritabanı da yalnız onlara açar)
   { id: "plan", label: "Gelecek dönemi planla", show: () => isPlanner() },
   // Geçmiş dönem başkanları YK-GYK planını yalnızca görüntüler
-  { id: "yk-plan", label: "Gelecek Dönem YK-GYK Planı", show: () => !preview && !isPlanner() && me?.status === "active" && !!me.past_president }
+  { id: "yk-plan", label: "Gelecek Dönem YK-GYK Planı", show: () => !isPlanner() && me?.status === "active" && !!me.past_president }
 ];
 const isPlanner = () => !preview && hasRole(realPlanMe || me, "asbaskan");
 const PLAN_NAME = "2027-2028 dönemi planlama";
@@ -1753,7 +1753,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611162011");
+  const { mountComposer } = await import("./composer.js?v=202611162013");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1762,7 +1762,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611162011");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611162013");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

@@ -169,6 +169,13 @@ function demoStore() {
   save();
   const me = () => S.profiles.find(p => p.id === S.session) || null;
   const need = (panel, mode = "edit") => { if (!can(me(), panel, mode)) throw new Error("Bu işlem için yetkiniz yok."); };
+  // Görünüm dönemi: null = aktif dönem; plan modunda 2027-28 taslak dönemi
+  let VT = null;
+  const curT = () => VT || S.term;
+  const inT = x => (x.term_id || S.term.id) === curT().id;
+  const planner = () => hasRole(me(), "asbaskan");
+  const PLAN_PANELS = ["aidat", "kasa", "projeler"];
+  const needT = (panel, mode = "edit") => { if (VT && planner() && PLAN_PANELS.includes(panel)) return; need(panel, mode); };
   const needAlbums = () => { if (!(can(me(), "arsiv-yonetim", "edit") || hasAnyRole(me()))) throw new Error("Bu işlem için yetkiniz yok."); };
   const clone = x => JSON.parse(JSON.stringify(x));
 
@@ -274,12 +281,21 @@ function demoStore() {
       await this.updateMember(id, { photo_url: url }); return url;
     },
 
-    async getTerm() { return clone(S.term); },
+    async getTerm() { return clone(curT()); },
     async updateTerm(patch) {
-      if (!(can(me(), "kasa", "edit") || can(me(), "yoklama", "edit"))) throw new Error("Bu işlem için yetkiniz yok.");
-      Object.assign(S.term, patch); save(); return clone(S.term);
+      if (!(VT && planner()) && !(can(me(), "kasa", "edit") || can(me(), "yoklama", "edit"))) throw new Error("Bu işlem için yetkiniz yok.");
+      Object.assign(curT(), patch); save(); return clone(curT());
     },
-    async listMeetings() { return clone(S.meetings).sort((a, b) => a.term_no - b.term_no); },
+    setViewTerm(t) { VT = t ? (S.planTerm && S.planTerm.id === t.id ? S.planTerm : null) : null; },
+    getViewTerm() { return VT ? clone(VT) : null; },
+    async ensurePlanTerm() {
+      if (!planner()) throw new Error("Planlama yalnızca asbaşkana açık.");
+      S.planTerm ||= { id: uid(), name: "2027-28", start_date: "2027-07-01", meeting_count: 24, club_meeting_offset: (S.term.club_meeting_offset || 599) + (S.term.meeting_count || 24), opening_balance: 0, is_current: false };
+      save(); return clone(S.planTerm);
+    },
+    async getBoardPlan() { if (!planner()) throw new Error("Bu işlem için yetkiniz yok."); const t = S.planTerm; return { slots: clone(((S.boardPlans ||= {})[t?.id]) || {}) }; },
+    async saveBoardPlan(slots) { if (!planner() || !S.planTerm) throw new Error("Bu işlem için yetkiniz yok."); (S.boardPlans ||= {})[S.planTerm.id] = clone(slots); save(); },
+    async listMeetings() { return clone(S.meetings.filter(m => (m.term_id || S.term.id) === curT().id)).sort((a, b) => a.term_no - b.term_no); },
     async updateMeeting(id, patch) { need("yoklama"); Object.assign(S.meetings.find(m => m.id === id), patch); save(); },
     async listAttendance() {
       const m = me();
@@ -342,7 +358,7 @@ function demoStore() {
       const firstMeet = atts.map(a => S.meetings.find(m => m.id === a.meeting_id)).filter(Boolean).sort((x, y) => String(x.date).localeCompare(String(y.date)))[0]
         || S.meetings.filter(m => m.date >= joined_at).sort((x, y) => String(x.date).localeCompare(String(y.date)))[0];
       const prof = S.profiles.find(x => x.id === p.id); prof.joined_at = joined_at; if (firstMeet) prof.start_meeting_id = firstMeet.id;
-      const dues = S.dues.filter(d => d.due_date && d.due_date >= joined_at);
+      const dues = S.dues.filter(d => d.due_date && d.due_date >= joined_at && (d.term_id || S.term.id) === S.term.id);
       dues.forEach(d => { if (!S.charges.some(c => c.due_id === d.id && c.member_id === p.id)) S.charges.push({ id: uid(), due_id: d.id, member_id: p.id, amount: d.amount, paid_at: null }); });
       S.guests = S.guests.filter(x => x.id !== guest_id); S.guestAtt = S.guestAtt.filter(a => a.guest_id !== guest_id);
       save(); return { profile: clone(prof), attendance: atts.length, charges: dues.length };
@@ -366,44 +382,45 @@ function demoStore() {
       save();
     },
 
-    async listDues() { return clone(S.dues); },
+    async listDues() { return clone(S.dues.filter(inT)); },
     async createDue({ label, period, amount, due_date, member_ids }) {
-      need("aidat");
-      const d = { id: uid(), term_id: S.term.id, label, period, amount: +amount, due_date, created_at: new Date().toISOString() };
+      needT("aidat");
+      const d = { id: uid(), term_id: curT().id, label, period, amount: +amount, due_date, created_at: new Date().toISOString() };
       S.dues.push(d);
-      member_ids.forEach(mid => S.charges.push({ id: uid(), due_id: d.id, member_id: mid, amount: +amount, paid_at: null }));
+      // Taslak dönemde taksit kimseye borç yazılmaz (dönem aktif olunca üretilir)
+      (VT ? [] : member_ids).forEach(mid => S.charges.push({ id: uid(), due_id: d.id, member_id: mid, amount: +amount, paid_at: null }));
       save(); return clone(d);
     },
-    async deleteDue(id) { need("aidat"); S.dues = S.dues.filter(d => d.id !== id); S.charges = S.charges.filter(c => c.due_id !== id); save(); },
-    async listCharges() { const m = me(); return clone(can(m, "aidat") ? S.charges : S.charges.filter(c => c.member_id === m?.id)); },
+    async deleteDue(id) { needT("aidat"); S.dues = S.dues.filter(d => d.id !== id); S.charges = S.charges.filter(c => c.due_id !== id); save(); },
+    async listCharges() { const m = me(), ids = new Set(S.dues.filter(inT).map(d => d.id)); return clone((can(m, "aidat") || (VT && planner()) ? S.charges : S.charges.filter(c => c.member_id === m?.id)).filter(c => ids.has(c.due_id))); },
     async setChargePaid(id, paid_at) { need("aidat"); S.charges.find(c => c.id === id).paid_at = paid_at; save(); },
 
-    async listTransactions() { need("kasa", "view"); return clone(S.transactions); },
+    async listTransactions() { needT("kasa", "view"); return clone(S.transactions.filter(inT)); },
     async addTransaction(t) {
-      need("kasa"); const x = { id: uid(), term_id: S.term.id, ...t, amount: +t.amount }; S.transactions.push(x);
+      needT("kasa"); const x = { id: uid(), term_id: curT().id, ...t, amount: +t.amount }; S.transactions.push(x);
       // Kasaya "Bağış" kategorisinde gider girilince bağış listesine aktarılır (canlıda veritabanı tetikleyicisi yapar)
-      if (x.kind === "gider" && (x.category === "Bağış" || String(x.category).startsWith("Bağış – "))) S.donations.push({ id: uid(), tx_id: x.id, date: x.date, fund: x.donation_fund || null, on_behalf: x.donation_for || null, amount: x.amount, note: x.description, district_form_at: null, created_at: new Date().toISOString() });
+      if (!VT && x.kind === "gider" && (x.category === "Bağış" || String(x.category).startsWith("Bağış – "))) S.donations.push({ id: uid(), tx_id: x.id, date: x.date, fund: x.donation_fund || null, on_behalf: x.donation_for || null, amount: x.amount, note: x.description, district_form_at: null, created_at: new Date().toISOString() });
       save(); return clone(x);
     },
-    async deleteTransaction(id) { need("kasa"); S.transactions = S.transactions.filter(t => t.id !== id); S.donations = S.donations.filter(d => d.tx_id !== id); save(); },
-    async listKasaGroups() { need("kasa", "view"); return clone(S.kgroups); },
-    async addKasaGroup(kind, name) { need("kasa"); if (S.kgroups.some(g => g.kind === kind && g.name === name)) throw new Error("Bu adla bir kayıt zaten var."); const g = { id: uid(), kind, name, created_at: new Date().toISOString() }; S.kgroups.push(g); save(); return clone(g); },
-    async deleteKasaGroup(id) { need("kasa"); const g = S.kgroups.find(x => x.id === id); S.kgroups = S.kgroups.filter(x => x.id !== id); if (g) S.transactions = S.transactions.filter(t => t.group_name !== g.name); save(); },
+    async deleteTransaction(id) { needT("kasa"); S.transactions = S.transactions.filter(t => t.id !== id); S.donations = S.donations.filter(d => d.tx_id !== id); save(); },
+    async listKasaGroups() { needT("kasa", "view"); return clone(S.kgroups.filter(inT)); },
+    async addKasaGroup(kind, name) { needT("kasa"); if (S.kgroups.some(g => inT(g) && g.kind === kind && g.name === name)) throw new Error("Bu adla bir kayıt zaten var."); const g = { id: uid(), term_id: curT().id, kind, name, created_at: new Date().toISOString() }; S.kgroups.push(g); save(); return clone(g); },
+    async deleteKasaGroup(id) { needT("kasa"); const g = S.kgroups.find(x => x.id === id); S.kgroups = S.kgroups.filter(x => x.id !== id); if (g) S.transactions = S.transactions.filter(t => t.group_name !== g.name); save(); },
     async listDonations() { need("bagis", "view"); return clone(S.donations).sort((a, b) => b.date.localeCompare(a.date)); },
     async updateDonation(id, patch) { need("bagis"); Object.assign(S.donations.find(d => d.id === id), patch); save(); },
     async updateProjectForm(id, patch) { need("proje-form"); Object.assign(S.projects.find(p => p.id === id), patch); save(); },
     async createProjectForm(d) { need("proje-form"); const p = { id: uid(), kind: "hizmet", status: "tamamlandi", public: false, owner: me().full_name, created_at: new Date().toISOString(), ...d }; S.projects.push(p); save(); return clone(p); },
 
-    async listProjects() { if (!can(me(), "proje-form", "view")) need("projeler", "view"); return clone(S.projects); },
+    async listProjects() { if (!(VT && planner()) && !can(me(), "proje-form", "view")) need("projeler", "view"); return clone(S.projects.filter(inT)); },
     async saveProject(p) {
-      need("projeler");
+      needT("projeler");
       if (p.id) Object.assign(S.projects.find(x => x.id === p.id), p);
-      else { p = { ...p, id: uid(), created_at: new Date().toISOString() }; S.projects.push(p); }
+      else { p = { ...p, id: uid(), term_id: curT().id, created_at: new Date().toISOString() }; S.projects.push(p); }
       save(); return clone(p);
     },
-    async deleteProject(id) { need("projeler"); S.projects = S.projects.filter(p => p.id !== id); save(); },
+    async deleteProject(id) { needT("projeler"); S.projects = S.projects.filter(p => p.id !== id); save(); },
     // Ortak takvim: her aktif üye tüm projeleri görür
-    async listCalendarProjects() { if (me()?.status !== "active") return []; return clone(S.projects); },
+    async listCalendarProjects() { if (me()?.status !== "active") return []; return clone(S.projects.filter(inT)); },
 
     // Diğer kulüplerin etkinlikleri
     async listClubEvents() { return clone(S.clubEvents).sort((a, b) => a.date.localeCompare(b.date)); },
@@ -510,8 +527,10 @@ async function supabaseStore() {
   let authStorage; try { sessionStorage.setItem("ar-t", "1"); sessionStorage.removeItem("ar-t"); authStorage = sessionStorage; } catch { authStorage = undefined; }
   const sb = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, { auth: { storage: authStorage, persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
   const ok = ({ data, error }) => { if (error) throw new Error(trError(error.message)); return data; };
-  let cachedTerm = null;
-  const term = async () => cachedTerm || (cachedTerm = ok(await sb.from("terms").select("*").eq("is_current", true).single()));
+  let cachedTerm = null, viewTerm = null;
+  const term = async () => viewTerm || cachedTerm || (cachedTerm = ok(await sb.from("terms").select("*").eq("is_current", true).single()));
+  // Dönem süzgeci (dönemi boş eski satırlar aktif döneme aittir)
+  const byTerm = (q, t) => viewTerm ? q.eq("term_id", t.id) : q.or(`term_id.is.null,term_id.eq.${t.id}`);
   const fn = async (name, body) => {
     const { data: { session } } = await sb.auth.getSession();
     const res = await fetch(`${CONFIG.SUPABASE_URL}/functions/v1/${name}`, {
@@ -601,7 +620,23 @@ async function supabaseStore() {
       await this.updateMember(id, { photo_url: url }); return url;
     },
     async getTerm() { return term(); },
-    async updateTerm(patch) { const t = await term(); cachedTerm = ok(await sb.from("terms").update(patch).eq("id", t.id).select().single()); return cachedTerm; },
+    async updateTerm(patch) {
+      const t = await term(), row = ok(await sb.from("terms").update(patch).eq("id", t.id).select().single());
+      if (viewTerm) viewTerm = row; else cachedTerm = row;
+      return row;
+    },
+    setViewTerm(t) { viewTerm = t || null; },
+    getViewTerm() { return viewTerm; },
+    async ensurePlanTerm() { return ok(await sb.rpc("ensure_plan_term")); },
+    async getBoardPlan() {
+      const t = await term(); if (!viewTerm) throw new Error("Önce planlama moduna gir.");
+      const d = ok(await sb.from("term_board_plans").select("slots").eq("term_id", t.id).maybeSingle());
+      return { slots: d?.slots || {} };
+    },
+    async saveBoardPlan(slots) {
+      const t = await term(); if (!viewTerm) throw new Error("Önce planlama moduna gir.");
+      ok(await sb.from("term_board_plans").upsert({ term_id: t.id, slots, updated_at: new Date().toISOString(), updated_by: await meId() }));
+    },
     async listMeetings() { const t = await term(); return ok(await sb.from("meetings").select("*").eq("term_id", t.id).order("term_no")); },
     async updateMeeting(id, patch) { ok(await sb.from("meetings").update(patch).eq("id", id)); },
     async listAttendance() {
@@ -642,18 +677,23 @@ async function supabaseStore() {
       if (!status) ok(await sb.from("guest_attendance").delete().match({ meeting_id, guest_id }));
       else ok(await sb.from("guest_attendance").upsert({ meeting_id, guest_id, status, updated_at: new Date().toISOString() }));
     },
-    async listDues() { return ok(await sb.from("dues").select("*").order("due_date")); },
+    async listDues() { const t = await term(); return ok(await byTerm(sb.from("dues").select("*"), t).order("due_date")); },
     async createDue({ label, period, amount, due_date, member_ids }) {
       const t = await term();
       const d = ok(await sb.from("dues").insert({ term_id: t.id, label, period, amount, due_date }).select().single());
-      if (member_ids.length) {
+      if (member_ids.length && !viewTerm) {
         const r = await sb.from("charges").insert(member_ids.map(member_id => ({ due_id: d.id, member_id, amount })));
         if (r.error) { await sb.from("dues").delete().eq("id", d.id); ok(r); }
       }
       return d;
     },
     async deleteDue(id) { ok(await sb.from("dues").delete().eq("id", id)); },
-    async listCharges() { return ok(await sb.from("charges").select("*")); },
+    async listCharges() {
+      const t = await term();
+      const q = sb.from("charges").select("*, dues!inner(term_id)");
+      const rows = ok(await q.eq("dues.term_id", t.id)); // v36 sonrası tüm taksitlerin dönemi dolu
+      return rows.map(({ dues, ...c }) => c);
+    },
     async setChargePaid(id, paid_at) { ok(await sb.from("charges").update({ paid_at }).eq("id", id)); },
     async listTransactions() { const t = await term(); return ok(await sb.from("transactions").select("*").eq("term_id", t.id).order("date")); },
     async addTransaction(t) { const tm = await term(); return ok(await sb.from("transactions").insert({ ...t, term_id: tm.id }).select().single()); },
@@ -669,14 +709,15 @@ async function supabaseStore() {
     async updateDonation(id, patch) { ok(await sb.from("donations").update(patch).eq("id", id)); },
     async updateProjectForm(id, patch) { ok(await sb.from("projects").update(patch).eq("id", id)); },
     async createProjectForm(d) { const meP = await this.me(); return ok(await sb.from("projects").insert({ kind: "hizmet", status: "tamamlandi", public: false, owner: meP?.full_name || null, ...d }).select().single()); },
-    async listProjects() { return ok(await sb.from("projects").select("*").order("date")); },
+    async listProjects() { const t = await term(); return ok(await byTerm(sb.from("projects").select("*"), t).order("date")); },
     async saveProject(p) {
       const { id, ...rest } = p;
+      const t = await term();
       return id ? ok(await sb.from("projects").update(rest).eq("id", id).select().single())
-                : ok(await sb.from("projects").insert(rest).select().single());
+                : ok(await sb.from("projects").insert({ ...rest, term_id: t.id }).select().single());
     },
     async deleteProject(id) { ok(await sb.from("projects").delete().eq("id", id)); },
-    async listCalendarProjects() { return ok(await sb.from("projects").select("*").order("date")); },
+    async listCalendarProjects() { const t = await term(); return ok(await byTerm(sb.from("projects").select("*"), t).order("date")); },
     async addMember(d) { const r = await fn("invite-member", d); return r.profile; },
     // Misafiri üye yap: davet (profil) + sunucuda devam/aidat aktarımı ve misafir kaydının silinmesi.
     async convertGuest({ guest_id, full_name, email, phone, joined_at }) {

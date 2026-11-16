@@ -643,14 +643,6 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 .m-guests-h h2{margin:0;font-size:1.15rem}
 .m-gnote{margin:0 0 10px;font-size:.84rem}
 .m-empty-g{margin:8px 0 0;font-size:.86rem}
-/* Komite paneli */
-.kp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
-.kp h2{margin:0 0 4px;font-size:1.1rem}
-.kp-desc{margin:0 0 12px;font-size:.88rem}
-.kp-row{display:flex;gap:10px;align-items:baseline;margin:0 0 10px;font-size:.9rem;flex-wrap:wrap}
-.kp-k{font-weight:700;font-size:.78rem;color:var(--muted);min-width:64px}
-.kp-notes textarea{width:100%;min-height:120px}
-@media (max-width:640px){.kp-grid{grid-template-columns:1fr}}
 
 /* Üye satırı: görev etiketleri (düğme görünümü) ve gri unvan */
 .m-name{min-width:0}

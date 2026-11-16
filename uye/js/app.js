@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611161809";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161809";
+import { createStore, trDate } from "./store.js?v=202611161810";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161810";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -40,8 +40,7 @@ const PREVIEW_ROLES = () => PREVIEW_GROUPS().flatMap(([, list]) => list);
 function rolePages(role) {
   if (role === "uye") return [];
   const fake = { status: "active", roles: role === "gdb" ? [] : [role], past_president: role === "gdb" };
-  const isCommittee = ROLE_GROUPS[1][1].includes(role);
-  return PAGES.filter(p => p.id && !p.hidden && (p.panel ? can(fake, p.panel, "view") : (p.id === "site" && role === "pr") || (p.id === "komite" && isCommittee))).map(p => p.label);
+  return PAGES.filter(p => p.id && !p.hidden && (p.panel ? can(fake, p.panel, "view") : (p.id === "site" && role === "pr"))).map(p => p.label);
 }
 const rolePagesNote = role => {
   if (role === "baskan") return "Tüm panelleri yönetir";
@@ -314,8 +313,6 @@ const PAGES = [
   { id: "arsiv", label: "Fotoğraf arşivi", show: () => true },
   { id: "yukle", label: "Fotoğraf yükle", show: () => true, hidden: true },
   { grp: "Yönetim" },
-  // Komite paneli: komite başkanlığı olan herkes kendi komitesini, Başkan/Asbaşkan tüm komiteleri görür.
-  { id: "komite", label: "Komite paneli", show: () => myCommittees().length > 0 || hasRole(me, "baskan") || hasRole(me, "asbaskan") },
   { id: "duyurular", label: "Duyurular", panel: "duyuru" },
   { id: "yoklama", label: "Yoklama", panel: "yoklama" },
   { id: "wa-toplanti", label: "Toplantı duyurusu (WhatsApp)", panel: "wa-toplanti" },
@@ -397,7 +394,7 @@ function shell() {
   const rs = document.getElementById("reset");
   if (rs) rs.onclick = () => { if (confirm("Örnek veriler ilk haline dönsün mü? Bu tarayıcıdaki demo değişiklikleri silinir.")) { store.resetDemo(); location.hash = ""; location.reload(); } };
   const view = document.getElementById("view");
-  const fn = { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, duyurular: viewAnnounce, uyeler: viewMembers, komite: viewCommittee, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram, mektup: viewLetter, site: viewSite, arsiv: viewArchive, yukle: viewUpload, bagislar: viewDonations, "proje-formlari": viewProjectForms, "wa-toplanti": viewWaMeeting, "wa-aidat": viewWaDues }[id];
+  const fn = { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram, mektup: viewLetter, site: viewSite, arsiv: viewArchive, yukle: viewUpload, bagislar: viewDonations, "proje-formlari": viewProjectForms, "wa-toplanti": viewWaMeeting, "wa-aidat": viewWaDues }[id];
   fn(view).catch(e => { view.innerHTML = `<div class="err">${esc(e.message)}</div>`; });
   labelTables(view);
   new MutationObserver(() => labelTables(view)).observe(view, { childList: true, subtree: true });
@@ -505,50 +502,6 @@ function cropPhoto(file) {
 }
 
 /* ------------------------------ Profil ------------------------------ */
-/* ---------------------------- Komite paneli ---------------------------- */
-// Her komite görevinin kendi paneli. Komitenin özel bir paneli (ör. HİTK → Instagram) varsa buradan da açılır.
-const COMMITTEE_INFO = {
-  hizmet: "Toplum hizmeti projelerini planlar, ortakları ve gönüllüleri koordine eder.",
-  uyelik: "Yeni üye kazanımı, misafir takibi ve üyelerin kulüpte gelişimiyle ilgilenir.",
-  uluslararasi: "Yurt dışı kulüplerle ortak projeler, değişim ve uluslararası iletişimi yürütür.",
-  pr: "Kulübün sosyal medyası, duyuruları ve tanıtımından sorumludur.",
-  kulup: "Kulüp içi buluşmalar, toplantı düzeni ve Başkan Mektubu'nu hazırlar.",
-  meslek: "Kariyer, mesleki gelişim ve meslek ziyareti etkinliklerini düzenler.",
-  afet: "Afet bilinci, ilk yardım eğitimleri ve afet anındaki destek çalışmalarını yürütür.",
-  hobi: "Üyelerin ortak ilgi alanlarına yönelik sosyal ve hobi etkinliklerini düzenler.",
-  interact: "Interact kulüpleriyle iletişimi ve gençlere yönelik ortak çalışmaları yürütür."
-};
-const myCommittees = () => (me?.roles || []).filter(r => ROLE_GROUPS[1][1].includes(r) && (isActiveMe()));
-const isActiveMe = () => !!me && (me.is_owner || me.status === "active");
-async function viewCommittee(v) {
-  const all = hasRole(me, "baskan") || hasRole(me, "asbaskan");
-  const mine = myCommittees();
-  const list = all ? ROLE_GROUPS[1][1] : mine;
-  const members = await store.listMembers().catch(() => []);
-  const notes = await Promise.all(list.map(r => store.getSetting("komite_notes_" + r).catch(() => null)));
-  v.innerHTML = header("Komite paneli", all ? "Tüm komiteler ve başkanları" : "Komite görevin ve notların") +
-    `<div class="kp-grid">${list.map((r, i) => {
-      const chairs = members.filter(m => m.status === "active" && (m.roles || []).includes(r));
-      const pages = rolePages(r).filter(l => l !== "Komite paneli");
-      const canEdit = (mine.includes(r) || hasRole(me, "baskan")) && !preview;
-      const links = pages.map(l => { const p = PAGES.find(x => x.label === l); return p ? `<a class="btn ghost sm" href="#${p.id}">${esc(l)}</a>` : ""; }).join("");
-      return `<section class="card kp" aria-labelledby="kp-${r}"><h2 id="kp-${r}">${esc(ROLE_LABELS[r])}</h2>
-        <p class="muted kp-desc">${esc(COMMITTEE_INFO[r] || "")}</p>
-        <div class="kp-row"><span class="kp-k">Başkan</span><span>${chairs.length ? chairs.map(m => esc(m.full_name)).join(", ") : '<span class="muted">Atanmadı</span>'}</span></div>
-        ${links ? `<div class="kp-row"><span class="kp-k">Panelleri</span><span class="row">${links}</span></div>` : ""}
-        <label class="f kp-notes">Komite notları <small>Plan, yapılacaklar, iletişim kişileri</small>
-          <textarea rows="6" data-kn="${r}" ${canEdit ? "" : "readonly"} placeholder="${canEdit ? "Bu dönem yapmayı planladıklarınız…" : "Henüz not yok."}">${esc(notes[i] || "")}</textarea></label>
-        ${canEdit ? `<div class="row"><button type="button" class="btn sm" data-kns="${r}">Notları kaydet</button></div>` : ""}
-      </section>`;
-    }).join("")}</div>`;
-  v.querySelectorAll("[data-kns]").forEach(b => b.onclick = async () => {
-    const r = b.dataset.kns, ta = v.querySelector(`[data-kn="${r}"]`);
-    b.disabled = true;
-    try { await store.setSetting("komite_notes_" + r, ta.value); toast("Komite notları kaydedildi."); }
-    catch (e) { fail(e); } finally { b.disabled = false; }
-  });
-}
-
 async function viewProfile(v) {
   const [meetings, att, charges, dues, priv] = await Promise.all([store.listMeetings(), store.listAttendance(), store.listCharges(), store.listDues(), store.getPrivate(me.id)]);
   const st = attendanceStats(me.id, meetings, att, memberStartNo(me, meetings));
@@ -1465,7 +1418,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611161809");
+  const { mountComposer } = await import("./composer.js?v=202611161810");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1474,7 +1427,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161809");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161810");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611162018";
-import { createStore, trDate } from "./store.js?v=202611162018";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611162018";
+import * as BP from "./board-plan.js?v=202611162020";
+import { createStore, trDate } from "./store.js?v=202611162020";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611162020";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -491,6 +491,8 @@ async function viewBoardPlan(v, ro = false) {
   const card = (p, kind) => `<div class="bp-card" draggable="true" data-kind="${kind}" data-id="${p.id}" title="${esc(p.full_name)}">${bpPic(p, "bp-mini")}<span>${esc(p.full_name)}</span></div>`;
   const draw = () => {
     const placed = BP.placedIds(slots), multi = slots[BP.MULTI] || [];
+    // Sağ liste: bir göreve yerleşen kişi en sona iner (yerleşmeyenler önce, ikisi de alfabetik)
+    const lastPlaced = (arr, kind) => arr.slice().sort((x, y) => placed.has(kind + ":" + x.id) - placed.has(kind + ":" + y.id));
     v.innerHTML = (ro ? header("Gelecek Dönem YK-GYK Planı", "2027-2028 dönemi için asbaşkanın hazırladığı taslak yönetim kurulu ve genişletilmiş yönetim kurulu. Yalnızca görüntüleme; görevler dönem başında atanır.") : "") + (ro ? "" : header("Yönetim kurulu planlama", "2027-2028 dönemi için yönetim kurulunu yerleştir. Çerçeveye tıklayıp kişi seç ya da sağdaki listeden sürükleyip bırak. Bir göreve iki kişi için dolu çerçevedeki + düğmesini kullan (ya da kişiyi + üzerine bırak). Bu taslak kimseye görev vermez.", `<span class="muted bp-save" id="bp-save" role="status" aria-live="polite"></span>`)) + `
     <div class="bp-wrap">
       <div class="bp-main">
@@ -504,8 +506,8 @@ async function viewBoardPlan(v, ro = false) {
       <aside class="card bp-side" aria-label="Kişiler">
         <div class="bp-hide" role="group" aria-label="Listede gizle"><label class="check"><input type="checkbox" id="bp-h-gdb" ${H.gdb ? "checked" : ""}> GDB'leri gösterme</label><label class="check"><input type="checkbox" id="bp-h-guests" ${H.guests ? "checked" : ""}> Misafirleri gösterme</label></div>
         <h2>Üyeler <span class="tag">${members.filter(p => !H.gdb || !p.past_president).length}</span></h2>
-        <div class="bp-people">${members.filter(p => !H.gdb || !p.past_president).map(p => card(p, "member").replace('class="bp-card"', `class="bp-card${placed.has("member:" + p.id) ? " placed" : ""}"`)).join("")}</div>
-        ${guests.length && !H.guests ? `<h2>Misafirler <span class="tag">${guests.length}</span></h2><div class="bp-people">${guests.map(p => card(p, "guest").replace('class="bp-card"', `class="bp-card${placed.has("guest:" + p.id) ? " placed" : ""}"`)).join("")}</div>` : ""}
+        <div class="bp-people">${lastPlaced(members.filter(p => !H.gdb || !p.past_president), "member").map(p => card(p, "member").replace('class="bp-card"', `class="bp-card${placed.has("member:" + p.id) ? " placed" : ""}"`)).join("")}</div>
+        ${guests.length && !H.guests ? `<h2>Misafirler <span class="tag">${guests.length}</span></h2><div class="bp-people">${lastPlaced(guests, "guest").map(p => card(p, "guest").replace('class="bp-card"', `class="bp-card${placed.has("guest:" + p.id) ? " placed" : ""}"`)).join("")}</div>` : ""}
       </aside>
     </div><dialog id="bp-dlg" class="bp-dlg"></dialog>`;
     if (ro) {
@@ -1767,7 +1769,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611162018");
+  const { mountComposer } = await import("./composer.js?v=202611162020");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1776,7 +1778,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611162018");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611162020");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

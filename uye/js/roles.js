@@ -1,5 +1,16 @@
 // Kim neyi görür, kim neyi düzenler.
-export const ROLE_LABELS = { baskan: "Başkan", asbaskan: "Asbaşkan", sayman: "Sayman", sekreter: "Sekreter", pr: "Halkla İlişkiler ve Tanıtım", hizmet: "Hizmet Projeleri" };
+export const ROLE_LABELS = {
+  baskan: "Başkan", asbaskan: "Asbaşkan", sayman: "Sayman", sekreter: "Sekreter",
+  // Komite başkanlıkları
+  hizmet: "Hizmet Projeleri Komitesi", uyelik: "Üyelik ve Üyeliği Geliştirme Komitesi", uluslararasi: "Uluslararası Hizmetler Komitesi",
+  pr: "Halkla İlişkiler ve Tanıtım Komitesi", kulup: "Kulüp Hizmetleri Komitesi", meslek: "Meslek Hizmetleri Komitesi",
+  afet: "Afet Komitesi", hobi: "Hobi Komitesi", interact: "Interact Komitesi"
+};
+// Üye düzenleme penceresinde "Panel yetkileri" grupları
+export const ROLE_GROUPS = [
+  ["Yönetim kurulu", ["baskan", "asbaskan", "sayman", "sekreter"]],
+  ["Komite başkanlığı", ["hizmet", "uyelik", "uluslararasi", "pr", "kulup", "meslek", "afet", "hobi", "interact"]]
+];
 const OWNER = { aidat: ["sayman"], kasa: ["sayman"], yoklama: ["sekreter"], instagram: ["pr"], projeler: ["hizmet"], duyuru: ["sekreter", "pr"], "wa-toplanti": ["sekreter"], "wa-aidat": ["sayman"], "arsiv-yonetim": ["sekreter", "pr"], bagis: ["sayman"], "proje-form": ["hizmet", "sekreter"], "uyeler-yonetim": ["baskan"] };
 
 // Panel hangi görevlinin? (asbaşkanın menüsünde parantez içinde gösterilir)

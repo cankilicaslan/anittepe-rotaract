@@ -73,7 +73,7 @@ Hiçbir görevin testinin doğrudan kapsamadığı ama kullanıcıyı en çok et
 
 | Dosya | Sorumluluk |
 |---|---|
-| `backend/schema.sql` (ekleme: v26) | `letters` tablosu, RLS, `kulup` rolü, yayın fonksiyonları, `letters` depo kovası ve politikaları, `guest_names()` yetkisinin `kulup` rolüne açılması |
+| `backend/schema.sql` (ekleme: v27) | `letters` tablosu, RLS, `kulup` rolü, yayın fonksiyonları, `letters` depo kovası ve politikaları, `guest_names()` yetkisinin `kulup` rolüne açılması |
 | `site/assets/js/letter-render.js` | `LAYOUTS` tanımları, `renderPage`, `renderLetter`, `esc` |
 | `site/assets/css/letter.css` | Sayfa ve düzen stilleri ile yazdırma kuralları; panel ve site ortak kullanır |
 | `site/assets/js/letter-assemble.js` | `wordCount`, `meetingLabel`, `defaultFolders`, `assemblePages` |
@@ -89,7 +89,7 @@ Hiçbir görevin testinin doğrudan kapsamadığı ama kullanıcıyı en çok et
 
 ---
 
-### Görev 1: Veritabanı (v26)
+### Görev 1: Veritabanı (v27)
 
 **Dosyalar:** `backend/schema.sql` dosyasının sonuna ekleme yapılır.
 
@@ -118,7 +118,7 @@ Hiçbir görevin testinin doğrudan kapsamadığı ama kullanıcıyı en çok et
   - **Yayınla:** `published_pages := pages`, `status := 'yayinda'`, `published_at := now()`.
   - **Kaldır:** `status := 'taslak'`, `published_pages := null`.
   - Yalnızca `authenticated` rolüne `grant execute` verilir.
-- **`profiles_roles_chk`:** Kısıt bırakılıp `array['baskan','asbaskan','sayman','sekreter','pr','hizmet','kulup']` ile yeniden kurulur.
+- **`profiles_roles_chk`:** `kulup` rolü v26 ile zaten eklendi (tüm komite rolleri); bu görevde değişiklik yok.
 - **`guest_names()`:** Yetki koşuluna `or public.has_role('kulup')` eklenir.
 - **Depo kovası `letters`:** `public = true`, `insert into storage.buckets … on conflict do nothing`.
   - Politikalar `storage.objects` üzerinde, `bucket_id = 'letters'` için kurulur.
@@ -127,7 +127,7 @@ Hiçbir görevin testinin doğrudan kapsamadığı ama kullanıcıyı en çok et
 - **Künye varsayılanı:** `app_settings` tablosuna `letter_kunye` anahtarıyla bir değer eklenir (`on conflict do nothing`). Değer `[{title, name}]` dizisidir; içinde örnek mektuptaki 5 Rotary ve bölge satırı yer alır. Bu satırlar herkese açık görevlerdir. Kulüp yönetimi panelden okunur.
 - **`app_settings` yazma politikası:** `letter_kunye` anahtarı için `letter_editor()` olanlar da yazabilir.
 
-- [ ] **Adım 1:** v26 bloğunu `schema.sql` dosyasının sonuna yaz. Mevcut v19–v25 blokları gibi başlık yorumu taşısın.
+- [ ] **Adım 1:** v27 bloğunu `schema.sql` dosyasının sonuna yaz. Mevcut v19–v25 blokları gibi başlık yorumu taşısın.
 - [ ] **Adım 2:** Bloğu Supabase SQL Editor'da çalıştır. Beklenen: hata yok.
 - [ ] **Adım 3: Doğrulama (aynı SQL Editor'da):**
   - `select count(*) from letters;` → 0.
@@ -137,7 +137,7 @@ Hiçbir görevin testinin doğrudan kapsamadığı ama kullanıcıyı en çok et
 - [ ] **Adım 4:** Edin Eren Çimciler'in profilini kontrol et: `select id, status, roles from profiles where full_name ilike 'Edin Eren%';`.
   - Satır varsa: `roles` alanına `kulup` eklenir.
   - Satır yoksa: kullanıcıya davet gerektiğini raporla. Bu durum koddaki ilerlemeyi engellemez.
-- [ ] **Adım 5:** Commit. Mesaj: "Başkan Mektubu: veritabanı (v26)".
+- [ ] **Adım 5:** Commit. Mesaj: "Başkan Mektubu: veritabanı (v27)".
 
 ### Görev 2: Sayfa çizici ve stiller
 

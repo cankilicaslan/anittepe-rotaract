@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611141520";
-import { can, hasRole, ROLE_LABELS, panelOwners } from "./roles.js?v=202611141520";
+import { createStore, trDate } from "./store.js?v=202611161616";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161616";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -616,9 +616,10 @@ async function editMember(m) {
       <label class="f">Üyelik tarihi<input type="date" name="joined_at" value="${esc(m.joined_at || "")}"></label>
       <label class="f">Yoklamada başladığı toplantı <small>Üye alındığı toplantı; devam oranı buradan itibaren hesaplanır</small><select name="start_meeting_id"><option value="">Dönem başından</option>${meetings.map(x => `<option value="${x.id}" ${m.start_meeting_id === x.id ? "selected" : ""}>${x.term_no}. toplantı · ${trDate(x.date)}</option>`).join("")}</select></label>
     </div>
-    <datalist id="titles">${["Başkan", "Asbaşkan", "Sekreter", "Sayman", "Yönetim Kurulu Üyesi", "Geçmiş Dönem Başkanı", "Hizmet Projeleri Komitesi Başkanı", "Halkla İlişkiler ve Tanıtım Komitesi Başkanı", "Üye"].map(t => `<option value="${t}">`).join("")}</datalist>
+    <datalist id="titles">${["Başkan", "Asbaşkan", "Sekreter", "Sayman", "Yönetim Kurulu Üyesi", "Geçmiş Dönem Başkanı", ...ROLE_GROUPS[1][1].map(k => ROLE_LABELS[k] + " Başkanı"), "Üye"].map(t => `<option value="${t}">`).join("")}</datalist>
     <fieldset><legend style="font-weight:700;margin-bottom:6px">Panel yetkileri</legend><div class="grid g2">
-      ${Object.entries(ROLE_LABELS).map(([k, l]) => `<label class="check"><input type="checkbox" name="role" value="${k}" ${(m.roles || []).includes(k) ? "checked" : ""}> ${l}</label>`).join("")}
+      ${ROLE_GROUPS.map(([g, keys]) => `<p class="role-grp">${g}</p>` + keys.map(k => `<label class="check"><input type="checkbox" name="role" value="${k}" ${(m.roles || []).includes(k) ? "checked" : ""}> ${ROLE_LABELS[k]}</label>`).join("")).join("")}
+      <p class="role-grp">Diğer</p>
       <label class="check"><input type="checkbox" name="past_president" ${m.past_president ? "checked" : ""}> Geçmiş dönem başkanı (tüm panelleri görür)</label>
       <label class="check"><input type="checkbox" name="hide_roles" ${m.hide_roles ? "checked" : ""}> Yetkileri görev olarak gösterme (yalnızca unvan ve GDB görünür)</label>
     </div></fieldset>
@@ -1316,7 +1317,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611141520");
+  const { mountComposer } = await import("./composer.js?v=202611161616");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 

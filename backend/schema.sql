@@ -1212,3 +1212,10 @@ language sql stable security definer set search_path = public as $$
 $$;
 revoke all on function public.guest_names() from public;
 grant execute on function public.guest_names() to authenticated;
+
+-- =====================================================================
+-- v26: Komite başkanlığı rolleri (panel yetkileri ve üye listesinde görev olarak görünür)
+-- =====================================================================
+alter table public.profiles drop constraint if exists profiles_roles_chk;
+alter table public.profiles add constraint profiles_roles_chk
+  check (roles <@ array['baskan','asbaskan','sayman','sekreter','pr','hizmet','uyelik','uluslararasi','kulup','meslek','afet','hobi','interact']::text[]);

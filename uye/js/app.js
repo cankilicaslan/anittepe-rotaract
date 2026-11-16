@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611161802";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161802";
+import { createStore, trDate } from "./store.js?v=202611161805";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161805";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -639,7 +639,17 @@ async function viewMembers(v) {
   };
   const pending = members.filter(m => m.status === "pending");
   const BOARD = ["baskan", "asbaskan", "sekreter", "sayman"];
-  const roleTags = m => (m.hide_roles ? [] : m.roles || []).filter(r => ROLE_LABELS[r]).map(r => `<span class="tag cran">${ROLE_LABELS[r]}</span>`).join("") + (m.past_president ? '<span class="tag"><abbr title="Geçmiş dönem başkanı">GDB</abbr></span>' : "");
+  // İsmin altı: görevi olanlarda düğme görünümlü görev etiketleri; görevi olmayan (üye, GDB) kişide unvan gri yazı.
+  const ROLE_CHIP = r => ROLE_LABELS[r] + (ROLE_GROUPS[1][1].includes(r) ? " Başkanı" : "");
+  const whoCell = m => {
+    const rs = m.hide_roles ? [] : (m.roles || []).filter(r => ROLE_LABELS[r]);
+    const gdb = m.past_president ? '<span class="m-gray"><abbr title="Geçmiş dönem başkanı">GDB</abbr></span>' : "";
+    const sub = rs.length
+      ? `<span class="m-roles">${rs.map(r => `<span class="m-role">${esc(ROLE_CHIP(r))}</span>`).join("")}${gdb}</span>`
+      : `<span class="m-gray">${esc(m.title || (m.past_president ? "Geçmiş Dönem Başkanı" : "Üye"))}</span>`;
+    const passive = m.status === "passive" ? '<div class="m-tags"><span class="tag">Pasif</span></div>' : "";
+    return `<div class="person${acc ? " has-acct" : ""}">${acc ? acctDot(m) : ""}${avatar(m)}<div class="m-name"><b>${esc(m.full_name)}</b>${sub}</div></div>${passive}`;
+  };
   const roleText = m => (m.hide_roles ? [] : m.roles || []).map(r => ROLE_LABELS[r] || "").join(" ") + (m.past_president ? " gdb geçmiş dönem başkanı" : "");
   const thisMonth = new Date().getMonth() + 1;
   const bday = m => { if (!m.birth_date) return ""; const [, mo, da] = m.birth_date.split("-").map(Number); return `${da} ${MONTHS[mo - 1]}${mo === thisMonth ? ' <span class="tag gold">Bu ay</span>' : ""}`; };
@@ -658,7 +668,7 @@ async function viewMembers(v) {
   const row = m => {
     const handle = ig(m);
     return `<tr${m.status === "passive" ? ' class="is-passive"' : ""}>
-      <td class="m-who">${acc ? person(m).replace(`<div class="person">`, `<div class="person has-acct">` + acctDot(m)) : person(m)}${roleTags(m) || m.status !== "active" ? `<div class="m-tags">${m.status === "passive" ? '<span class="tag">Pasif</span>' : ""}${roleTags(m)}</div>` : ""}</td>
+      <td class="m-who">${whoCell(m)}</td>
       <td data-label="İletişim" class="m-contact"><div class="m-lines">${m.phone ? `<a href="tel:${esc(m.phone.replace(/\s/g, ""))}">${esc(m.phone)}</a>` : ""}${m.email ? `<a class="m-mail" href="mailto:${esc(m.email)}">${esc(m.email)}</a>` : ""}${!m.phone && !m.email ? none : ""}</div></td>
       <td data-label="Doğum günü">${bday(m) || none}</td>
       <td data-label="Meslek / okul">${esc(m.profession) || none}</td>
@@ -1455,7 +1465,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611161802");
+  const { mountComposer } = await import("./composer.js?v=202611161805");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1464,7 +1474,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161802");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161805");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

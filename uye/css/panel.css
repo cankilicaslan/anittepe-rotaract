@@ -619,3 +619,19 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
   /* Boş ikincil bilgi telefonda yer kaplamasın */
   .m-table td:has(> .muted[aria-label="Eklenmedi"]:only-child){display:none !important}
 }
+
+/* Önizleme: gruplu görev listesi */
+.pv-grp{margin:14px 0 6px;font-size:.78rem;font-weight:700;color:var(--muted)}
+.pv-roles{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.pv-role{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;border:1px solid var(--line);background:#fff;border-radius:12px;padding:10px 12px;min-height:44px;font:inherit;cursor:pointer;color:var(--ink)}
+.pv-role b{font-size:.88rem}
+.pv-role small{font-size:.76rem;color:var(--muted);line-height:1.35}
+.pv-role:hover{border-color:var(--cran);background:var(--cran-soft)}
+.pv-role:focus-visible{outline:3px solid var(--cran);outline-offset:2px}
+#pv-dlg{max-width:min(720px,94vw)}
+/* Profil: görevler */
+.duties{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.duties h3{margin:0 0 8px;font-size:.95rem}
+.duties ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.duties li{display:flex;flex-direction:column;gap:1px}
+.duties li span{font-size:.84rem;color:var(--muted)}

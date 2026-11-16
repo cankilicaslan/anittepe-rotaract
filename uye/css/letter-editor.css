@@ -454,3 +454,12 @@
   body.le-printing > :not(.le-print) { display: none !important; }
   body.le-printing > .le-print { display: block; }
 }
+
+/* Sayı silme (yalnızca Başkan) */
+.ll-item { position: relative; display: flex; }
+.ll-item > .ll-card { flex: 1; }
+.ll-del { position: absolute; top: 10px; right: 10px; z-index: 2; min-height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid rgba(180, 35, 24, .35); background: rgba(255, 255, 255, .94); color: var(--bad, #B42318); font: inherit; font-size: .8rem; font-weight: 700; cursor: pointer; }
+.ll-del:hover { background: var(--bad, #B42318); color: #fff; }
+.ll-del:focus-visible { outline: 3px solid var(--bad, #B42318); outline-offset: 2px; }
+.ll-del:disabled { opacity: .5; cursor: wait; }
+@media (pointer: coarse) { .ll-del { min-height: 44px; } }

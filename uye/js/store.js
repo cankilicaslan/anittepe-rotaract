@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611161743";
-import { can, hasRole } from "./roles.js?v=202611161743";
+import { CONFIG } from "./config.js?v=202611161748";
+import { can, hasRole } from "./roles.js?v=202611161748";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -417,6 +417,11 @@ function demoStore() {
       need("mektup", "view");
       const l = S.letters.find(x => x.id === id); if (!l) throw new Error("Mektup bulunamadı."); return clone(l);
     },
+    async deleteLetter(id) {
+      if (!hasRole(me(), "baskan")) throw new Error("Sayıları yalnızca Başkan silebilir.");
+      const i = S.letters.findIndex(x => x.id === id); if (i < 0) throw new Error("Mektup bulunamadı.");
+      S.letters.splice(i, 1); save();
+    },
     async createLetter({ issue_no, period }) {
       need("mektup");
       if (S.letters.some(l => l.term_id === S.term.id && l.issue_no === Number(issue_no))) throw new Error("Bu sayı numarası zaten var.");
@@ -665,6 +670,15 @@ async function supabaseStore() {
       return ok(await sb.from("letters").select("id,issue_no,period,status,published_at,updated_at").eq("term_id", t.id).order("issue_no", { ascending: false }));
     },
     async getLetter(id) { return ok(await sb.from("letters").select("*").eq("id", id).single()); },
+    // Sayıyı ve fotoğraflarını siler (RLS: yalnızca Başkan/sahip). Sitede yayındaysa oradan da kalkar.
+    async deleteLetter(id) {
+      const gone = ok(await sb.from("letters").delete().eq("id", id).select("id"));
+      if (!gone || !gone.length) throw new Error("Sayıları yalnızca Başkan silebilir.");
+      try {
+        const files = ok(await sb.storage.from("letters").list(id, { limit: 1000 })) || [];
+        if (files.length) await sb.storage.from("letters").remove(files.map(f => id + "/" + f.name));
+      } catch (e) { console.warn("Mektup fotoğrafları silinemedi", e); }
+    },
     async createLetter({ issue_no, period }) {
       const t = await term();
       return ok(await sb.from("letters").insert({ term_id: t.id, issue_no, period, updated_by: await meId() }).select().single());

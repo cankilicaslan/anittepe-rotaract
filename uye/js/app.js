@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611161743";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161743";
+import { createStore, trDate } from "./store.js?v=202611161748";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161748";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -31,7 +31,23 @@ Onaylamak için üye panelinde Üye listesi > Onay bekleyen hesaplar bölümüne
 // Görünüm önizleme (yalnızca site sahibi görür): başka bir görevlinin panelini onun gözünden gösterir; değişiklik yapılamaz.
 let realMe = null, realStore = null, preview = null;
 const isRealOwner = () => !!(realMe || me)?.is_owner;
-const PREVIEW_ROLES = [["baskan", "Başkan"], ["asbaskan", "Asbaşkan"], ["sekreter", "Sekreter"], ["sayman", "Sayman"], ["pr", "Halkla İlişkiler (HİTK)"], ["hizmet", "Hizmet Projeleri"], ["gdb", "Geçmiş dönem başkanı"], ["uye", "Normal üye"]];
+const PREVIEW_GROUPS = () => [
+  ...ROLE_GROUPS.map(([g, keys]) => [g === "Komite başkanlığı" ? "Komite başkanları" : g, keys.map(k => [k, ROLE_LABELS[k] + (g === "Komite başkanlığı" ? " Başkanı" : "")])]),
+  ["Diğer", [["gdb", "Geçmiş dönem başkanı"], ["uye", "Normal üye"]]]
+];
+const PREVIEW_ROLES = () => PREVIEW_GROUPS().flatMap(([, list]) => list);
+// Bir görevin kendine özel panelleri (menüdeki Yönetim sayfaları). Tanımlı panel yoksa kişi üye görünümünü kullanır.
+function rolePages(role) {
+  if (role === "uye") return [];
+  const fake = { status: "active", roles: role === "gdb" ? [] : [role], past_president: role === "gdb" };
+  return PAGES.filter(p => p.id && !p.hidden && (p.panel ? can(fake, p.panel, "view") : (p.id === "site" && role === "pr"))).map(p => p.label);
+}
+const rolePagesNote = role => {
+  if (role === "baskan") return "Tüm panelleri yönetir";
+  if (role === "asbaskan") return "Tüm yönetim panellerini görüntüler";
+  const l = rolePages(role);
+  return l.length ? l.join(", ") : "Özel panel yok · üye görünümü";
+};
 function readOnlyStore(st) {
   const block = async () => { throw new Error("Önizleme modunda değişiklik yapılamaz."); };
   return new Proxy(st, { get(t, k) {
@@ -58,12 +74,12 @@ async function previewPicker() {
   let d = document.getElementById("pv-dlg"); if (!d) { d = document.createElement("dialog"); d.id = "pv-dlg"; d.className = "bday-dlg"; document.body.appendChild(d); }
   d.innerHTML = `<form method="dialog"><h2>Paneli başka gözle gör</h2>
     <p class="muted" style="margin:0 0 12px">Seçtiğin görevin ya da üyenin panelini, onun gördüğü menü ve yetkilerle açar. Önizlemede hiçbir değişiklik kaydedilmez.</p>
-    <div class="grid g2" style="gap:8px">${PREVIEW_ROLES.map(([k, l]) => `<button type="button" class="btn ghost sm" data-pr="${k}">${l}</button>`).join("")}</div>
+    ${PREVIEW_GROUPS().map(([g, list]) => `<p class="pv-grp">${g}</p><div class="pv-roles">${list.map(([k, l]) => `<button type="button" class="pv-role" data-pr="${k}"><b>${esc(l)}</b><small>${esc(rolePagesNote(k))}</small></button>`).join("")}</div>`).join("")}
     <label class="f" style="margin-top:14px">Belirli bir üye gibi gör<select id="pv-m"><option value="">Üye seç…</option>${members.map(m => `<option value="${m.id}">${esc(m.full_name)}${m.title ? " · " + esc(m.title) : ""}</option>`).join("")}</select></label>
     <div class="row" style="margin-top:16px"><button class="btn ghost" value="close">Vazgeç</button></div></form>`;
   if (!d.open) d.showModal();
   d.querySelectorAll("[data-pr]").forEach(b => b.onclick = () => {
-    const k = b.dataset.pr, label = PREVIEW_ROLES.find(x => x[0] === k)[1];
+    const k = b.dataset.pr, label = PREVIEW_ROLES().find(x => x[0] === k)[1];
     const base = { ...me, roles: [], past_president: false, hide_roles: false, title: label };
     if (k === "gdb") base.past_president = true; else if (k !== "uye") base.roles = [k];
     if (k === "uye") base.title = "Üye";
@@ -486,6 +502,18 @@ function cropPhoto(file) {
 }
 
 /* ------------------------------ Profil ------------------------------ */
+// Profilde "Görevin": kişinin görevleri ve her görevin menüdeki paneli; paneli olmayan görev üye görünümünü kullanır.
+function myDuties() {
+  const rs = (me.roles || []).filter(r => ROLE_LABELS[r]);
+  if (!rs.length && !me.past_president) return "";
+  const rowsH = [...rs, ...(me.past_president ? ["gdb"] : [])].map(r => {
+    const name = r === "gdb" ? "Geçmiş dönem başkanı" : ROLE_LABELS[r] + (ROLE_GROUPS[1][1].includes(r) ? " Başkanı" : "");
+    const pages = rolePages(r);
+    const note = r === "baskan" || r === "asbaskan" ? rolePagesNote(r) : pages.length ? "Menüde: " + pages.join(", ") : "Bu göreve özel panel henüz tanımlanmadı; üye görünümünü kullanıyorsun.";
+    return `<li><b>${esc(name)}</b><span>${esc(note)}</span></li>`;
+  }).join("");
+  return `<div class="duties"><h3>Görevin</h3><ul>${rowsH}</ul></div>`;
+}
 async function viewProfile(v) {
   const [meetings, att, charges, dues, priv] = await Promise.all([store.listMeetings(), store.listAttendance(), store.listCharges(), store.listDues(), store.getPrivate(me.id)]);
   const st = attendanceStats(me.id, meetings, att, memberStartNo(me, meetings));
@@ -495,7 +523,7 @@ async function viewProfile(v) {
   <div class="card"><div class="profile-head">
     <div class="photo-btn">${avatar(me, "lg")}<label>Değiştir<input type="file" accept="image/*" id="photo" class="sr"></label></div>
     <div><h2>${esc(me.full_name)}</h2><p style="margin:2px 0 8px;font-weight:600">${esc(me.title || "Üye")}</p><div class="row">${roles}</div></div>
-  </div></div>
+  </div>${myDuties()}</div>
   <div class="stats" style="margin-top:16px">
     <div class="stat ${debt.total ? "hl" : ""}"><span>Aidat borcu</span><b>${TL(debt.total)}</b></div>
     <div class="stat"><span>Devam oranı</span><b>${pct(st.oran)}</b></div>
@@ -1371,7 +1399,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611161743");
+  const { mountComposer } = await import("./composer.js?v=202611161748");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1380,7 +1408,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161743");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161748");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

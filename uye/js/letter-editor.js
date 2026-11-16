@@ -6,13 +6,13 @@
 // "Yapay zekâ ile oluştur" klasörleri: letter-folders.js.
 // Sayfa çizimi assets/js/letter-render.js, klasör → sayfa assets/js/letter-assemble.js.
 
-import { LAYOUTS, renderPage, renderLetter, tocFromPages, MAX_PHOTOS, esc } from "../../assets/js/letter-render.js?v=202611161743";
-import { LONG_WORDS, wordCount } from "../../assets/js/letter-assemble.js?v=202611161743";
-import { hasRole } from "./roles.js?v=202611161743";
+import { LAYOUTS, renderPage, renderLetter, tocFromPages, MAX_PHOTOS, esc } from "../../assets/js/letter-render.js?v=202611161748";
+import { LONG_WORDS, wordCount } from "../../assets/js/letter-assemble.js?v=202611161748";
+import { hasRole } from "./roles.js?v=202611161748";
 import {
   mountFolders, ensureFolders, aiItem, findItem, guessItem, kunyeDefaults, suggestPeriod, norm,
   rowsHtml, rowsAction, rowsInput, parseKunye, safeId, CLUB,
-} from "./letter-folders.js?v=202611161743";
+} from "./letter-folders.js?v=202611161748";
 
 // ---------------------------------------------------------------- yardımcılar
 
@@ -193,13 +193,27 @@ export function mountLetterEditor(root, { store, me, toast: toastFn, readOnly = 
     if (destroyed) return;
     list = [...(list || [])].sort((a, b) => b.issue_no - a.issue_no);
     grid.removeAttribute("aria-busy");
-    grid.innerHTML = list.length ? list.map(l => `<a class="ll-card" href="#mektup/${encodeURIComponent(l.id)}" aria-label="Sayı ${esc(l.issue_no)}, ${esc(l.period || "")}, ${l.status === "yayinda" ? "yayında" : "taslak"}">
+    const canDelete = !ro && hasRole(me, "baskan");
+    grid.innerHTML = list.length ? list.map(l => `<div class="ll-item"><a class="ll-card" href="#mektup/${encodeURIComponent(l.id)}" aria-label="Sayı ${esc(l.issue_no)}, ${esc(l.period || "")}, ${l.status === "yayinda" ? "yayında" : "taslak"}">
         <div class="ll-cover" data-cover="${esc(l.id)}" aria-hidden="true">${renderPage({ layout: "kapak", fields: {} }, { logoUrl: LOGO, letter: { issue_no: l.issue_no, period: l.period } })}</div>
         <div class="ll-meta"><b>Sayı ${esc(l.issue_no)}</b><span>${esc(l.period || "Dönem yazılmadı")}</span>
-          <div class="ll-foot">${statusChip(l.status)}<small>Son güncelleme: ${esc(dateTime(l.updated_at))}</small></div></div></a>`).join("")
+          <div class="ll-foot">${statusChip(l.status)}<small>Son güncelleme: ${esc(dateTime(l.updated_at))}</small></div></div></a>${canDelete ? `<button type="button" class="ll-del" data-del="${esc(l.id)}" aria-label="Sayı ${esc(l.issue_no)} sil">Sil</button>` : ""}</div>`).join("")
       : `<div class="ll-empty"><b>Bu dönem henüz sayı yok.</b><span>${ro ? "Hazırlanan sayılar burada görünecek." : "“+ Yeni sayı” ile ilk mektubu başlat."}</span></div>`;
     const btn = root.querySelector('[data-ll="new"]');
     if (btn) btn.onclick = () => newIssue(list);
+    grid.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
+      const l = list.find(x => x.id === b.dataset.del); if (!l) return;
+      const live = l.status === "yayinda";
+      const yes = await confirmDlg({
+        title: `Sayı ${l.issue_no} silinsin mi?`,
+        body: `<p>${esc(l.period || "")} sayısı, sayfaları ve fotoğraflarıyla birlikte kalıcı olarak silinecek.${live ? " <b>Sitede yayında olduğu için /mektup/ sayfasından da kalkacak.</b>" : ""} Bu işlem geri alınamaz.</p>`,
+        ok: "Kalıcı olarak sil", danger: true,
+      });
+      if (!yes || destroyed) return;
+      b.disabled = true;
+      try { await store.deleteLetter(l.id); toast(`Sayı ${l.issue_no} silindi.`); if (!destroyed) showList(); }
+      catch (e) { b.disabled = false; toast(e.message || "Silinemedi.", "error"); }
+    });
     // Kapak küçük resmi: liste sorgusu sayfaları getirmez; her sayının ilk sayfası sonradan çizilir.
     for (const l of list) {
       store.getLetter(l.id).then(full => {

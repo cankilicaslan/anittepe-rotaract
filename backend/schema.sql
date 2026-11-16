@@ -1413,3 +1413,37 @@ language sql stable security definer set search_path = public as $$
 $$;
 revoke all on function public.public_committee_chairs() from public;
 grant execute on function public.public_committee_chairs() to anon, authenticated;
+
+-- =====================================================================
+-- v33: Misafiri üye yap (Başkan/sahip). Profil davetle oluşturulduktan sonra çağrılır:
+--      üyelik tarihinden sonraki taksitler borç olur, misafir devamı üyeye aktarılır, misafir kaydı silinir.
+-- =====================================================================
+create or replace function public.convert_guest(p_guest uuid, p_member uuid, p_joined date)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v_att int := 0; v_ch int := 0; v_first uuid;
+begin
+  if not public.is_admin() then raise exception 'Üye almak için Başkan yetkisi gerekiyor'; end if;
+  if not exists (select 1 from public.guests where id = p_guest) then raise exception 'Misafir bulunamadı'; end if;
+  if not exists (select 1 from public.profiles where id = p_member) then raise exception 'Üye profili bulunamadı'; end if;
+  -- Devam: misafirken katıldığı toplantılar üyenin yoklamasına aktarılır
+  insert into public.attendance (meeting_id, member_id, status, note)
+    select ga.meeting_id, p_member, ga.status, ga.note from public.guest_attendance ga where ga.guest_id = p_guest
+  on conflict (meeting_id, member_id) do nothing;
+  get diagnostics v_att = row_count;
+  -- Devam oranı misafir olarak geldiği ilk toplantıdan (yoksa üyelik tarihinden sonraki ilk toplantıdan) başlar
+  select m.id into v_first from public.guest_attendance ga join public.meetings m on m.id = ga.meeting_id
+   where ga.guest_id = p_guest order by m.date nulls last, m.term_no limit 1;
+  if v_first is null then
+    select m.id into v_first from public.meetings m where m.date >= p_joined order by m.date, m.term_no limit 1;
+  end if;
+  update public.profiles set joined_at = p_joined, start_meeting_id = coalesce(v_first, start_meeting_id) where id = p_member;
+  -- Aidat: son ödeme tarihi üyelik tarihinden sonra (ya da aynı gün) olan taksitler borç olarak eklenir
+  insert into public.charges (due_id, member_id, amount)
+    select d.id, p_member, d.amount from public.dues d where d.due_date >= p_joined
+  on conflict (due_id, member_id) do nothing;
+  get diagnostics v_ch = row_count;
+  delete from public.guests where id = p_guest;
+  return jsonb_build_object('attendance', v_att, 'charges', v_ch);
+end $$;
+revoke all on function public.convert_guest(uuid, uuid, date) from public, anon;
+grant execute on function public.convert_guest(uuid, uuid, date) to authenticated;

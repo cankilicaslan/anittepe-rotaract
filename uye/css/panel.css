@@ -710,3 +710,8 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 .an-p:hover{background:var(--bg-2)}
 .an-p[hidden]{display:none}
 .an-pick-foot{align-items:center;gap:8px;border-top:1px solid var(--line);padding-top:10px}
+
+/* Misafiri üye yap */
+.conv-sum{margin:14px 0;padding:12px 14px;border-radius:12px;background:var(--bg-2);font-size:.9rem}
+.conv-sum p{margin:0 0 6px}
+.conv-sum p:last-child{margin:0}

@@ -1,5 +1,5 @@
-import { createStore, trDate } from "./store.js?v=202611161819";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161819";
+import { createStore, trDate } from "./store.js?v=202611161832";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners } from "./roles.js?v=202611161832";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -654,7 +654,7 @@ async function viewMembers(v) {
     <div class="empty m-empty" id="mempty" hidden><p>Aramanla eşleşen üye yok.</p><button type="button" class="btn ghost sm" id="mclear">Aramayı temizle</button></div>
     ${guests.length ? `<section class="m-guests" aria-labelledby="g-h"><div class="m-guests-h"><h2 id="g-h">Misafirler</h2><span class="tag">${guests.length}</span></div>
       ${guestDetail ? "" : '<p class="muted m-gnote">Misafirlerin iletişim bilgilerini Sekreter ve yönetim görür.</p>'}
-      <div class="tbl-wrap"><table class="stack m-table m-gtable"><caption class="sr">Misafir listesi</caption><thead><tr><th scope="col">Misafir</th>${guestDetail ? '<th scope="col">İletişim</th><th scope="col">Not</th><th scope="col">Katıldığı toplantı</th>' : ""}</tr></thead><tbody id="gtb"></tbody></table></div>
+      <div class="tbl-wrap"><table class="stack m-table m-gtable"><caption class="sr">Misafir listesi</caption><thead><tr><th scope="col">Misafir</th>${guestDetail ? '<th scope="col">İletişim</th><th scope="col">Not</th><th scope="col">Katıldığı toplantı</th>' : ""}${admin && guestDetail ? '<th scope="col"><span class="sr">İşlem</span></th>' : ""}</tr></thead><tbody id="gtb"></tbody></table></div>
       <p class="muted m-empty-g" id="gempty" hidden>Aramanla eşleşen misafir yok.</p></section>` : ""}
     <dialog id="dlg"></dialog>`;
   const tb = document.getElementById("tb"), qEl = document.getElementById("q");
@@ -671,7 +671,8 @@ async function viewMembers(v) {
       gtb.innerHTML = gs.map(g => `<tr><td class="m-who"><div class="person">${avatar(g)}<div><b>${esc(g.full_name)}</b><span>Misafir</span></div></div></td>${guestDetail ? `
         <td data-label="İletişim" class="m-contact"><div class="m-lines">${g.phone ? `<a href="tel:${esc(String(g.phone).replace(/\s/g, ""))}">${esc(g.phone)}</a>` : ""}${g.email ? `<a class="m-mail" href="mailto:${esc(g.email)}">${esc(g.email)}</a>` : ""}${!g.phone && !g.email ? none : ""}</div></td>
         <td data-label="Not">${esc(g.note) || none}</td>
-        <td data-label="Katıldığı toplantı">${g.id && came.get(g.id) ? came.get(g.id) : none}</td>` : ""}</tr>`).join("");
+        <td data-label="Katıldığı toplantı">${g.id && came.get(g.id) ? came.get(g.id) : none}</td>` : ""}${admin && guestDetail && g.id ? `<td class="m-edit"><button class="btn sm" data-conv="${g.id}" aria-label="${esc(g.full_name)} üye al">Üye al</button></td>` : ""}</tr>`).join("");
+      gtb.querySelectorAll("[data-conv]").forEach(b => b.onclick = () => convertGuestDialog(guests.find(x => x.id === b.dataset.conv), came.get(b.dataset.conv) || 0));
       document.getElementById("gempty").hidden = gs.length > 0;
       gtb.closest(".tbl-wrap").hidden = gs.length === 0;
     }
@@ -765,6 +766,45 @@ async function editMember(m) {
       } else { await store.updateMember(m.id, patch); if (m.id === me.id) me = await store.me(); toast("Üye bilgileri kaydedildi."); }
       refresh();
     } catch (er) { fail(er); }
+  };
+}
+
+/* ------------------------- Misafiri üye yap ------------------------- */
+// Başkan/sahip: misafiri üye statüsüne geçirir. Davet e-postası gider, üyelik tarihinden sonraki taksitler borç olur,
+// misafirken geldiği toplantılar devamına aktarılır, misafir listesinden çıkar.
+async function convertGuestDialog(g, cameCount) {
+  if (!g) return;
+  const dues = await store.listDues().catch(() => []);
+  const dlg = document.getElementById("dlg");
+  const dueLine = d => { const upcoming = dues.filter(x => x.due_date && x.due_date >= d).sort((x, y) => x.due_date.localeCompare(y.due_date)); return upcoming.length ? `Borç olarak eklenecek taksitler: ${upcoming.map(x => `${esc(x.label)} (son ödeme ${trDate(x.due_date)}, ${TL(x.amount)})`).join(", ")}.` : "Bu tarihten sonra son ödemesi olan taksit yok; aidat borcu eklenmez."; };
+  dlg.innerHTML = `<form method="dialog" class="conv-form"><h2>${esc(g.full_name)} üye olarak alınsın</h2>
+    <p class="muted" style="margin:0 0 12px">Misafir listesinden çıkar ve üye listesine eklenir. Panel hesabı için e-posta adresine davet gider.</p>
+    <div class="grid g2">
+      <label class="f">Ad soyad<input name="full_name" required value="${esc(g.full_name)}"></label>
+      <label class="f">Üyelik tarihi<input type="date" name="joined_at" required value="${today()}"></label>
+      <label class="f">E-posta <small>Davet buraya gider</small><input type="email" name="email" required value="${esc(g.email || "")}"></label>
+      <label class="f">Telefon<input type="tel" name="phone" value="${esc(g.phone || "")}"></label>
+    </div>
+    <div class="conv-sum">
+      <p><b>Aidat:</b> <span id="conv-dues">${dueLine(today())}</span></p>
+      <p><b>Devam:</b> ${cameCount ? `Misafir olarak geldiği ${cameCount} toplantı devamına aktarılacak.` : "Misafir olarak kayıtlı devamı yok; devam oranı üyelik tarihinden sonraki ilk toplantıdan başlar."}</p>
+    </div>
+    <div class="row"><button class="btn" value="ok">Üye al</button><button class="btn ghost" value="cancel" formnovalidate>Vazgeç</button></div>
+  </form>`;
+  if (!dlg.open) dlg.showModal();
+  const form = dlg.querySelector("form");
+  form.joined_at.oninput = () => { if (form.joined_at.value) dlg.querySelector("#conv-dues").innerHTML = dueLine(form.joined_at.value); };
+  form.onsubmit = async e => {
+    if (e.submitter?.value !== "ok") return;
+    e.preventDefault();
+    const fd = new FormData(form), btn = e.submitter;
+    btn.disabled = true; btn.textContent = "Üye alınıyor…";
+    try {
+      const r = await store.convertGuest({ guest_id: g.id, full_name: String(fd.get("full_name")).trim(), email: String(fd.get("email")).trim(), phone: String(fd.get("phone") || "").trim(), joined_at: fd.get("joined_at") });
+      dlg.close();
+      toast(`${esc(g.full_name)} üye olarak alındı. ${r.charges} taksit borç olarak eklendi, ${r.attendance} toplantı devamına aktarıldı.`);
+      refresh();
+    } catch (er) { fail(er); btn.disabled = false; btn.textContent = "Üye al"; }
   };
 }
 
@@ -1443,7 +1483,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611161819");
+  const { mountComposer } = await import("./composer.js?v=202611161832");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1452,7 +1492,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161819");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611161832");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

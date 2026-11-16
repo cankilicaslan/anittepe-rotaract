@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611161819";
-import { can, hasRole } from "./roles.js?v=202611161819";
+import { CONFIG } from "./config.js?v=202611161832";
+import { can, hasRole } from "./roles.js?v=202611161832";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -328,6 +328,21 @@ function demoStore() {
       const n = { id: uid(), full_name: g.full_name.trim(), phone: g.phone || "", email: g.email || "", note: g.note || "", created_at: new Date().toISOString() };
       S.guests.push(n); save(); return clone(n);
     },
+    // Misafiri üye yap (demo): profil + devam aktarımı + üyelik tarihinden sonraki taksitler borç + misafir silinir.
+    async convertGuest({ guest_id, full_name, email, phone, joined_at }) {
+      if (!hasRole(me(), "baskan")) throw new Error("Üye almak için Başkan yetkisi gerekiyor.");
+      const g = S.guests.find(x => x.id === guest_id); if (!g) throw new Error("Misafir bulunamadı.");
+      const p = await this.addMember({ full_name, email, phone, joined_at, title: "Üye" });
+      const atts = S.guestAtt.filter(a => a.guest_id === guest_id);
+      atts.forEach(a => { if (!S.attendance.some(x => x.meeting_id === a.meeting_id && x.member_id === p.id)) S.attendance.push({ meeting_id: a.meeting_id, member_id: p.id, status: a.status, note: a.note || "", updated_at: new Date().toISOString() }); });
+      const firstMeet = atts.map(a => S.meetings.find(m => m.id === a.meeting_id)).filter(Boolean).sort((x, y) => String(x.date).localeCompare(String(y.date)))[0]
+        || S.meetings.filter(m => m.date >= joined_at).sort((x, y) => String(x.date).localeCompare(String(y.date)))[0];
+      const prof = S.profiles.find(x => x.id === p.id); prof.joined_at = joined_at; if (firstMeet) prof.start_meeting_id = firstMeet.id;
+      const dues = S.dues.filter(d => d.due_date && d.due_date >= joined_at);
+      dues.forEach(d => { if (!S.charges.some(c => c.due_id === d.id && c.member_id === p.id)) S.charges.push({ id: uid(), due_id: d.id, member_id: p.id, amount: d.amount, paid_at: null }); });
+      S.guests = S.guests.filter(x => x.id !== guest_id); S.guestAtt = S.guestAtt.filter(a => a.guest_id !== guest_id);
+      save(); return { profile: clone(prof), attendance: atts.length, charges: dues.length };
+    },
     async deleteGuest(id) { need("yoklama"); S.guests = S.guests.filter(g => g.id !== id); S.guestAtt = S.guestAtt.filter(a => a.guest_id !== id); save(); },
     async listGuestAttendance() { return can(me(), "yoklama") ? clone(S.guestAtt) : []; },
     async setGuestAttendance(meeting_id, guest_id, status) {
@@ -641,6 +656,12 @@ async function supabaseStore() {
     async deleteProject(id) { ok(await sb.from("projects").delete().eq("id", id)); },
     async listCalendarProjects() { return ok(await sb.from("projects").select("*").order("date")); },
     async addMember(d) { const r = await fn("invite-member", d); return r.profile; },
+    // Misafiri üye yap: davet (profil) + sunucuda devam/aidat aktarımı ve misafir kaydının silinmesi.
+    async convertGuest({ guest_id, full_name, email, phone, joined_at }) {
+      const r = await fn("invite-member", { full_name, email, phone, joined_at, title: "Üye" });
+      const res = ok(await sb.rpc("convert_guest", { p_guest: guest_id, p_member: r.profile.id, p_joined: joined_at }));
+      return { profile: r.profile, attendance: res?.attendance ?? 0, charges: res?.charges ?? 0 };
+    },
     async getPrivate(id) { const { data } = await sb.from("profile_private").select("*").eq("member_id", id).maybeSingle(); return data || {}; },
     async listClubEvents() { return ok(await sb.from("club_events").select("*").order("date")); },
     async saveClubEvent(e) {

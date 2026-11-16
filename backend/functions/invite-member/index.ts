@@ -58,8 +58,9 @@ async function requireBaskan(req: Request) {
     .eq("id", userData.user.id)
     .maybeSingle();
   if (profErr || !profile) throw new HttpError(403, "Üye profiliniz bulunamadı.");
-  const roles: string[] = profile.roles ?? [];
-  if (profile.status !== "active" || !roles.includes("baskan")) {
+  // Başkan ya da site sahibi (is_admin) davet edebilir.
+  const { data: isAdmin } = await supabase.rpc("is_admin");
+  if (profile.status !== "active" || isAdmin !== true) {
     throw new HttpError(403, "Üye davet etmek için Başkan yetkisi gerekiyor.");
   }
   return { user: userData.user, profile };

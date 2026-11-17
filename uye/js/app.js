@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611171850";
-import { createStore, trDate } from "./store.js?v=202611171850";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611171850";
+import * as BP from "./board-plan.js?v=202611171905";
+import { createStore, trDate } from "./store.js?v=202611171905";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611171905";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -385,6 +385,7 @@ function shell() {
   <div class="shell">
     <aside class="side" id="side">
       <a href="../"><img class="logo" src="../assets/logo-cranberry.webp" alt="Rotaract Ankara Anıttepe, kulüp sitesine dön"></a>
+      <a class="side-home" href="../"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>Anasayfaya dön</a>
       <nav aria-label="Panel"><div class="nav-sec">${navHtml}</div></nav>
       <div class="who">${avatar(me)}<div style="min-width:0"><b>${esc(me.full_name)}</b><span>${esc(me.title || "Üye")}</span></div></div>
       ${isRealOwner() && !preview ? `<button class="btn ghost sm" id="pv-open">Paneli başka gözle gör</button>` : ""}
@@ -1783,7 +1784,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611171850");
+  const { mountComposer } = await import("./composer.js?v=202611171905");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1792,7 +1793,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611171850");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611171905");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

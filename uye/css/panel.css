@@ -880,3 +880,8 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 .side nav a.nav-plan:focus-visible{outline:3px solid #F3C6D9;outline-offset:2px}
 .side nav .nav-sec.mgmt a.nav-plan:hover{background:#A33C6A}
 .side nav a.nav-plan{white-space:nowrap;font-size:.9rem;padding:9px 14px;text-align:center}
+/* Menü: Üye alanı'nın üstünde "Anasayfaya dön" baloncuğu */
+.side .side-home{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;margin:0 8px -8px;padding:7px 14px 7px 10px;border-radius:999px;background:var(--cran-soft);color:var(--cran-deep);font-weight:700;font-size:.86rem;text-decoration:none;border:1px solid #F3C6D9;transition:background-color .15s}
+.side .side-home svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.side .side-home:hover{background:#F9D5E5}
+.side .side-home:focus-visible{outline:3px solid var(--cran);outline-offset:2px}

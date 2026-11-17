@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611171636";
-import { createStore, trDate } from "./store.js?v=202611171636";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611171636";
+import * as BP from "./board-plan.js?v=202611171638";
+import { createStore, trDate } from "./store.js?v=202611171638";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611171638";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -318,6 +318,8 @@ const PAGES = [
   { id: "arsiv", label: "Fotoğraf arşivi", show: () => true },
   { id: "yukle", label: "Fotoğraf yükle", show: () => true, hidden: true },
   { grp: "Yönetim", mgmt: true },
+  // Gelecek dönemi planla: yalnızca asbaşkan ve site sahibi; Yönetim'in en üstünde, pembe düğme görünümünde
+  { id: "plan", label: "Gelecek dönemi planla", show: () => isPlanner() },
   { id: "duyurular", label: "Duyurular", panel: "duyuru" },
   { id: "yoklama", label: "Yoklama", panel: "yoklama" },
   { id: "wa-toplanti", label: "Toplantı duyurusu (WhatsApp)", panel: "wa-toplanti" },
@@ -333,8 +335,6 @@ const PAGES = [
   { id: "mektup", label: "Başkan Mektubu", panel: "mektup" },
   // Site düzenleme: yalnızca Halkla İlişkiler ve Tanıtım (HİTK) görevlisi.
   { id: "site", label: "Site düzenleme", show: () => hasRole(me, "pr") },
-  // Gelecek dönemi planla: yalnızca asbaşkan ve site sahibi (taslak; veritabanı da yalnız onlara açar)
-  { id: "plan", label: "Gelecek dönemi planla", show: () => isPlanner() },
   // Geçmiş dönem başkanları YK-GYK planını yalnızca görüntüler
   { id: "yk-plan", label: "Gelecek Dönem YK-GYK Planı", show: () => !isPlanner() && me?.status === "active" && !!me.past_president }
 ];
@@ -379,7 +379,7 @@ function shell() {
   const hasMgmt = nav.some((p, i) => p.mgmt && nav.slice(i + 1).some(x => !x.grp));
   const navHtml = planSub ? `<div class="grp plan-grp">${PLAN_NAME}<small>Taslak · yalnızca sen görüyorsun</small></div>` + PLAN_PAGES.map(([k, l]) => `<a href="#plan${k === "yk" ? "" : "/" + k}" ${k === planSub ? 'aria-current="page"' : ""}>${l}</a>`).join("") + `<a href="#profil" class="plan-exit">← Planlamadan çık</a>` : nav.map((p, i) => p.grp
     ? (!nav.slice(i + 1).some(x => !x.grp) || (!p.mgmt && !hasMgmt) ? "" : p.mgmt ? `</div><div class="nav-sec mgmt" role="group" aria-label="Yönetim"><div class="grp">${p.grp}<small>Görevine özel paneller</small></div>` : `<div class="grp">${p.grp}</div>`)
-    : `<a href="#${p.id}" ${p.id === navId ? 'aria-current="page"' : ""}>${navLabel(p)}</a>`).join("");
+    : `<a href="#${p.id}"${p.id === "plan" ? ' class="nav-plan"' : ""} ${p.id === navId ? 'aria-current="page"' : ""}>${navLabel(p)}</a>`).join("");
   app.innerHTML = `
   <div class="shell">
     <aside class="side" id="side">
@@ -1776,7 +1776,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611171636");
+  const { mountComposer } = await import("./composer.js?v=202611171638");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1785,7 +1785,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611171636");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611171638");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

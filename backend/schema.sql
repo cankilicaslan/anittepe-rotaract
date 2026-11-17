@@ -1725,24 +1725,35 @@ $$;
 --      değiştirilemez ve silinemez (yalnızca kendisi düzenler; SQL editörü/servis anahtarı hariç).
 --      SECURITY DEFINER fonksiyonlar da (ör. convert_guest) çağıranın kimliğiyle bu kurala takılır.
 -- =====================================================================
+-- (iki tablo için ayrı fonksiyon: tek fonksiyonda new.member_id profiles tetikleyicisinde hata veriyordu)
 create or replace function public.guard_owner_profile()
 returns trigger language plpgsql security definer set search_path = public as $$
-declare target uuid;
+declare target uuid := old.id;
 begin
-  target := case tg_table_name when 'profile_private' then coalesce(new.member_id, old.member_id)
-                               else coalesce(old.id, new.id) end;
   if auth.uid() is not null and auth.uid() <> target
      and exists (select 1 from public.app_owners o where o.user_id = target) then
     raise exception 'Bu üyenin bilgileri panelden değiştirilemez.';
   end if;
   return coalesce(new, old);
 end $$;
+create or replace function public.guard_owner_private()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare target uuid;
+begin
+  if tg_op = 'DELETE' then target := old.member_id; else target := new.member_id; end if;
+  if auth.uid() is not null and auth.uid() <> target
+     and exists (select 1 from public.app_owners o where o.user_id = target) then
+    raise exception 'Bu üyenin bilgileri panelden değiştirilemez.';
+  end if;
+  if tg_op = 'DELETE' then return old; end if;
+  return new;
+end $$;
 drop trigger if exists profiles_owner_guard on public.profiles;
 create trigger profiles_owner_guard before update or delete on public.profiles
   for each row execute function public.guard_owner_profile();
 drop trigger if exists profile_private_owner_guard on public.profile_private;
 create trigger profile_private_owner_guard before insert or update or delete on public.profile_private
-  for each row execute function public.guard_owner_profile();
+  for each row execute function public.guard_owner_private();
 -- Sahiplik kaydına panelden kimse dokunamaz (politika yok = erişim yok; açıkça kapatılır)
 alter table public.app_owners enable row level security;
 revoke insert, update, delete on public.app_owners from anon, authenticated;

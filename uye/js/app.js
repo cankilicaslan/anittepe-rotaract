@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611171638";
-import { createStore, trDate } from "./store.js?v=202611171638";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611171638";
+import * as BP from "./board-plan.js?v=202611171838";
+import { createStore, trDate } from "./store.js?v=202611171838";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611171838";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1244,7 +1244,7 @@ const DON_PREFIX = "Bağış – ";
 const FUNDS = ["PolioPlus", "Yıllık Fon (Annual Fund)", "Kalıcı Fon (Endowment)", "Afet Müdahale Fonu", "Diğer"];
 const KASA_FUNDS = ["PolioPlus", "Yıllık Fon (Annual Fund)"];
 const CATS = {
-  gelir: ["Üye aidat tahsilatı", "Misafir toplantı ücreti", "Rozet satışı", "Diğer gelir"],
+  gelir: ["Misafir toplantı ücreti", "Rozet satışı", "Diğer gelir"], // aidat tahsilatı Aidat sayfasından kendiliğinden gelir
   gider: ["Bölge katkı payı (BKP)", "UR ödemesi", "Toplantı yeri", ...KASA_FUNDS.map(f => DON_PREFIX + f), "Diğer gider"]
 };
 // Etkinlik ve projeler önce adıyla açılır; gelir ve giderleri kendi sekmesinden girilir (Excel'deki Etkinlik x / Proje x sayfaları gibi).
@@ -1776,7 +1776,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611171638");
+  const { mountComposer } = await import("./composer.js?v=202611171838");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1785,7 +1785,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611171638");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611171838");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

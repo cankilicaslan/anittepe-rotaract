@@ -61,7 +61,9 @@ async function requirePrOrBaskan(req: Request) {
     .maybeSingle();
   if (profErr || !profile) throw new HttpError(403, "Üye profiliniz bulunamadı.");
   const roles: string[] = profile.roles ?? [];
-  if (profile.status !== "active" || !(roles.includes("pr") || roles.includes("baskan"))) {
+  // Site sahibi (is_admin) de paylaşabilir
+  const { data: isAdmin } = await supabase.rpc("is_admin");
+  if (profile.status !== "active" || !(roles.includes("pr") || roles.includes("baskan") || isAdmin === true)) {
     throw new HttpError(403, "Bu işlem için Halkla İlişkiler veya Başkan yetkisi gerekiyor.");
   }
   return { user: userData.user, profile };

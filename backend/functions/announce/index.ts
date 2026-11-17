@@ -77,7 +77,9 @@ async function requireAnnouncer(req: Request) {
     .maybeSingle();
   if (profErr || !profile) throw new HttpError(403, "Üye profiliniz bulunamadı.");
   const roles: string[] = profile.roles ?? [];
-  if (profile.status !== "active" || !roles.some((r) => ALLOWED_ROLES.includes(r))) {
+  // Site sahibi (is_admin) de gönderebilir
+  const { data: isAdmin } = await supabase.rpc("is_admin");
+  if (profile.status !== "active" || !(roles.some((r) => ALLOWED_ROLES.includes(r)) || isAdmin === true)) {
     throw new HttpError(403, "Duyuru göndermek için Başkan veya Sekreter yetkisi gerekiyor.");
   }
   return { user: userData.user, profile };

@@ -1708,3 +1708,14 @@ $$;
 drop policy if exists site_edits_select on public.site_edits;
 create policy site_edits_select on public.site_edits for select to authenticated
   using (public.has_role('pr') or public.has_role('sayman') or public.is_owner());
+
+-- =====================================================================
+-- v44: Site sahibi tüm görevlerin yetkilerine sahiptir (gizli: arayüzde görev olarak görünmez,
+--      anasayfa ve listeler profiles.roles dizisini kullanır; yalnızca yetki kontrolleri değişir)
+-- =====================================================================
+create or replace function public.has_role(r text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.profiles p
+                 where p.id = auth.uid() and p.status = 'active' and r = any(p.roles))
+      or exists (select 1 from public.app_owners o where o.user_id = auth.uid());
+$$;

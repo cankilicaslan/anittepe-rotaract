@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611162049";
-import { createStore, trDate } from "./store.js?v=202611162049";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611162049";
+import * as BP from "./board-plan.js?v=202611171633";
+import { createStore, trDate } from "./store.js?v=202611171633";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611171633";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -45,7 +45,7 @@ function rolePages(role) {
 }
 const rolePagesNote = role => {
   if (role === "baskan") return "Tüm panelleri yönetir";
-  if (role === "asbaskan") return "Tüm yönetim panellerini görüntüler";
+  if (role === "asbaskan") return "Tüm yönetim panellerini görüntüler · Gelecek dönemi planla";
   const l = rolePages(role);
   return l.length ? l.join(", ") : "Özel panel yok · üye görünümü";
 };
@@ -59,6 +59,7 @@ function readOnlyStore(st) {
   } });
 }
 function startPreview(profile, label) {
+  if (realPlanMe) { me = realPlanMe; realPlanMe = null; store.setViewTerm?.(null); }
   realMe = me; realStore = store;
   me = { ...profile, is_owner: false };
   store = readOnlyStore(realStore);
@@ -67,6 +68,7 @@ function startPreview(profile, label) {
 }
 function endPreview() {
   if (!preview) return;
+  realPlanMe = null; realStore?.setViewTerm?.(null);
   me = realMe; store = realStore; realMe = realStore = preview = null;
   location.hash = "#profil"; render();
 }
@@ -336,7 +338,8 @@ const PAGES = [
   // Geçmiş dönem başkanları YK-GYK planını yalnızca görüntüler
   { id: "yk-plan", label: "Gelecek Dönem YK-GYK Planı", show: () => !isPlanner() && me?.status === "active" && !!me.past_president }
 ];
-const isPlanner = () => !preview && hasRole(realPlanMe || me, "asbaskan");
+// Önizlemede de (ör. sahip "Asbaşkan" gözüyle bakarken) görünür; önizleme deposu kaydetmeyi zaten engeller.
+const isPlanner = () => hasRole(realPlanMe || me, "asbaskan");
 const PLAN_NAME = "2027-2028 dönemi planlama";
 const PLAN_PAGES = [["yk", "Yönetim kurulu planlama"], ["takvim", "Takvim"], ["kulup-projeleri", "Planlanan projeler"], ["aidat", "Aidat"], ["kasa", "Kulüp kasası"], ["notlar", "Notlar"]];
 // Plan modunda planlayıcı bu dört ekranı düzenleyebilir (taslak satırlarda veritabanı planlayıcıya izin verir)
@@ -1774,7 +1777,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611162049");
+  const { mountComposer } = await import("./composer.js?v=202611171633");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1783,7 +1786,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611162049");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611171633");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

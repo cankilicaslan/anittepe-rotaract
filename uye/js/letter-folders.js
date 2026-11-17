@@ -3,8 +3,8 @@
 // fotoğraf yükleme, kişi seçici ve onay penceresini sağlar (bkz. editörde `ctx`).
 // Ayrıca künye, isim/unvan biçimi ve madde eşleme gibi saf yardımcılar burada.
 
-import { esc } from "../../assets/js/letter-render.js?v=202611171633";
-import { defaultFolders, meetingLabel, missingFor, wordCount, assemblePages, LONG_WORDS } from "../../assets/js/letter-assemble.js?v=202611171633";
+import { esc } from "../../assets/js/letter-render.js?v=202611171636";
+import { defaultFolders, meetingLabel, missingFor, wordCount, assemblePages, LONG_WORDS } from "../../assets/js/letter-assemble.js?v=202611171636";
 
 export const CLUB = "Ankara Anıttepe Rotaract Kulübü";
 const MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];

@@ -867,3 +867,10 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 
 /* Misafirler tablosu: Misafirlik hücresinde toplantı sayısı */
 .m-table .m-sub{display:block;font-size:.8rem;color:var(--muted)}
+/* YK planlama (düzenleme ekranı): daireler ortalı, eşit genişlikte, görev adları aynı hizada */
+.bp-sec h2{justify-content:center}
+.bp-grid{display:flex;flex-wrap:wrap;justify-content:center;align-items:stretch;gap:18px 14px}
+.bp-grid .bp-slot{width:150px;flex:0 0 150px}
+.bp-grid .bp-role,.bp-top .bp-role{margin-top:auto}
+.bp-slot .bp-frame{min-height:0}
+@media (max-width:640px){.bp-grid .bp-slot{width:128px;flex-basis:128px}}

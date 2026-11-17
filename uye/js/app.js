@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611171633";
-import { createStore, trDate } from "./store.js?v=202611171633";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611171633";
+import * as BP from "./board-plan.js?v=202611171636";
+import { createStore, trDate } from "./store.js?v=202611171636";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611171636";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -393,7 +393,6 @@ function shell() {
       <div class="topbar"><button class="icon-btn" id="menu" aria-controls="side" aria-expanded="false" aria-label="Menüyü aç"><span class="burger" aria-hidden="true"></span></button><img src="../assets/logo-cranberry.webp" alt="Rotaract Ankara Anıttepe"><span class="topbar-title">${esc(planSub ? (PLAN_PAGES.find(([k]) => k === planSub) || [])[1] || PLAN_NAME : (PAGES.find(p => p.id === id) || {}).label || "")}</span></div>
       <main class="main" id="main" tabindex="-1">
         ${store.mode === "demo" ? `<div class="banner demo"><span><b>Demo modu.</b> Örnek verilerle çalışıyor; değişiklikler yalnızca bu tarayıcıda kalır.</span> <button class="btn ghost sm" id="reset">Örnek verileri sıfırla</button></div>` : ""}
-        ${planSub ? `<div class="banner plan" role="status"><span><b>${PLAN_NAME}</b> · Taslak. 1 Temmuz 2027 – 30 Haziran 2028. Burada girilenleri yalnızca asbaşkan ve site sahibi görür; dönem aktif yapılınca geçerli olur.</span> <a class="btn ghost sm" href="#profil">Planlamadan çık</a></div>` : ""}
         ${preview ? `<div class="banner preview" role="status"><span><b>Önizleme:</b> ${esc(preview.label)} olarak görüyorsun. Değişiklikler kaydedilmez.</span> <button class="btn sm" id="pv-end">Önizlemeden çık</button></div>` : ""}
         <div id="view"><p class="muted">Yükleniyor…</p></div>
       </main>
@@ -1777,7 +1776,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611171633");
+  const { mountComposer } = await import("./composer.js?v=202611171636");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1786,7 +1785,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611171633");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611171636");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

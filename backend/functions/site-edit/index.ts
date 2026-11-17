@@ -56,10 +56,11 @@ async function requireHitk(req: Request) {
   if (error || !u?.user) throw new HttpError(401, "Oturumunun süresi dolmuş. Lütfen tekrar giriş yap.");
   const { data: p } = await sb.from("profiles").select("id, full_name, status, roles").eq("id", u.user.id).maybeSingle();
   if (!p) throw new HttpError(403, "Üye profilin bulunamadı.");
-  const isPr = p.status === "active" && (p.roles ?? []).includes("pr");
+  // HİTK (pr) ve Sayman kullanabilir
+  const isPr = p.status === "active" && ((p.roles ?? []).includes("pr") || (p.roles ?? []).includes("sayman"));
   let owner = false;
   if (!isPr) { const { data } = await sb.rpc("is_owner"); owner = data === true; }
-  if (!isPr && !owner) throw new HttpError(403, "Site düzenleme yalnızca Halkla İlişkiler ve Tanıtım görevlisine açık.");
+  if (!isPr && !owner) throw new HttpError(403, "Site düzenleme yalnızca Halkla İlişkiler ve Tanıtım görevlisine ve Saymana açık.");
   return p as { id: string; full_name: string };
 }
 

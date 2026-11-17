@@ -1701,3 +1701,10 @@ language sql stable security definer set search_path = public as $$
    where public.has_role('pr') or public.has_role('sekreter') or public.has_role('sayman') or public.can_view_all()
    order by g.full_name;
 $$;
+
+-- =====================================================================
+-- v43: Site düzenleme Saymana da açık (kayıtları görür; yayın site-edit fonksiyonundan)
+-- =====================================================================
+drop policy if exists site_edits_select on public.site_edits;
+create policy site_edits_select on public.site_edits for select to authenticated
+  using (public.has_role('pr') or public.has_role('sayman') or public.is_owner());

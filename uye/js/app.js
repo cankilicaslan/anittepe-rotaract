@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611171846";
-import { createStore, trDate } from "./store.js?v=202611171846";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611171846";
+import * as BP from "./board-plan.js?v=202611171850";
+import { createStore, trDate } from "./store.js?v=202611171850";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611171850";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -41,7 +41,7 @@ const PREVIEW_ROLES = () => PREVIEW_GROUPS().flatMap(([, list]) => list);
 function rolePages(role) {
   if (role === "uye") return [];
   const fake = { status: "active", roles: role === "gdb" ? [] : [role], past_president: role === "gdb" };
-  return PAGES.filter(p => p.id && !p.hidden && (p.panel ? can(fake, p.panel, "view") : (p.id === "site" && role === "pr") || (p.id === "yk-plan" && role === "gdb"))).map(p => p.label);
+  return PAGES.filter(p => p.id && !p.hidden && (p.panel ? can(fake, p.panel, "view") : (p.id === "site" && (role === "pr" || role === "sayman")) || (p.id === "yk-plan" && role === "gdb"))).map(p => p.label);
 }
 const rolePagesNote = role => {
   if (role === "baskan") return "Tüm panelleri yönetir";
@@ -334,7 +334,8 @@ const PAGES = [
   // Başkan Mektubu: Başkan, HİTK ve Kulüp Hizmetleri hazırlar; asbaşkan görüntüler; yalnızca Başkan yayınlar.
   { id: "mektup", label: "Başkan Mektubu", panel: "mektup" },
   // Site düzenleme: yalnızca Halkla İlişkiler ve Tanıtım (HİTK) görevlisi.
-  { id: "site", label: "Site düzenleme", show: () => hasRole(me, "pr") },
+  // Site düzenleme: HİTK ve Sayman
+  { id: "site", label: "Site düzenleme", show: () => hasRole(me, "pr") || hasRole(me, "sayman") },
   // Geçmiş dönem başkanları YK-GYK planını yalnızca görüntüler
   { id: "yk-plan", label: "Gelecek Dönem YK-GYK Planı", show: () => !isPlanner() && me?.status === "active" && !!me.past_president }
 ];
@@ -1782,7 +1783,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611171846");
+  const { mountComposer } = await import("./composer.js?v=202611171850");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1791,7 +1792,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611171846");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611171850");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

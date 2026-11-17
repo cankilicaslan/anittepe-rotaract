@@ -1690,3 +1690,14 @@ alter table public.term_board_plans add column if not exists notes text;
 alter table public.letters add column if not exists pdf_url text;
 -- Anonim okuyucu (/mektup/) pdf_url sütununu da okur (letters sütun bazlı izinli)
 grant select (pdf_url) on public.letters to anon;
+
+-- =====================================================================
+-- v42: Sayman, kasada misafir toplantı ücreti girerken misafir adlarını görür (yalnızca adlar)
+-- =====================================================================
+create or replace function public.guest_names()
+returns table(full_name text)
+language sql stable security definer set search_path = public as $$
+  select g.full_name from public.guests g
+   where public.has_role('pr') or public.has_role('sekreter') or public.has_role('sayman') or public.can_view_all()
+   order by g.full_name;
+$$;

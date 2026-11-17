@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611171838";
-import { createStore, trDate } from "./store.js?v=202611171838";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611171838";
+import * as BP from "./board-plan.js?v=202611171842";
+import { createStore, trDate } from "./store.js?v=202611171842";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611171842";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1267,7 +1267,7 @@ async function liveCurrentBalance() {
 async function viewTreasury(v) {
   const ro = !can(me, "kasa", "edit");
   const liveOpen = planSub ? await liveCurrentBalance() : null;
-  const [term0, txs, charges, dues, meetings, members, savedGroups] = await Promise.all([store.getTerm(), store.listTransactions(), store.listCharges(), store.listDues(), store.listMeetings(), store.listMembers(), store.listKasaGroups().catch(() => [])]);
+  const [term0, txs, charges, dues, meetings, members, savedGroups, guestNames] = await Promise.all([store.getTerm(), store.listTransactions(), store.listCharges(), store.listDues(), store.listMeetings(), store.listMembers(), store.listKasaGroups().catch(() => []), (store.listGuestNames ? store.listGuestNames() : Promise.resolve([])).catch(() => [])]);
   const term = planSub ? { ...term0, opening_balance: liveOpen } : term0;
   // Ödenen aidatlar "Üye aidat tahsilatı" olarak kendiliğinden gelir yazılır.
   const duesIncome = dues.filter(d => d.term_id === term.id).map(d => { const cs = charges.filter(c => c.due_id === d.id && c.paid_at); return { id: "d-" + d.id, date: cs.map(c => c.paid_at).sort().at(-1) || d.due_date, kind: "gelir", category: "Üye aidat tahsilatı", description: `${d.label} (${cs.length} üye)`, amount: cs.reduce((s, c) => s + +c.amount, 0), auto: true }; }).filter(x => x.amount > 0);
@@ -1391,7 +1391,8 @@ async function viewTreasury(v) {
       <label class="f" id="qty-f" hidden>Rozet sayısı<input type="number" name="qty" min="1" step="1" value="1"></label>
       <label class="f" id="unit-f" hidden>Bir rozetin bedeli (TL)<input type="number" name="unit_price" min="0.01" step="0.01"></label>
       <label class="f" id="desc-f">Açıklama<input type="text" name="description" required placeholder="Ne için?"></label>
-      <label class="f"><span id="person-l">Ödemeyi yapan</span><input type="text" name="person" list="kasa-people" autocomplete="off" placeholder="Ad soyad"></label>
+      <label class="f" id="person-f"><span id="person-l">Ödemeyi yapan</span><input type="text" name="person" list="kasa-people" autocomplete="off" placeholder="Ad soyad"></label>
+      <label class="f" id="guest-f" hidden>Misafir<select name="guest"><option value="">Misafir seç…</option>${[...new Set(guestNames || [])].sort((x, y) => x.localeCompare(y, "tr")).map(n => `<option>${esc(n)}</option>`).join("")}</select></label>
       <label class="f" id="meet-f" hidden>Toplantı<select name="meeting_no"><option value="">Seç…</option>${meetOpts}</select></label>
       <label class="f" id="don-f" hidden>Kim adına<input type="text" name="donation_for" placeholder="ör. Kulüp adına / Ad Soyad"></label>
     </div>
@@ -1435,8 +1436,11 @@ async function viewTreasury(v) {
       document.getElementById("person-l").textContent = c === "Misafir toplantı ücreti" ? "Misafir" : badge ? "Satılan kişi" : gelir ? "Ödeyen" : "Ödemeyi yapan";
       document.getElementById("meet-f").hidden = c !== "Misafir toplantı ücreti";
       ["badge-f", "qty-f", "unit-f", "badge-total"].forEach(id => document.getElementById(id).hidden = !badge);
-      document.getElementById("amt-f").hidden = badge; document.getElementById("desc-f").hidden = badge;
-      f.amount.required = !badge; f.description.required = !badge; f.badge.required = badge; f.qty.required = badge; f.unit_price.required = badge;
+      // Misafir toplantı ücreti: açıklama yok, kişi yalnızca misafir listesinden seçilir
+      const misafir = c === "Misafir toplantı ücreti";
+      document.getElementById("person-f").hidden = misafir; document.getElementById("guest-f").hidden = !misafir; f.guest.required = misafir;
+      document.getElementById("amt-f").hidden = badge; document.getElementById("desc-f").hidden = badge || misafir;
+      f.amount.required = !badge; f.description.required = !badge && !misafir; f.badge.required = badge; f.qty.required = badge; f.unit_price.required = badge;
       calc();
       document.getElementById("don-f").hidden = !(!gelir && isDonCat(c));
     };
@@ -1452,6 +1456,8 @@ async function viewTreasury(v) {
       e.preventDefault(); const d = Object.fromEntries(new FormData(f)); d.amount = +d.amount;
       if (d.category === "Rozet satışı") { d.qty = +d.qty; d.unit_price = +d.unit_price; d.badge = (d.badge || "").trim(); d.amount = Math.round(d.qty * d.unit_price * 100) / 100; d.description = `${d.badge} × ${d.qty}`; if (!(d.amount > 0)) return toast("Rozet sayısı ve bedeli gerekli.", "bad"); }
       else { d.badge = null; d.qty = null; d.unit_price = null; }
+      if (d.category === "Misafir toplantı ücreti") { d.person = d.guest; d.description = "Misafir toplantı ücreti"; }
+      delete d.guest;
       for (const k of ["person", "donation_for", "description"]) d[k] = (d[k] || "").trim() || null;
       d.group_name = null;
       d.meeting_no = d.category === "Misafir toplantı ücreti" && d.meeting_no ? +d.meeting_no : null;
@@ -1776,7 +1782,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611171838");
+  const { mountComposer } = await import("./composer.js?v=202611171842");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1785,7 +1791,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611171838");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611171842");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

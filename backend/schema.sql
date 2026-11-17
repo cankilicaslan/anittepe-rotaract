@@ -1757,3 +1757,18 @@ create trigger profile_private_owner_guard before insert or update or delete on 
 -- Sahiplik kaydına panelden kimse dokunamaz (politika yok = erişim yok; açıkça kapatılır)
 alter table public.app_owners enable row level security;
 revoke insert, update, delete on public.app_owners from anon, authenticated;
+
+-- =====================================================================
+-- v46: Başkan görevini de yalnızca site sahibi atar/kaldırır (asbaşkan ve GDB gibi)
+-- =====================================================================
+create or replace function public.guard_owner_only_roles()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null or public.is_owner() then return new; end if;
+  if ('asbaskan' = any(coalesce(new.roles, '{}'))) is distinct from ('asbaskan' = any(coalesce(old.roles, '{}')))
+     or ('baskan' = any(coalesce(new.roles, '{}'))) is distinct from ('baskan' = any(coalesce(old.roles, '{}')))
+     or new.past_president is distinct from old.past_president then
+    raise exception 'Başkan, asbaşkan ve geçmiş dönem başkanı görevlerini yalnızca site sahibi değiştirebilir';
+  end if;
+  return new;
+end $$;

@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611171916";
-import { can, hasRole, hasAnyRole } from "./roles.js?v=202611171916";
+import { CONFIG } from "./config.js?v=202611171919";
+import { can, hasRole, hasAnyRole } from "./roles.js?v=202611171919";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -250,8 +250,8 @@ function demoStore() {
     async updateMember(id, patch) {
       const m = me(), p = S.profiles.find(x => x.id === id);
       { const cur = S.profiles.find(p => p.id === id), m = me();
-        if (cur && !m?.is_owner && ((patch.roles && (patch.roles.includes("asbaskan") !== (cur.roles || []).includes("asbaskan"))) || (patch.past_president !== undefined && !!patch.past_president !== !!cur.past_president)))
-          throw new Error("Asbaşkan ve geçmiş dönem başkanı görevlerini yalnızca site sahibi değiştirebilir."); }
+        if (cur && !m?.is_owner && ((patch.roles && ["baskan", "asbaskan"].some(r => patch.roles.includes(r) !== (cur.roles || []).includes(r))) || (patch.past_president !== undefined && !!patch.past_president !== !!cur.past_president)))
+          throw new Error("Başkan, asbaşkan ve geçmiş dönem başkanı görevlerini yalnızca site sahibi değiştirebilir."); }
       if (!p) throw new Error("Üye bulunamadı.");
       const admin = hasRole(m, "baskan");
       if (!admin && m?.id !== id) throw new Error("Bu işlem için yetkiniz yok.");

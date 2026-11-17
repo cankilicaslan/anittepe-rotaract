@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611171905";
-import { createStore, trDate } from "./store.js?v=202611171905";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611171905";
+import * as BP from "./board-plan.js?v=202611171907";
+import { createStore, trDate } from "./store.js?v=202611171907";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611171907";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1051,7 +1051,7 @@ async function importMembers(file, members) {
 }
 
 /* ------------------------------ Yoklama ------------------------------ */
-let selMeeting = null;
+let selMeeting = null, attOpen = false; // attOpen: yoklama işleme bölümü açık mı
 async function viewAttendance(v) {
   const ro = !can(me, "yoklama", "edit");
   const [term, meetings, att, all, guests, gattRaw] = await Promise.all([store.getTerm(), store.listMeetings(), store.listAttendance(), store.listMembers(), store.listGuests(), store.listGuestAttendance()]);
@@ -1094,7 +1094,8 @@ async function viewAttendance(v) {
     <div class="stat"><span>Ortalama devam</span><b>${pct(avg)}</b></div>
     <div class="stat"><span>Aktif üye · misafir</span><b>${members.length} · ${guestList.length}</b></div>
   </div>
-  <div class="card">
+  <button type="button" class="btn att-open" id="att-open" aria-expanded="${attOpen}" aria-controls="att-mark">${attOpen ? "Devam durumu işlemeyi kapat" : ro ? "Toplantı yoklamasını görüntüle" : "Devam durumu işle"}</button>
+  <div class="card att-mark" id="att-mark"${attOpen ? "" : " hidden"}>
     <div class="row" style="margin-bottom:14px">
       <label class="f" style="min-width:260px;flex:1">Toplantı
         <select id="msel">${meetings.map(m => `<option value="${m.id}" ${m.id === cur.id ? "selected" : ""}>${m.term_no}. toplantı · kulübün ${m.club_no}. · ${trDate(m.date)}${m.date > today() ? " · ileride" : ""}${m.label ? ` (${esc(m.label)})` : ""}</option>`).join("")}</select>
@@ -1142,6 +1143,8 @@ async function viewAttendance(v) {
   </details>`;
 
   document.getElementById("msel").onchange = e => { selMeeting = e.target.value; refreshKeep(v, viewAttendance); };
+  // Yoklama işleme bölümü büyük düğmeyle açılır/kapanır; işaretleme sonrası yeniden çizimde açık kalır
+  document.getElementById("att-open").onclick = () => { attOpen = !attOpen; refreshKeep(v, viewAttendance); };
   if (ro) return;
   const run = async (fn, keep = false) => { try { await fn(); refreshKeep(v, viewAttendance, keep); } catch (e) { fail(e); } };
   document.getElementById("msave").onclick = () => run(async () => { await store.updateMeeting(cur.id, { date: document.getElementById("mdate").value, note: document.getElementById("mnote").value, label: document.getElementById("mlabel").value.trim() || null }); toast("Toplantı bilgisi kaydedildi."); });
@@ -1784,7 +1787,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611171905");
+  const { mountComposer } = await import("./composer.js?v=202611171907");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1793,7 +1796,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611171905");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611171907");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

@@ -6,13 +6,13 @@
 // "Yapay zekâ ile oluştur" klasörleri: letter-folders.js.
 // Sayfa çizimi assets/js/letter-render.js, klasör → sayfa assets/js/letter-assemble.js.
 
-import { LAYOUTS, renderPage, renderLetter, tocFromPages, MAX_PHOTOS, esc } from "../../assets/js/letter-render.js?v=202611171907";
-import { LONG_WORDS, wordCount } from "../../assets/js/letter-assemble.js?v=202611171907";
-import { hasRole } from "./roles.js?v=202611171907";
+import { LAYOUTS, renderPage, renderLetter, tocFromPages, MAX_PHOTOS, esc } from "../../assets/js/letter-render.js?v=202611171916";
+import { LONG_WORDS, wordCount } from "../../assets/js/letter-assemble.js?v=202611171916";
+import { hasRole } from "./roles.js?v=202611171916";
 import {
   mountFolders, ensureFolders, aiItem, findItem, guessItem, kunyeDefaults, suggestPeriod, norm,
   rowsHtml, rowsAction, rowsInput, parseKunye, safeId, CLUB,
-} from "./letter-folders.js?v=202611171907";
+} from "./letter-folders.js?v=202611171916";
 
 // ---------------------------------------------------------------- yardımcılar
 
@@ -139,6 +139,64 @@ export function mountLetterEditor(root, { store, me, toast: toastFn, readOnly = 
       init?.(d, done);
       d.showModal();
     });
+  }
+  // Fotoğraf arşivinden seç: ana klasör → etkinlik klasörü → fotoğraflar. Seçilenler dosya olarak döner;
+  // yükleme (sıkıştırma + mektup deposuna kopya) her zamanki yoldan yapılır, böylece yayımlanan mektupta da görünür.
+  const ARCH_TYPES = { toplanti: "Toplantılar", ocakbasi: "Ocakbaşları", proje: "Projeler", etkinlik: "Etkinlik ve organizasyonlar", diger: "Diğer" };
+  async function pickArchive(max = 1) {
+    let albums = [];
+    try { albums = await store.listAlbums(); } catch (e) { toast(e.message || "Fotoğraf arşivi açılamadı.", "error"); return []; }
+    const chosen = await dialog(`<form method="dialog" class="le-arch"><div class="le-arch-h"><h2>Fotoğraf arşivinden seç</h2><button class="btn ghost sm" value="">Kapat</button></div>
+      <nav class="le-arch-crumbs" aria-label="Konum"></nav><div class="le-arch-body"></div>
+      <div class="row le-dlg-acts"><button type="button" class="btn" data-arch="ok" disabled>Seçilenleri ekle</button><span class="muted le-arch-n"></span></div></form>`, {
+      wide: true,
+      init(d, done) {
+        const body = d.querySelector(".le-arch-body"), crumbs = d.querySelector(".le-arch-crumbs"), okB = d.querySelector("[data-arch=ok]"), nEl = d.querySelector(".le-arch-n");
+        const sel = new Map(); // id → url (tam boy)
+        const upd = () => { okB.disabled = !sel.size; okB.textContent = sel.size ? `Seçilenleri ekle (${sel.size})` : "Seçilenleri ekle"; nEl.textContent = max > 1 && max < Infinity ? `En fazla ${max} fotoğraf` : max === 1 ? "Tek fotoğraf seçilir" : ""; };
+        const crumb = list => { crumbs.innerHTML = list.map(([l, fn], i) => i < list.length - 1 ? `<button type="button" class="le-arch-c" data-c="${i}">${esc(l)}</button><span aria-hidden="true">›</span>` : `<b>${esc(l)}</b>`).join(""); crumbs.querySelectorAll("[data-c]").forEach(b => b.onclick = () => list[+b.dataset.c][1]()); };
+        const showTypes = () => {
+          crumb([["Fotoğraf arşivi", showTypes]]);
+          const types = Object.entries(ARCH_TYPES).filter(([k]) => albums.some(a => a.type === k));
+          body.innerHTML = types.length ? `<div class="le-arch-grid">${types.map(([k, l]) => { const list = albums.filter(a => a.type === k), cov = list.find(a => a.cover_url); return `<button type="button" class="le-arch-f" data-t="${k}"><span class="le-arch-cov">${cov ? `<img src="${esc(cov.cover_url)}" alt="" loading="lazy">` : ""}</span><b>${esc(l)}</b><small>${list.length} klasör</small></button>`; }).join("")}</div>` : `<p class="muted">Arşivde henüz fotoğraf yok.</p>`;
+          body.querySelectorAll("[data-t]").forEach(b => b.onclick = () => showAlbums(b.dataset.t));
+        };
+        const showAlbums = t => {
+          crumb([["Fotoğraf arşivi", showTypes], [ARCH_TYPES[t], () => showAlbums(t)]]);
+          const list = albums.filter(a => a.type === t).sort((x, y) => String(y.date).localeCompare(String(x.date)));
+          body.innerHTML = `<div class="le-arch-grid">${list.map(a => `<button type="button" class="le-arch-f" data-a="${esc(a.id)}"><span class="le-arch-cov">${a.cover_url ? `<img src="${esc(a.cover_url)}" alt="" loading="lazy">` : ""}</span><b>${esc(a.name)}</b><small>${a.photo_count ?? ""} fotoğraf</small></button>`).join("")}</div>`;
+          body.querySelectorAll("[data-a]").forEach(b => b.onclick = () => showPhotos(t, list.find(a => a.id === b.dataset.a)));
+        };
+        const showPhotos = async (t, al) => {
+          crumb([["Fotoğraf arşivi", showTypes], [ARCH_TYPES[t], () => showAlbums(t)], [al.name, () => showPhotos(t, al)]]);
+          body.innerHTML = `<p class="muted">Yükleniyor…</p>`;
+          let ph = [];
+          try { ph = await store.listPhotos(al.id); } catch (e) { body.innerHTML = `<p class="muted">${esc(e.message || "Fotoğraflar açılamadı.")}</p>`; return; }
+          body.innerHTML = ph.length ? `<div class="le-arch-photos">${ph.map(p => `<button type="button" class="le-arch-p${sel.has(p.id) ? " is-sel" : ""}" data-p="${esc(p.id)}" aria-pressed="${sel.has(p.id)}"><img src="${esc(p.thumb_url || p.url)}" alt="" loading="lazy"><span class="le-arch-tick" aria-hidden="true">✓</span></button>`).join("")}</div>` : `<p class="muted">Bu klasörde fotoğraf yok.</p>`;
+          body.querySelectorAll("[data-p]").forEach(b => b.onclick = () => {
+            const p = ph.find(x => x.id === b.dataset.p);
+            if (sel.has(p.id)) sel.delete(p.id);
+            else {
+              if (max === 1) { sel.clear(); body.querySelectorAll(".le-arch-p.is-sel").forEach(x => { x.classList.remove("is-sel"); x.setAttribute("aria-pressed", "false"); }); }
+              else if (sel.size >= max) { toast(`En fazla ${max} fotoğraf seçebilirsin.`, "error"); return; }
+              sel.set(p.id, p.url || p.thumb_url);
+            }
+            b.classList.toggle("is-sel", sel.has(p.id)); b.setAttribute("aria-pressed", String(sel.has(p.id))); upd();
+          });
+        };
+        okB.onclick = () => done([...sel.values()]);
+        upd(); showTypes();
+      },
+    });
+    if (!Array.isArray(chosen) || !chosen.length) return [];
+    setBusy(chosen.length);
+    const files = [];
+    for (const u of chosen) {
+      try { const r = await fetch(u); if (!r.ok) throw new Error(); const b = await r.blob(); files.push(new File([b], "arsiv.jpg", { type: b.type || "image/jpeg" })); }
+      catch { toast("Bir fotoğraf arşivden alınamadı.", "error"); }
+      finally { if (!destroyed) setBusy(-1); }
+    }
+    return files;
   }
   async function confirmDlg({ title, body = "", ok = "Tamam", cancel = "Vazgeç", danger = false }) {
     const r = await dialog(`<form method="dialog"><h2>${esc(title)}</h2>${body}
@@ -279,7 +337,7 @@ export function mountLetterEditor(root, { store, me, toast: toastFn, readOnly = 
     get folders() { return E.letter.folders; },
     get refs() { return E.refs; },
     markDirty, syncHeader: () => renderTop(),
-    uploadFiles, pickFiles, copyAvatar, pickPerson, confirmDlg,
+    uploadFiles, pickFiles, pickArchive, copyAvatar, pickPerson, confirmDlg,
     hasPages: () => E.letter.pages.length > 0,
     setPages(pages) { E.letter.pages = pages; E.sel = 0; markDirty(); E.tab = "manual"; renderTop(); renderTab(); },
   };
@@ -883,7 +941,7 @@ export function mountLetterEditor(root, { store, me, toast: toastFn, readOnly = 
     return `<div class="le-field le-photo" data-ctl="${esc(d.key)}">
       <div class="le-field-h"><span class="le-lab">${esc(d.label)}</span></div>
       <div class="le-photo-box${url ? "" : " is-empty"}" data-drop-key="${esc(d.key)}">${url ? `<img src="${esc(url)}" alt="">` : `<span>${ro ? "Fotoğraf yok" : "Fotoğrafı buraya bırak"}</span>`}</div>
-      ${ro ? "" : `<div class="le-photo-acts"><button type="button" class="btn ghost sm" data-ph="pick" data-key="${esc(d.key)}">${url ? "Değiştir" : "Fotoğraf seç"}</button>
+      ${ro ? "" : `<div class="le-photo-acts"><button type="button" class="btn ghost sm" data-ph="pick" data-key="${esc(d.key)}">${url ? "Değiştir" : "Fotoğraf seç"}</button><button type="button" class="btn ghost sm" data-ph="archive" data-key="${esc(d.key)}">Arşivden seç</button>
         ${url ? `<button type="button" class="btn ghost sm" data-ph="center" data-key="${esc(d.key)}">Ortala</button><button type="button" class="btn ghost sm" data-ph="clear" data-key="${esc(d.key)}">Kaldır</button>` : ""}</div>
       ${url ? `<label class="le-zoom">Yakınlık<input type="range" min="1" max="3" step="0.01" value="${z}" data-zoom="${esc(d.key)}"><output>${Math.round(z * 100)}%</output></label>
         <small class="le-hint">Konum için önizlemedeki fotoğrafı sürükle.</small>` : ""}`}
@@ -898,7 +956,7 @@ export function mountLetterEditor(root, { store, me, toast: toastFn, readOnly = 
       <div class="le-phlist" data-drop-key="${esc(d.key)}">
         ${arr.map((r, i) => `<div class="le-phl${i === sel ? " is-sel" : ""}"><button type="button" class="le-phl-img" data-ph="sel" data-key="${esc(d.key)}" data-i="${i}" aria-pressed="${i === sel}" aria-label="${i + 1}. fotoğrafı seç"><img src="${esc(photoUrl(r))}" alt=""></button>
           ${ro ? "" : `<span class="le-phl-acts"><button type="button" class="le-ib" data-ph="left" data-key="${esc(d.key)}" data-i="${i}" aria-label="${i + 1}. fotoğrafı öne al"${i === 0 ? " disabled" : ""}>←</button><button type="button" class="le-ib" data-ph="right" data-key="${esc(d.key)}" data-i="${i}" aria-label="${i + 1}. fotoğrafı geri al"${i === arr.length - 1 ? " disabled" : ""}>→</button><button type="button" class="le-ib le-ib-del" data-ph="del" data-key="${esc(d.key)}" data-i="${i}" aria-label="${i + 1}. fotoğrafı kaldır">✕</button></span>`}</div>`).join("")}
-        ${!ro && arr.length < MAX_PHOTOS ? `<button type="button" class="le-phl-add" data-ph="add" data-key="${esc(d.key)}"><span aria-hidden="true">＋</span>Ekle</button>` : ""}
+        ${!ro && arr.length < MAX_PHOTOS ? `<button type="button" class="le-phl-add" data-ph="add" data-key="${esc(d.key)}"><span aria-hidden="true">＋</span>Ekle</button><button type="button" class="le-phl-add" data-ph="archive-add" data-key="${esc(d.key)}"><span aria-hidden="true">▦</span>Arşivden</button>` : ""}
         ${ro && !arr.length ? `<span class="muted">Fotoğraf yok</span>` : ""}
       </div>
       ${!ro && cur ? `<label class="le-zoom">${sel + 1}. fotoğraf yakınlığı<input type="range" min="1" max="3" step="0.01" value="${z}" data-zoom="${esc(d.key)}" data-i="${sel}"><output>${Math.round(z * 100)}%</output></label>` : ""}
@@ -986,6 +1044,10 @@ export function mountLetterEditor(root, { store, me, toast: toastFn, readOnly = 
         const key = ph.dataset.key, i = +ph.dataset.i, a = ph.dataset.ph, sk = p.id + key;
         const arr = Array.isArray(p.fields[key]) ? [...p.fields[key]] : null;
         if (a === "pick" || a === "add") return choosePhoto(key, a === "add" ? arr?.length ?? 0 : undefined);
+        if (a === "archive" || a === "archive-add") {
+          const at = a === "archive-add" ? arr?.length ?? 0 : undefined;
+          return pickArchive(a === "archive-add" ? Math.max(1, MAX_PHOTOS - (arr?.length ?? 0)) : 1).then(files => files.length && placePhotos(p.id, key, at, files));
+        }
         if (a === "sel") { E.photoSel[sk] = i; renderForm(); form.querySelector(`[data-ph="sel"][data-i="${i}"]`)?.focus(); return; }
         if (a === "clear") p.fields[key] = "";
         if (a === "center") { const r = p.fields[key]; if (r && typeof r === "object") { r.pos = { x: 0.5, y: 0.5 }; r.zoom = 1; } }

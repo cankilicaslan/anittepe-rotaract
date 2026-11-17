@@ -3,8 +3,8 @@
 // fotoğraf yükleme, kişi seçici ve onay penceresini sağlar (bkz. editörde `ctx`).
 // Ayrıca künye, isim/unvan biçimi ve madde eşleme gibi saf yardımcılar burada.
 
-import { esc } from "../../assets/js/letter-render.js?v=202611171907";
-import { defaultFolders, meetingLabel, missingFor, wordCount, assemblePages, LONG_WORDS } from "../../assets/js/letter-assemble.js?v=202611171907";
+import { esc } from "../../assets/js/letter-render.js?v=202611171916";
+import { defaultFolders, meetingLabel, missingFor, wordCount, assemblePages, LONG_WORDS } from "../../assets/js/letter-assemble.js?v=202611171916";
 
 export const CLUB = "Ankara Anıttepe Rotaract Kulübü";
 const MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
@@ -254,7 +254,7 @@ export function mountFolders(host, ctx) {
     return `<div class="lf-one${url ? " has" : ""}" data-drop="${esc(h)}">
       ${url ? `<img src="${esc(url)}" alt="${esc(label)}">` : `<span class="lf-one-ph" aria-hidden="true">＋</span>`}
       <div class="lf-one-txt">${url ? `<b>${esc(label)} eklendi</b><small>Konumu ve yakınlığı elle düzenleyicide ayarlanır.</small>` : `<b>${esc(label)} yok</b><small>${ro ? "" : "Sürükleyip bırak ya da seç."}</small>`}</div>
-      ${ro ? "" : `<div class="lf-one-acts"><button type="button" class="btn ghost sm" data-a="pick" data-h="${esc(h)}">${url ? "Değiştir" : "Fotoğraf seç"}</button>${url ? `<button type="button" class="btn ghost sm" data-a="unphoto" data-h="${esc(h)}">Kaldır</button>` : ""}${av}</div>`}
+      ${ro ? "" : `<div class="lf-one-acts"><button type="button" class="btn ghost sm" data-a="pick" data-h="${esc(h)}">${url ? "Değiştir" : "Fotoğraf seç"}</button><button type="button" class="btn ghost sm" data-a="archive" data-h="${esc(h)}">Arşivden seç</button>${url ? `<button type="button" class="btn ghost sm" data-a="unphoto" data-h="${esc(h)}">Kaldır</button>` : ""}${av}</div>`}
     </div>`;
   }
 
@@ -268,7 +268,7 @@ export function mountFolders(host, ctx) {
           <button type="button" class="lf-star" data-a="star" data-h="${esc(h)}" data-i="${i}" aria-pressed="${on}" aria-label="${i + 1}. fotoğrafı sayfada kullan" title="${on ? "Sayfada bu fotoğraf kullanılacak" : auto ? "Seçim yok: ilk fotoğraf kullanılır" : "Sayfada bunu kullan"}"${ro ? " disabled" : ""}>★</button>
           ${ro ? "" : `<button type="button" class="lf-del" data-a="del-photo" data-h="${esc(h)}" data-i="${i}" aria-label="${i + 1}. fotoğrafı kaldır">✕</button>`}</figure>`;
       }).join("")}
-      ${ro ? (photos.length ? "" : `<p class="lf-hint">Fotoğraf yok.</p>`) : `<button type="button" class="lf-add" data-a="pick-multi" data-h="${esc(h)}"><span aria-hidden="true">＋</span>Fotoğraf ekle<small>ya da sürükle</small></button>`}
+      ${ro ? (photos.length ? "" : `<p class="lf-hint">Fotoğraf yok.</p>`) : `<button type="button" class="lf-add" data-a="pick-multi" data-h="${esc(h)}"><span aria-hidden="true">＋</span>Fotoğraf ekle<small>ya da sürükle</small></button><button type="button" class="lf-add" data-a="archive-multi" data-h="${esc(h)}"><span aria-hidden="true">▦</span>Arşivden seç<small>fotoğraf arşivinden</small></button>`}
     </div>`;
   }
 
@@ -512,6 +512,11 @@ export function mountFolders(host, ctx) {
     const a = b.dataset.a, h = b.dataset.h, f = F();
     if (a === "generate") return generate();
     if (ro) return;
+    if (a === "archive" || a === "archive-multi") {
+      const files = await ctx.pickArchive(a === "archive-multi" ? 20 : 1);
+      if (files.length) await addPhotos(h, files);
+      return;
+    }
     if (a === "pick" || a === "pick-multi") {
       const files = await ctx.pickFiles(a === "pick-multi");
       if (files.length) await addPhotos(h, files);

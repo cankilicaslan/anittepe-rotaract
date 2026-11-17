@@ -1719,3 +1719,30 @@ returns boolean language sql stable security definer set search_path = public as
                  where p.id = auth.uid() and p.status = 'active' and r = any(p.roles))
       or exists (select 1 from public.app_owners o where o.user_id = auth.uid());
 $$;
+
+-- =====================================================================
+-- v45: Site sahibinin profili, gizli bilgileri, görevleri ve yetkisi panelden başkası tarafından
+--      değiştirilemez ve silinemez (yalnızca kendisi düzenler; SQL editörü/servis anahtarı hariç).
+--      SECURITY DEFINER fonksiyonlar da (ör. convert_guest) çağıranın kimliğiyle bu kurala takılır.
+-- =====================================================================
+create or replace function public.guard_owner_profile()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare target uuid;
+begin
+  target := case tg_table_name when 'profile_private' then coalesce(new.member_id, old.member_id)
+                               else coalesce(old.id, new.id) end;
+  if auth.uid() is not null and auth.uid() <> target
+     and exists (select 1 from public.app_owners o where o.user_id = target) then
+    raise exception 'Bu üyenin bilgileri panelden değiştirilemez.';
+  end if;
+  return coalesce(new, old);
+end $$;
+drop trigger if exists profiles_owner_guard on public.profiles;
+create trigger profiles_owner_guard before update or delete on public.profiles
+  for each row execute function public.guard_owner_profile();
+drop trigger if exists profile_private_owner_guard on public.profile_private;
+create trigger profile_private_owner_guard before insert or update or delete on public.profile_private
+  for each row execute function public.guard_owner_profile();
+-- Sahiplik kaydına panelden kimse dokunamaz (politika yok = erişim yok; açıkça kapatılır)
+alter table public.app_owners enable row level security;
+revoke insert, update, delete on public.app_owners from anon, authenticated;

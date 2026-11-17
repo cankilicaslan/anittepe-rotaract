@@ -1275,17 +1275,24 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   aiBtn.addEventListener('click', async () => {
     if (readOnly || state.busy) return;
     const f = postFields();
-    if (state.caption.trim() && !confirm('Mevcut açıklamanın yerine yenisi yazılsın mı?')) return;
     setBusy(true);
     const orig = aiBtn.lastChild.textContent;
     aiBtn.lastChild.textContent = ' Yazılıyor…';
     try {
       const res = await store.generateCaption({ ...f, date: state.date, hybridhub: f.type === 'toplanti' && state.hybridhub });
-      state.caption = (res && res.caption) || '';
+      const next = (res && res.caption) || '';
+      // Mevcut açıklama varsa yeni metni göstererek sor; onaylanmazsa eskisi kalır
+      if (state.caption.trim() && next && state.caption.trim() !== next.trim()) {
+        const words = next.trim().split(/\s+/).length;
+        if (!confirm(`Şu anki açıklama silinir. Yeni açıklama (${words} kelime):\n\n${next}\n\nBu açıklama kullanılsın mı?`)) return;
+      }
+      state.caption = next;
       state.captionSource = res && res.source;
       captionTa.value = state.caption;
       capCount.textContent = `${state.caption.length} / 2200`;
-      capNote.hidden = state.captionSource !== 'sablon';
+      // Başkan Mektubu'ndaki gibi: yapay zekâ yazmadıysa nedenini söyle
+      capNote.textContent = state.captionSource === 'notlar' ? 'Yapay zekâ metin yazmadı; notların kullanıldı.' : store.mode === 'demo' ? 'Demo modunda şablonla yazıldı' : 'Yapay zekâya ulaşılamadı; şablonla yazıldı.';
+      capNote.hidden = state.captionSource !== 'sablon' && state.captionSource !== 'notlar';
       captionTa.focus();
     } catch (e) {
       toast(e.message || 'Açıklama yazılamadı.', 'error');

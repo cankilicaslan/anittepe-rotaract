@@ -8,7 +8,7 @@
 //
 // Gerekli secret: ANTHROPIC_API_KEY  (SUPABASE_URL ve SUPABASE_ANON_KEY Supabase tarafından otomatik verilir)
 
-import Anthropic from "npm:@anthropic-ai/sdk";
+import Anthropic from "npm:@anthropic-ai/sdk@1.8.0";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const CORS_HEADERS: Record<string, string> = {
@@ -55,7 +55,8 @@ async function requirePrOrBaskan(req: Request) {
     throw new HttpError(403, "Üye profiliniz bulunamadı.");
   }
   const roles: string[] = profile.roles ?? [];
-  if (profile.status !== "active" || !(roles.includes("pr") || roles.includes("baskan"))) {
+  const { data: isAdmin } = await supabase.rpc("is_admin");
+  if (profile.status !== "active" || !(roles.includes("pr") || isAdmin === true)) {
     throw new HttpError(403, "Bu işlem için Halkla İlişkiler veya Başkan yetkisi gerekiyor.");
   }
   return { user: userData.user, profile };
@@ -71,8 +72,10 @@ Yazım kuralları:
 - Türkçe yaz. Sıcak, samimi, içten bir ton kullan; kurumsal ve abartılı olma.
 - Tek paragraf, 2 ile 4 cümle, toplam 25 ile 55 kelime.
 - Üyenin yazdığı notlar ham bilgidir, çoğu zaman kısa ve dağınıktır. Notları olduğu gibi kopyalama ya da madde madde sıralama: içindeki bilgileri koruyarak yaratıcı, akıcı ve canlı cümlelerle yeniden kur; cümle yapılarını çeşitlendir. Yaratıcılık anlatımda olsun, bilgide değil: notlarda olmayan kişi, sayı, yer veya olay ekleme.
-- "Ocakbaşı", kulübümüzün bir üyenin evinde yaptığı samimi sohbet buluşmasının adıdır; gerçek bir ocakbaşı, mangal ya da restoran değildir. Ocakbaşı gönderilerinde ateş, ızgara, mangal, kebap, ocak, sofra gibi kelimelerin gerçek anlamını çağrıştırma; notlarda geçmiyorsa yemekten söz etme. Ev sahibinden söz etmen gerekirse "…'nın sıcacık sofrasında" gibi ifadeler değil, yalnızca "…'nın ev sahipliğinde" kalıbını kullan.
-- Açılış cümlesindeki bilgileri (toplantı numarası, tarih, mekân, başlık, ev sahibi) tekrar etme.
+- "Ocakbaşı", kulübümüzün bir üyenin evinde yaptığı samimi sohbet buluşmasının adıdır; gerçek bir ocakbaşı, mangal ya da restoran değildir. Ocakbaşı gönderilerinde ateş, ızgara, mangal, kebap, ocak, sofra gibi kelimelerin gerçek anlamını çağrıştırma; notlarda geçmiyorsa yemekten söz etme.
+- Sana gönderinin bilgileri (tür, başlık, tarih, toplantı numaraları, ev sahibi) ayrıca verilir. Bunlar bağlamı anlaman içindir; açılış cümlesinde zaten yazdıkları için paragrafta tekrar etme.
+- Örnek dil: "Bu akşam hem dönem hedeflerimizi konuştuk hem de yeni üyelerimizi aramızda görmenin mutluluğunu yaşadık.", "Gönüllülerimizle birlikte topladığımız kitapları okullara ulaştırdık." gibi akıcı, içten ve doğal cümleler kur.
+- Ev sahibinden söz etmen gerekirse yalnızca sana verilen hazır "Ev sahipliği ifadesi"ni aynen kullan; başka kalıp ya da ek kullanma.
 - Not verilmediyse yalnızca türe uygun, bilgi uydurmayan tek bir sıcak cümle yaz.
 - Uzun tire (—) ve kısa tire (–) kullanma.
 - Klişelerden kaçın: "unutulmaz bir gün", "dolu dolu", "harika bir etkinlik", "birlikte daha güçlüyüz", "kelimeler yetersiz" gibi kalıpları kullanma.
@@ -146,10 +149,18 @@ function buildOpening(body: Record<string, unknown>, title: string, host: string
   return `${name}${when} gerçekleşti.`;
 }
 
-function buildUserPrompt(body: Record<string, unknown>, opening: string, notes: string): string {
+function buildUserPrompt(body: Record<string, unknown>, opening: string, notes: string, title: string, host: string): string {
   const type = String(body.type ?? "");
+  const info = [`Gönderi türü: ${TYPE_LABELS[type] ?? type}`];
+  if (title) info.push(`Başlık: ${title}`);
+  const dateTr = formatDateTr(body.date);
+  if (dateTr) info.push(`Tarih: ${dateTr}`);
+  if (toInt(body.club_no)) info.push(`Kulüp toplantı numarası: ${toInt(body.club_no)}`);
+  if (toInt(body.term_no)) info.push(`Dönem toplantı numarası: ${toInt(body.term_no)}`);
+  if (toInt(body.ocakbasi_no)) info.push(`Dönemin kaçıncı Ocakbaşı'sı: ${toInt(body.ocakbasi_no)}`);
+  if (host) info.push(`Ev sahipliği ifadesi (gerekirse aynen kullan): "${genitive(host)} ev sahipliğinde"`);
   return [
-    `Gönderi türü: ${TYPE_LABELS[type] ?? type}`,
+    ...info,
     `Hazır açılış cümlesi (tekrar etme): ${opening}`,
     notes
       ? `Üyenin notları (ham bilgi; kopyalama, bu bilgilerle yaratıcı ve akıcı cümleler kur):\n${notes}`
@@ -197,22 +208,25 @@ Deno.serve(async (req: Request) => {
       betas: ["server-side-fallback-2026-07-01"],
       fallbacks: "default",
       system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: buildUserPrompt(body, opening, notes) }],
+      messages: [{ role: "user", content: buildUserPrompt(body, opening, notes, title, host) }],
     });
 
     if (response.stop_reason === "refusal") {
       throw new HttpError(422, "Yapay zekâ bu içerik için açıklama yazmadı. Özeti değiştirip tekrar deneyin veya şablonu kullanın.");
     }
 
-    const text = response.content
+    let text = response.content
       .filter((b) => b.type === "text")
       .map((b) => (b as { type: "text"; text: string }).text)
       .join("")
       .trim();
-    if (!text) throw new HttpError(502, "Yapay zekâdan boş yanıt geldi. Lütfen tekrar deneyin.");
+    // Yarıda kesilen ya da boş yanıt yerine notlar kullanılır (Başkan Mektubu yapay zekâsındaki gibi)
+    if (response.stop_reason === "max_tokens") { console.error("caption: yanıt max_tokens nedeniyle kesildi"); text = ""; }
+    const para = cleanCaption(text) || cleanCaption(notes.replace(/\s*\n\s*/g, " "));
+    const source = cleanCaption(text) ? "ai" : "notlar";
 
     const tags = TAGS + (body.type === "ocakbasi" ? " #Ocakbaşı" : "");
-    return json({ caption: [opening, cleanCaption(text), tags].join("\n\n"), source: "ai" });
+    return json({ caption: [opening, para, tags].filter(Boolean).join("\n\n"), source });
   } catch (err) {
     if (err instanceof HttpError) return json({ error: err.message }, err.status);
     if (err instanceof Anthropic.APIError) {

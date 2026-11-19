@@ -1,6 +1,6 @@
 // Supabase Edge Function: meeting-reminder
 // Her sabah zamanlayıcı (pg_cron) çağırır. 6 gün sonra yapılacak toplantı varsa, Yoklama'daki WhatsApp
-// toplantı duyurusunun aynısını kulüp Gmail'inden tüm aktif üyelere ve e-postası kayıtlı misafirlere gönderir.
+// toplantı duyurusunun aynısını kulüp Gmail'inden e-postası kayıtlı tüm üyelere (onay bekleyen ve pasif dahil) ve misafirlere gönderir.
 //
 // Güvenlik: kimlik istemez; ama her toplantı için yalnızca bir kez gönderir (reminder_log: kind = "meeting:<id>").
 // Yanıtta kişisel bilgi döndürülmez (yalnızca sayılar).
@@ -83,7 +83,7 @@ Deno.serve(async (req: Request) => {
     if (!meetings?.length) return json({ ok: true, sent: 0, reason: `${target} tarihinde toplantı yok.` });
 
     const [{ data: members, error: pErr }, { data: guests, error: gErr }] = await Promise.all([
-      admin.from("profiles").select("email").eq("status", "active"),
+      admin.from("profiles").select("email"),  // onay bekleyen ve pasif üyeler dahil herkes
       admin.from("guests").select("email"),
     ]);
     if (pErr) throw pErr;

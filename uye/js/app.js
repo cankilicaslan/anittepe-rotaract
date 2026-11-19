@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611191633";
-import { createStore, trDate } from "./store.js?v=202611191633";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611191633";
+import * as BP from "./board-plan.js?v=202611191642";
+import { createStore, trDate, guestAsMe } from "./store.js?v=202611191642";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611191642";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -58,6 +58,18 @@ function readOnlyStore(st) {
     return typeof v === "function" ? v.bind(t) : v;
   } });
 }
+// Misafir hesabı: yalnızca kendi bilgilerini, fotoğrafını ve şifresini değiştirebilir; diğer her şey salt okunur.
+const GUEST_WRITES = ["updateMyGuest", "uploadGuestPhoto", "updatePassword", "signOut", "setViewTerm"];
+function guestStore(st) {
+  const block = async () => { throw new Error("Misafir hesabıyla bu işlem yapılamaz."); };
+  return new Proxy(st, { get(t, k) {
+    if (k === "__guest") return true;
+    if (k === "__raw") return t;
+    const v = t[k];
+    if (typeof v === "function" && !GUEST_WRITES.includes(k) && /^(save|create|update|delete|set|upload|send|approve|add|reset|publish|unpublish|invite|remove|mark|copy|siteEdit|convert)/.test(String(k))) return block;
+    return typeof v === "function" ? v.bind(t) : v;
+  } });
+}
 function startPreview(profile, label) {
   if (realPlanMe) { me = realPlanMe; realPlanMe = null; store.setViewTerm?.(null); }
   realMe = me; realStore = store;
@@ -74,11 +86,13 @@ function endPreview() {
 }
 async function previewPicker() {
   const members = (await store.listMembers()).filter(m => m.status === "active" && m.id !== me.id).sort((a, b) => a.full_name.localeCompare(b.full_name, "tr"));
+  const guests = (await store.listGuests().catch(() => [])).sort((a, b) => a.full_name.localeCompare(b.full_name, "tr"));
   let d = document.getElementById("pv-dlg"); if (!d) { d = document.createElement("dialog"); d.id = "pv-dlg"; d.className = "bday-dlg"; document.body.appendChild(d); }
   d.innerHTML = `<form method="dialog"><h2>Paneli başka gözle gör</h2>
     <p class="muted" style="margin:0 0 12px">Seçtiğin görevin ya da üyenin panelini, onun gördüğü menü ve yetkilerle açar. Önizlemede hiçbir değişiklik kaydedilmez.</p>
     ${PREVIEW_GROUPS().map(([g, list]) => `<p class="pv-grp">${g}</p><div class="pv-roles">${list.map(([k, l]) => `<button type="button" class="pv-role" data-pr="${k}"><b>${esc(l)}</b><small>${esc(rolePagesNote(k))}</small></button>`).join("")}</div>`).join("")}
     <label class="f" style="margin-top:14px">Belirli bir üye gibi gör<select id="pv-m"><option value="">Üye seç…</option>${members.map(m => `<option value="${m.id}">${esc(m.full_name)}${m.title ? " · " + esc(m.title) : ""}</option>`).join("")}</select></label>
+    ${guests.length ? `<label class="f" style="margin-top:10px">Belirli bir misafir gibi gör<select id="pv-g"><option value="">Misafir seç…</option>${guests.map(g => `<option value="${g.id}">${esc(g.full_name)}${g.user_id ? " · panel hesabı var" : ""}</option>`).join("")}</select></label>` : ""}
     <div class="row" style="margin-top:16px"><button class="btn ghost" value="close">Vazgeç</button></div></form>`;
   if (!d.open) d.showModal();
   d.querySelectorAll("[data-pr]").forEach(b => b.onclick = () => {
@@ -88,6 +102,8 @@ async function previewPicker() {
     if (k === "uye") base.title = "Üye";
     d.close(); startPreview(base, label);
   });
+  const pg = d.querySelector("#pv-g");
+  if (pg) pg.onchange = e => { const g = guests.find(x => x.id === e.target.value); if (g) { d.close(); startPreview(guestAsMe(g), g.full_name + " (misafir)"); } };
   d.querySelector("#pv-m").onchange = e => { const m = members.find(x => x.id === e.target.value); if (m) { d.close(); startPreview(m, m.full_name); } };
 }
 let toastT;
@@ -142,6 +158,10 @@ function linkErrorView(code) {
 
 function render() {
   if (pwMode) return;
+  // Misafir oturumunda depo salt okunur sarılır; çıkış yapılıp üye girerse eski hâline döner
+  if (me?.is_guest && !preview && !store.__guest) store = guestStore(store);
+  else if (!me?.is_guest && store?.__guest) store = store.__raw;
+  document.body.classList.toggle("is-guest", !!me?.is_guest);
   if (!me) return authView();
   if (me.status === "pending") return pendingView();
   if (me.status === "passive") return pendingView(true);
@@ -316,7 +336,7 @@ const PAGES = [
   { id: "kulup-projeleri", label: "Kulüp projeleri", show: () => true },
   { id: "kulupler", label: "Diğer kulüplerin etkinlikleri", show: () => true },
   { id: "arsiv", label: "Fotoğraf arşivi", show: () => true },
-  { id: "yukle", label: "Fotoğraf yükle", show: () => true, hidden: true },
+  { id: "yukle", label: "Fotoğraf yükle", show: () => !me?.is_guest, hidden: true },
   { grp: "Yönetim", mgmt: true },
   // Gelecek dönemi planla: yalnızca asbaşkan ve site sahibi; Yönetim'in en üstünde, pembe düğme görünümünde
   { id: "plan", label: "Gelecek dönemi planla", show: () => isPlanner() },
@@ -677,6 +697,7 @@ function cropPhoto(file) {
 
 /* ------------------------------ Profil ------------------------------ */
 async function viewProfile(v) {
+  if (me.is_guest) return viewGuestProfile(v);
   const [meetings, att, charges, dues, priv] = await Promise.all([store.listMeetings(), store.listAttendance(), store.listCharges(), store.listDues(), store.getPrivate(me.id)]);
   const st = attendanceStats(me.id, meetings, att, memberStartNo(me, meetings));
   const debt = debtOf(me.id, charges, dues);
@@ -746,11 +767,69 @@ async function viewProfile(v) {
   };
 }
 
+// Misafirin profili: geldiği toplantılar, bilgileri, fotoğrafı ve şifresi (aidat ve görev yok)
+async function viewGuestProfile(v) {
+  const [meetings, gatt, priv] = await Promise.all([store.listMeetings().catch(() => []), store.listGuestAttendance().catch(() => []), store.getGuestPrivate(me.guest_id).catch(() => ({}))]);
+  const date = new Map(meetings.map(m => [m.id, m.date]));
+  const mine = gatt.filter(a => a.guest_id === me.guest_id && a.status === "geldi").map(a => date.get(a.meeting_id)).filter(Boolean).sort();
+  v.innerHTML = header("Profilim") + `
+  <div class="card"><div class="profile-head">
+    <div class="photo-btn">${avatar(me, "lg")}<label>Değiştir<input type="file" accept="image/*" id="photo" class="sr"></label></div>
+    <div><h2>${esc(me.full_name)}</h2><p style="margin:2px 0 8px;font-weight:600">Misafir</p><div class="row"><span class="tag">Misafir</span></div></div>
+  </div></div>
+  <div class="stats" style="margin-top:16px">
+    <div class="stat"><span>Geldiğin toplantı</span><b>${mine.length}</b></div>
+    <div class="stat"><span>İlk geldiğin toplantı</span><b>${mine.length ? trDate(mine[0]) : "—"}</b></div>
+    <div class="stat"><span>Son geldiğin toplantı</span><b>${mine.length ? trDate(mine[mine.length - 1]) : "—"}</b></div>
+  </div>
+  <form class="card" id="f-me" style="margin-top:16px"><h2>Bilgilerim</h2>
+    <div class="grid g2">
+      <label class="f">Ad soyad<input type="text" name="full_name" value="${esc(me.full_name)}" required></label>
+      <label class="f">Telefon<input type="tel" name="phone" value="${esc(me.phone)}"></label>
+      <label class="f">E-posta <small>Değiştirmek için başkana yazın</small><input type="email" value="${esc(me.email)}" disabled></label>
+      <label class="f">Doğum tarihi<input type="date" name="birth_date" value="${esc(me.birth_date || "")}"></label>
+      <label class="f">Meslek / okul<input type="text" name="profession" value="${esc(me.profession)}"></label>
+      <label class="f">Instagram<input type="text" name="instagram" value="${esc(me.instagram || "")}" placeholder="@kullaniciadi"></label>
+      <label class="f">Kan grubu <small>Yalnızca sen ve başkan görür</small><input type="text" name="blood_type" value="${esc(priv.blood_type || "")}" placeholder="ör. A Rh+"></label>
+    </div>
+    <div class="row" style="margin-top:14px"><button class="btn" type="submit">Kaydet</button></div>
+  </form>
+  <form class="card" id="f-pw" style="margin-top:16px" novalidate><h2>Şifre değiştir</h2>
+    <input type="email" name="username" value="${esc(me.email)}" autocomplete="username" hidden>
+    <div class="grid g2">
+      <label class="f">Yeni şifre <small>En az 8 karakter</small><input type="password" name="pw" autocomplete="new-password" minlength="8" required></label>
+      <label class="f">Yeni şifre (tekrar)<input type="password" name="pw2" autocomplete="new-password" minlength="8" required></label>
+    </div>
+    <p class="err" id="pw-err" role="alert" hidden style="margin:12px 0 0"></p>
+    <div class="row" style="margin-top:14px"><button class="btn" type="submit">Şifremi değiştir</button></div>
+  </form>`;
+  document.getElementById("f-pw").onsubmit = async e => {
+    e.preventDefault(); const f = e.target, err = document.getElementById("pw-err");
+    const show = m => { err.textContent = m; err.hidden = !m; };
+    if (f.pw.value.length < 8) return show("Şifre en az 8 karakter olmalı.");
+    if (f.pw.value !== f.pw2.value) return show("İki şifre aynı değil.");
+    show("");
+    const b = f.querySelector("button"); b.disabled = true;
+    try { await store.updatePassword(f.pw.value); f.reset(); toast("Şifren değiştirildi. Bir sonraki girişte yeni şifreni kullan."); }
+    catch (er) { show(er.message); }
+    b.disabled = false;
+  };
+  document.getElementById("photo").onchange = async e => {
+    const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+    const blob = await cropPhoto(f); if (!blob) return;
+    try { await store.uploadGuestPhoto(new File([blob], "profil.jpg", { type: "image/jpeg" })); me = await store.me(); toast("Profil fotoğrafın güncellendi."); refresh(); } catch (er) { fail(er); }
+  };
+  document.getElementById("f-me").onsubmit = async e => {
+    e.preventDefault(); const d = Object.fromEntries(new FormData(e.target));
+    try { await store.updateMyGuest(d); me = await store.me(); toast("Bilgilerin kaydedildi."); refresh(); } catch (er) { fail(er); }
+  };
+}
+
 /* ---------------------------- Üye listesi ---------------------------- */
 async function viewMembers(v) {
   const admin = hasRole(me, "baskan");
   const [members, accounts, guestsFull, guestNames, gatt, gMeetings] = await Promise.all([store.listMembers(), store.listAccounts(),
-    store.listGuests().catch(() => []), (store.listGuestNames ? store.listGuestNames() : Promise.resolve([])).catch(() => []), store.listGuestAttendance().catch(() => []), store.listMeetings().catch(() => [])]);
+    me.is_guest ? Promise.resolve([]) : store.listGuests().catch(() => []), (store.listGuestNames ? store.listGuestNames() : Promise.resolve([])).catch(() => []), store.listGuestAttendance().catch(() => []), store.listMeetings().catch(() => [])]);
   // Kan grubu: Başkan (ve site sahibi) listede görür; veri gizli tablolardan gelir
   const blood = admin && store.listBloodTypes ? await store.listBloodTypes().catch(() => ({ members: {}, guests: {} })) : null;
   const bloodTd = v => blood ? `<td data-label="Kan grubu">${esc(v) || none}</td>` : "";
@@ -965,6 +1044,8 @@ async function editGuest(g) {
       <label class="f">Kan grubu<input type="text" name="blood_type" value="${esc(priv.blood_type || "")}" placeholder="ör. A Rh+"></label>
       <label class="f">Not<input type="text" name="note" value="${esc(g.note || "")}"></label>
     </div>
+    <div class="g-acct">${g.user_id ? '<span class="tag ok">Panel hesabı var</span> <small class="muted">Misafir panele kendi şifresiyle girer.</small>'
+      : `<button type="button" class="btn ghost sm" id="g-invite" ${g.email ? "" : "disabled"}>Panele davet et</button> <small class="muted">${g.email ? "E-posta adresine şifre belirleme bağlantısı gider." : "Davet için önce e-posta adresini kaydet."}</small>`}</div>
     <div class="row"><button class="btn" value="save">Kaydet</button><button class="btn ghost" value="cancel" formnovalidate>Vazgeç</button></div>
   </form>`;
   if (!dlg.open) dlg.showModal();
@@ -973,6 +1054,13 @@ async function editGuest(g) {
   dlg.onpointerdown = e => { downOut = outside(e); };
   dlg.onclick = e => { if (downOut && outside(e)) dlg.close(); downOut = false; };
   const form = dlg.querySelector("form");
+  const inv = dlg.querySelector("#g-invite");
+  if (inv) inv.onclick = async () => {
+    if (!confirm(`${g.full_name} için ${g.email} adresine panel daveti gönderilsin mi?`)) return;
+    inv.disabled = true; inv.textContent = "Gönderiliyor…";
+    try { await store.inviteGuest(g.id); dlg.close(); toast(`${esc(g.full_name)} panele davet edildi.`); refresh(); }
+    catch (er) { fail(er); inv.disabled = false; inv.textContent = "Panele davet et"; }
+  };
   form.onsubmit = async e => {
     if (e.submitter?.value !== "save") return;
     e.preventDefault();
@@ -1810,7 +1898,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611191633");
+  const { mountComposer } = await import("./composer.js?v=202611191642");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1819,7 +1907,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611191633");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611191642");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

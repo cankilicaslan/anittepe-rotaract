@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611191633";
-import { can, hasRole, hasAnyRole } from "./roles.js?v=202611191633";
+import { CONFIG } from "./config.js?v=202611191642";
+import { can, hasRole, hasAnyRole } from "./roles.js?v=202611191642";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -25,6 +25,10 @@ function genitive(name) {
   const v = soft ? "i" : "aı".includes(last) ? "ı" : "ei".includes(last) ? "i" : "ou".includes(last) ? "u" : "ü";
   return `${name.trim()}’${vowels.includes(w.slice(-1)) ? "n" : ""}${v}n`;
 }
+
+// Misafir hesabı: panelde üyelerin gördüğünü görür ama görevi yoktur; her yerde "Misafir" olarak görünür.
+export const guestAsMe = g => ({ id: g.user_id || "guest-" + g.id, guest_id: g.id, user_id: g.user_id || null, is_guest: true, status: "guest", roles: [], past_president: false, hide_roles: false, title: "Misafir",
+  full_name: g.full_name, phone: g.phone || "", email: g.email || "", birth_date: g.birth_date || null, profession: g.profession || "", instagram: g.instagram || "", photo_url: g.photo_url || "" });
 
 export function templateCaption({ type, term_no, club_no, ocakbasi_no, summary, date, hybridhub }) {
   // Özet "Başlık: …", "Ev sahibi: …", "Kısa açıklama: …" satırlarını içerebilir.
@@ -380,6 +384,9 @@ function demoStore() {
     },
     async setGuestStart(id, meetingId) { need("yoklama"); const g = S.guests.find(x => x.id === id); if (!g) throw new Error("Misafir bulunamadı."); g.start_meeting_id = meetingId || null; save(); },
     async listBloodTypes() { if (!hasRole(me(), "baskan")) return { members: {}, guests: {} }; const pick = o => Object.fromEntries(Object.entries(o || {}).map(([k, v]) => [k, v?.blood_type || ""])); return { members: pick(S.privates), guests: pick(S.guestPrivates) }; },
+    async inviteGuest(guest_id) { if (!(hasRole(me(), "baskan") || hasRole(me(), "sekreter"))) throw new Error("Misafir davet etmek için Başkan ya da Sekreter yetkisi gerekiyor."); const g = S.guests.find(x => x.id === guest_id); if (!g) throw new Error("Misafir bulunamadı."); if (!g.email) throw new Error("Önce misafirin e-posta adresini kaydedin."); g.user_id = "demo-" + uid(); save(); return { ok: true }; },
+    async updateMyGuest() { throw new Error("Demo modunda misafir hesabıyla giriş yok."); },
+    async uploadGuestPhoto() { throw new Error("Demo modunda misafir hesabıyla giriş yok."); },
     async getGuestPrivate(id) { return can(me(), "yoklama") ? clone((S.guestPrivates || {})[id] || {}) : {}; },
     async deleteGuest(id) { need("yoklama"); S.guests = S.guests.filter(g => g.id !== id); S.guestAtt = S.guestAtt.filter(a => a.guest_id !== id); save(); },
     async listGuestAttendance() { return can(me(), "yoklama") ? clone(S.guestAtt) : []; },
@@ -566,6 +573,7 @@ async function supabaseStore() {
     async me() {
       const id = await meId(); if (!id) return null;
       const { data } = await sb.from("profiles").select("*").eq("id", id).maybeSingle();
+      if (!data) { const { data: g } = await sb.from("guests").select("*").eq("user_id", id).maybeSingle(); if (g) return guestAsMe(g); }
       const p = data || { id, full_name: "", status: "pending", roles: [] };
       try { const { data: o } = await sb.rpc("is_owner"); if (o === true) p.is_owner = true; } catch {}
       return p;
@@ -690,6 +698,15 @@ async function supabaseStore() {
       const [m, g] = await Promise.all([sb.from("profile_private").select("member_id, blood_type"), sb.from("guest_private").select("guest_id, blood_type")]);
       return { members: Object.fromEntries((m.data || []).map(r => [r.member_id, r.blood_type || ""])), guests: Object.fromEntries((g.data || []).map(r => [r.guest_id, r.blood_type || ""])) };
     },
+    async inviteGuest(guest_id) { return fn("invite-member", { kind: "guest", guest_id }); },
+    async updateMyGuest(patch) { return ok(await sb.rpc("update_my_guest", { p: patch })); },
+    async uploadGuestPhoto(file) {
+      const id = await meId(); const blob = await squareBlob(file, 480);
+      const path = `${id}/${Date.now()}.jpg`;
+      ok(await sb.storage.from("avatars").upload(path, blob, { contentType: "image/jpeg", upsert: true }));
+      const url = sb.storage.from("avatars").getPublicUrl(path).data.publicUrl;
+      await this.updateMyGuest({ photo_url: url }); return url;
+    },
     async getGuestPrivate(id) { const { data } = await sb.from("guest_private").select("*").eq("guest_id", id).maybeSingle(); return data || {}; },
     async deleteGuest(id) { ok(await sb.from("guests").delete().eq("id", id)); },
     async listGuestAttendance() {
@@ -744,9 +761,15 @@ async function supabaseStore() {
     async addMember(d) { const r = await fn("invite-member", d); return r.profile; },
     // Misafiri üye yap: davet (profil) + sunucuda devam/aidat aktarımı ve misafir kaydının silinmesi.
     async convertGuest({ guest_id, full_name, email, phone, joined_at }) {
-      const r = await fn("invite-member", { full_name, email, phone, joined_at, title: "Üye" });
-      const res = ok(await sb.rpc("convert_guest", { p_guest: guest_id, p_member: r.profile.id, p_joined: joined_at }));
-      return { profile: r.profile, attendance: res?.attendance ?? 0, charges: res?.charges ?? 0 };
+      // Panel hesabı olan misafir: aynı hesaba üye profili açılır (yeni davet gitmez)
+      const { data: gg } = await sb.from("guests").select("user_id").eq("id", guest_id).maybeSingle();
+      let profile;
+      if (gg?.user_id) {
+        const uid = ok(await sb.rpc("guest_member_profile", { p_guest: guest_id, p_joined: joined_at }));
+        profile = ok(await sb.from("profiles").update({ full_name, phone: phone || null }).eq("id", uid).select().single());
+      } else profile = (await fn("invite-member", { full_name, email, phone, joined_at, title: "Üye" })).profile;
+      const res = ok(await sb.rpc("convert_guest", { p_guest: guest_id, p_member: profile.id, p_joined: joined_at }));
+      return { profile, attendance: res?.attendance ?? 0, charges: res?.charges ?? 0 };
     },
     async getPrivate(id) { const { data } = await sb.from("profile_private").select("*").eq("member_id", id).maybeSingle(); return data || {}; },
     async listClubEvents() { return ok(await sb.from("club_events").select("*").order("date")); },

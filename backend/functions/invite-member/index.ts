@@ -2,6 +2,8 @@
 // Başkan yeni bir üyeyi e-postayla davet eder. Üyenin profili doğrudan "active" olarak oluşturulur;
 // üye e-postadaki bağlantıya tıklayıp şifresini belirleyerek panele girer.
 // Yalnızca aktif "baskan" rolündeki üyeler çağırabilir.
+// Misafir daveti: Body { kind: "guest", guest_id } → misafirin kayıtlı e-postasına davet gider; profil açılmaz,
+// hesap guests.user_id ile bağlanır (handle_new_user). Başkan, sekreter ya da site sahibi çağırabilir.
 //
 // POST ${SUPABASE_URL}/functions/v1/invite-member
 // Header: Authorization: Bearer <kullanıcının access token'ı>
@@ -37,7 +39,7 @@ class HttpError extends Error {
   }
 }
 
-async function requireBaskan(req: Request) {
+async function requireBaskan(req: Request, guest = false) {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader || !authHeader.toLowerCase().startsWith("bearer ")) {
     throw new HttpError(401, "Oturum bulunamadı. Lütfen tekrar giriş yapın.");
@@ -60,7 +62,8 @@ async function requireBaskan(req: Request) {
   if (profErr || !profile) throw new HttpError(403, "Üye profiliniz bulunamadı.");
   // Başkan ya da site sahibi (is_admin) davet edebilir.
   const { data: isAdmin } = await supabase.rpc("is_admin");
-  if (profile.status !== "active" || isAdmin !== true) {
+  const { data: isSek } = guest ? await supabase.rpc("has_role", { r: "sekreter" }) : { data: false };
+  if (profile.status !== "active" || (isAdmin !== true && isSek !== true)) {
     throw new HttpError(403, "Üye davet etmek için Başkan yetkisi gerekiyor.");
   }
   return { user: userData.user, profile };
@@ -92,19 +95,54 @@ function instagramHandle(v: unknown): string | null {
   return h ? h.slice(0, 30) : null;
 }
 
+async function inviteGuest(req: Request, input: Record<string, unknown>): Promise<Response> {
+  await requireBaskan(req, true);
+  const guestId = str(input.guest_id, 40);
+  if (!guestId) throw new HttpError(400, "Misafir seçilmedi.");
+  const admin = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
+  const { data: g } = await admin.from("guests").select("id, full_name, email, user_id").eq("id", guestId).maybeSingle();
+  if (!g) throw new HttpError(404, "Misafir bulunamadı.");
+  if (g.user_id) throw new HttpError(409, "Bu misafirin panel hesabı zaten var.");
+  const email = String(g.email ?? "").trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) throw new HttpError(400, "Önce misafirin e-posta adresini kaydedin.");
+  const { data: invited, error: invErr } = await admin.auth.admin.inviteUserByEmail(email, {
+    data: { kind: "guest", guest_id: g.id, full_name: g.full_name },
+    redirectTo: REDIRECT_TO,
+  });
+  if (invErr || !invited?.user) {
+    console.error("Misafir davet hatası", invErr);
+    const msg = String(invErr?.message ?? "").toLowerCase();
+    const code = String((invErr as { code?: string } | null)?.code ?? "");
+    if (code === "email_exists" || msg.includes("already been registered") || msg.includes("already registered")) {
+      throw new HttpError(409, "Bu e-posta adresiyle zaten bir hesap var (ör. bir üyenin hesabı).");
+    }
+    if ((invErr as { status?: number } | null)?.status === 429 || msg.includes("rate limit")) {
+      throw new HttpError(429, "Davet e-postası sınırına takıldı. Bir süre sonra tekrar deneyin.");
+    }
+    throw new HttpError(502, "Davet e-postası gönderilemedi. Lütfen tekrar deneyin.");
+  }
+  // Tetikleyici bağlamadıysa (ör. eski tetikleyici) burada bağla
+  await admin.from("guests").update({ user_id: invited.user.id }).eq("id", g.id).is("user_id", null);
+  return json({ ok: true, guest_id: g.id });
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
   if (req.method !== "POST") return json({ ok: false, error: "Yalnızca POST desteklenir." }, 405);
 
   try {
-    await requireBaskan(req);
-
     let input: Record<string, unknown>;
     try {
       input = await req.json();
     } catch {
       throw new HttpError(400, "İstek gövdesi geçerli bir JSON değil.");
     }
+    if (input.kind === "guest") return await inviteGuest(req, input);
+    await requireBaskan(req);
 
     const fullName = str(input.full_name, 120);
     const email = (str(input.email, 254) ?? "").toLowerCase();

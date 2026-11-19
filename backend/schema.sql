@@ -1819,3 +1819,23 @@ begin
   delete from public.guests where id = p_guest;
   return jsonb_build_object('attendance', v_att, 'charges', v_ch);
 end $$;
+
+-- =====================================================================
+-- v49: Site sahibi her yetki kontrolünden geçer. has_role (v44) canlıda yeniden uygulanır;
+--      komite başkanı kontrolü de sahibi kapsar. Bundan sonra eklenen her "yalnızca X görür" kuralı
+--      has_role / is_admin üzerinden yazılmalı ki sahip de görsün.
+-- =====================================================================
+create or replace function public.has_role(r text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.profiles p
+                 where p.id = auth.uid() and p.status = 'active' and r = any(p.roles))
+      or exists (select 1 from public.app_owners o where o.user_id = auth.uid());
+$$;
+
+create or replace function public.is_committee_chair()
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.profiles p
+                 where p.id = auth.uid() and p.status = 'active'
+                   and p.roles && array['hizmet','uyelik','uluslararasi','pr','kulup','meslek','afet','hobi','interact']::text[])
+      or exists (select 1 from public.app_owners o where o.user_id = auth.uid());
+$$;

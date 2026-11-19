@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611191608";
-import { can, hasRole, hasAnyRole } from "./roles.js?v=202611191608";
+import { CONFIG } from "./config.js?v=202611191633";
+import { can, hasRole, hasAnyRole } from "./roles.js?v=202611191633";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -379,6 +379,7 @@ function demoStore() {
       save(); return clone(g);
     },
     async setGuestStart(id, meetingId) { need("yoklama"); const g = S.guests.find(x => x.id === id); if (!g) throw new Error("Misafir bulunamadı."); g.start_meeting_id = meetingId || null; save(); },
+    async listBloodTypes() { if (!hasRole(me(), "baskan")) return { members: {}, guests: {} }; const pick = o => Object.fromEntries(Object.entries(o || {}).map(([k, v]) => [k, v?.blood_type || ""])); return { members: pick(S.privates), guests: pick(S.guestPrivates) }; },
     async getGuestPrivate(id) { return can(me(), "yoklama") ? clone((S.guestPrivates || {})[id] || {}) : {}; },
     async deleteGuest(id) { need("yoklama"); S.guests = S.guests.filter(g => g.id !== id); S.guestAtt = S.guestAtt.filter(a => a.guest_id !== id); save(); },
     async listGuestAttendance() { return can(me(), "yoklama") ? clone(S.guestAtt) : []; },
@@ -685,6 +686,10 @@ async function supabaseStore() {
       return row;
     },
     async setGuestStart(id, meetingId) { ok(await sb.from("guests").update({ start_meeting_id: meetingId || null }).eq("id", id)); },
+    async listBloodTypes() {
+      const [m, g] = await Promise.all([sb.from("profile_private").select("member_id, blood_type"), sb.from("guest_private").select("guest_id, blood_type")]);
+      return { members: Object.fromEntries((m.data || []).map(r => [r.member_id, r.blood_type || ""])), guests: Object.fromEntries((g.data || []).map(r => [r.guest_id, r.blood_type || ""])) };
+    },
     async getGuestPrivate(id) { const { data } = await sb.from("guest_private").select("*").eq("guest_id", id).maybeSingle(); return data || {}; },
     async deleteGuest(id) { ok(await sb.from("guests").delete().eq("id", id)); },
     async listGuestAttendance() {

@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611191608";
-import { createStore, trDate } from "./store.js?v=202611191608";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611191608";
+import * as BP from "./board-plan.js?v=202611191633";
+import { createStore, trDate } from "./store.js?v=202611191633";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611191633";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -751,6 +751,10 @@ async function viewMembers(v) {
   const admin = hasRole(me, "baskan");
   const [members, accounts, guestsFull, guestNames, gatt, gMeetings] = await Promise.all([store.listMembers(), store.listAccounts(),
     store.listGuests().catch(() => []), (store.listGuestNames ? store.listGuestNames() : Promise.resolve([])).catch(() => []), store.listGuestAttendance().catch(() => []), store.listMeetings().catch(() => [])]);
+  // Kan grubu: Başkan (ve site sahibi) listede görür; veri gizli tablolardan gelir
+  const blood = admin && store.listBloodTypes ? await store.listBloodTypes().catch(() => ({ members: {}, guests: {} })) : null;
+  const bloodTd = v => blood ? `<td data-label="Kan grubu">${esc(v) || none}</td>` : "";
+  const bloodTh = blood ? '<th scope="col">Kan grubu</th>' : "";
   // Misafirler: bilgileri (telefon, e-posta, not) yalnızca yoklamayı görebilenlere; diğer üyeler yalnızca isimleri görür.
   const guests = (guestsFull && guestsFull.length ? guestsFull : (guestNames || []).map(n => ({ full_name: n })))
     .filter(g => g.full_name).sort((x, y) => x.full_name.localeCompare(y.full_name, "tr"));
@@ -804,7 +808,7 @@ async function viewMembers(v) {
       <td data-label="İletişim" class="m-contact"><div class="m-lines">${m.phone ? `<a href="tel:${esc(m.phone.replace(/\s/g, ""))}">${esc(m.phone)}</a>` : ""}${m.email ? `<a class="m-mail" href="mailto:${esc(m.email)}">${esc(m.email)}</a>` : ""}${!m.phone && !m.email ? none : ""}</div></td>
       <td data-label="Doğum günü">${bday(m) || none}</td>
       <td data-label="Meslek / okul">${esc(m.profession) || none}</td>
-      <td data-label="Instagram">${handle ? `<a href="https://instagram.com/${esc(handle)}" target="_blank" rel="noopener">@${esc(handle)}</a>` : none}</td>
+      <td data-label="Instagram">${handle ? `<a href="https://instagram.com/${esc(handle)}" target="_blank" rel="noopener">@${esc(handle)}</a>` : none}</td>${bloodTd(blood?.members[m.id])}
       <td data-label="Üyelik">${m.joined_at ? trDate(m.joined_at) : none}</td>
       ${admin ? `<td class="m-edit"><button class="btn ghost sm" data-edit="${m.id}" aria-label="${esc(m.full_name)} bilgilerini düzenle">Düzenle</button></td>` : ""}
     </tr>`;
@@ -829,11 +833,11 @@ async function viewMembers(v) {
     </div>
     <p class="muted m-count" id="mcount" role="status" aria-live="polite"></p>` +
     (acc ? `<p class="muted acct-legend"><span class="lg"><span class="acct on"></span>Siteye şifresini oluşturdu</span> <span class="lg"><span class="acct"></span>Henüz oluşturmadı</span> <span class="lg">· ${members.filter(m => acc.get(m.id)?.has_password).length}/${members.length} kişi</span></p>` : "") +
-    `<div class="tbl-wrap"><table class="stack m-table"><caption class="sr">Üye listesi</caption><thead><tr><th scope="col">Üye</th><th scope="col">İletişim</th><th scope="col">Doğum günü</th><th scope="col">Meslek / okul</th><th scope="col">Instagram</th><th scope="col">Üyelik</th>${admin ? '<th scope="col"><span class="sr">İşlem</span></th>' : ""}</tr></thead><tbody id="tb"></tbody></table></div>
+    `<div class="tbl-wrap"><table class="stack m-table"><caption class="sr">Üye listesi</caption><thead><tr><th scope="col">Üye</th><th scope="col">İletişim</th><th scope="col">Doğum günü</th><th scope="col">Meslek / okul</th><th scope="col">Instagram</th>${bloodTh}<th scope="col">Üyelik</th>${admin ? '<th scope="col"><span class="sr">İşlem</span></th>' : ""}</tr></thead><tbody id="tb"></tbody></table></div>
     <div class="empty m-empty" id="mempty" hidden><p>Aramanla eşleşen üye yok.</p><button type="button" class="btn ghost sm" id="mclear">Aramayı temizle</button></div>
     ${guests.length ? `<section class="m-guests" aria-labelledby="g-h"><div class="m-guests-h"><h2 id="g-h">Misafirler</h2><span class="tag">${guests.length}</span></div>
       ${guestDetail ? "" : '<p class="muted m-gnote">Misafirlerin iletişim bilgilerini Sekreter ve yönetim görür.</p>'}
-      <div class="tbl-wrap"><table class="stack m-table"><caption class="sr">Misafir listesi</caption><thead><tr><th scope="col">Misafir</th>${guestDetail ? '<th scope="col">İletişim</th><th scope="col">Doğum günü</th><th scope="col">Meslek / okul</th><th scope="col">Instagram</th><th scope="col">Misafirlik</th>' : ""}${admin && guestDetail ? '<th scope="col"><span class="sr">İşlem</span></th>' : ""}</tr></thead><tbody id="gtb"></tbody></table></div>
+      <div class="tbl-wrap"><table class="stack m-table"><caption class="sr">Misafir listesi</caption><thead><tr><th scope="col">Misafir</th>${guestDetail ? '<th scope="col">İletişim</th><th scope="col">Doğum günü</th><th scope="col">Meslek / okul</th><th scope="col">Instagram</th>' + bloodTh + '<th scope="col">Misafirlik</th>' : ""}${admin && guestDetail ? '<th scope="col"><span class="sr">İşlem</span></th>' : ""}</tr></thead><tbody id="gtb"></tbody></table></div>
       <p class="muted m-empty-g" id="gempty" hidden>Aramanla eşleşen misafir yok.</p></section>` : ""}
     <dialog id="dlg"></dialog>`;
   const tb = document.getElementById("tb"), qEl = document.getElementById("q");
@@ -851,7 +855,7 @@ async function viewMembers(v) {
         <td data-label="İletişim" class="m-contact"><div class="m-lines">${g.phone ? `<a href="tel:${esc(String(g.phone).replace(/\s/g, ""))}">${esc(g.phone)}</a>` : ""}${g.email ? `<a class="m-mail" href="mailto:${esc(g.email)}">${esc(g.email)}</a>` : ""}${!g.phone && !g.email ? none : ""}</div></td>
         <td data-label="Doğum günü">${bday(g) || none}</td>
         <td data-label="Meslek / okul">${esc(g.profession) || none}</td>
-        <td data-label="Instagram">${ig(g) ? `<a href="https://instagram.com/${esc(ig(g))}" target="_blank" rel="noopener">@${esc(ig(g))}</a>` : none}</td>
+        <td data-label="Instagram">${ig(g) ? `<a href="https://instagram.com/${esc(ig(g))}" target="_blank" rel="noopener">@${esc(ig(g))}</a>` : none}</td>${bloodTd(blood?.guests[g.id])}
         <td data-label="Misafirlik">${(() => { const d = firstCame.get(g.id) || (g.created_at ? g.created_at.slice(0, 10) : ""), n = came.get(g.id) || 0; return d || n ? `${d ? trDate(d) : ""}${n ? `<span class="m-sub">${n} toplantıya geldi</span>` : ""}` : none; })()}</td>` : ""}${admin && guestDetail && g.id ? `<td class="m-edit"><div class="m-gacts"><button class="btn ghost sm" data-gedit="${g.id}" aria-label="${esc(g.full_name)} bilgilerini düzenle">Düzenle</button><button class="btn sm" data-conv="${g.id}" aria-label="${esc(g.full_name)} üye al">Üye al</button></div></td>` : ""}</tr>`).join("");
       gtb.querySelectorAll("[data-gedit]").forEach(b => b.onclick = () => editGuest(guests.find(x => x.id === b.dataset.gedit)));
       gtb.querySelectorAll("[data-conv]").forEach(b => b.onclick = () => convertGuestDialog(guests.find(x => x.id === b.dataset.conv), came.get(b.dataset.conv) || 0));
@@ -1806,7 +1810,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611191608");
+  const { mountComposer } = await import("./composer.js?v=202611191633");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1815,7 +1819,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611191608");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611191633");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

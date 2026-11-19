@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611191455";
-import { createStore, trDate } from "./store.js?v=202611191455";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611191455";
+import * as BP from "./board-plan.js?v=202611191608";
+import { createStore, trDate } from "./store.js?v=202611191608";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611191608";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -756,6 +756,8 @@ async function viewMembers(v) {
     .filter(g => g.full_name).sort((x, y) => x.full_name.localeCompare(y.full_name, "tr"));
   const guestDetail = !!(guestsFull && guestsFull.length);
   const came = new Map(); (gatt || []).forEach(x => { if (x.status === "geldi") came.set(x.guest_id, (came.get(x.guest_id) || 0) + 1); });
+  // 5 toplantıya gelen misafir üyeliğe hazırdır: satır toz pembe, "Üye alınabilir" etiketi
+  const READY_VISITS = 5;
   // Misafirlik: ilk geldiği toplantının tarihi (yoksa kayıt tarihi) ve geldiği toplantı sayısı
   const mDate = new Map((gMeetings || []).map(m => [m.id, m.date]));
   const firstCame = new Map(); (gatt || []).forEach(x => { const d = mDate.get(x.meeting_id); if (x.status === "geldi" && d && (!firstCame.has(x.guest_id) || d < firstCame.get(x.guest_id))) firstCame.set(x.guest_id, d); });
@@ -845,7 +847,7 @@ async function viewMembers(v) {
     if (gtb) {
       const q = F.q, qd = q.replace(/\D/g, "").replace(/^(90|0)/, "");
       const gs = guests.filter(g => !q || [g.full_name, g.email, g.phone, g.note, g.profession, g.instagram].join(" ").toLocaleLowerCase("tr").includes(q) || (qd.length >= 3 && String(g.phone || "").replace(/\D/g, "").includes(qd)));
-      gtb.innerHTML = gs.map(g => `<tr><td class="m-who"><div class="person">${avatar(g)}<div><b>${esc(g.full_name)}</b><span>Misafir</span></div></div></td>${guestDetail ? `
+      gtb.innerHTML = gs.map(g => `<tr${(came.get(g.id) || 0) >= READY_VISITS ? ' class="g-ready"' : ""}><td class="m-who"><div class="person">${avatar(g)}<div><b>${esc(g.full_name)}</b><span>Misafir</span>${(came.get(g.id) || 0) >= READY_VISITS ? '<span class="g-ready-tag">Üye alınabilir</span>' : ""}</div></div></td>${guestDetail ? `
         <td data-label="İletişim" class="m-contact"><div class="m-lines">${g.phone ? `<a href="tel:${esc(String(g.phone).replace(/\s/g, ""))}">${esc(g.phone)}</a>` : ""}${g.email ? `<a class="m-mail" href="mailto:${esc(g.email)}">${esc(g.email)}</a>` : ""}${!g.phone && !g.email ? none : ""}</div></td>
         <td data-label="Doğum günü">${bday(g) || none}</td>
         <td data-label="Meslek / okul">${esc(g.profession) || none}</td>
@@ -1804,7 +1806,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611191455");
+  const { mountComposer } = await import("./composer.js?v=202611191608");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1813,7 +1815,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611191455");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611191608");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

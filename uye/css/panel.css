@@ -915,3 +915,8 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 
 /* Yoklama: misafirin ilk geldiği toplantı seçimi */
 .g-start{min-height:34px;padding:4px 8px;font-size:.85rem;max-width:210px}
+
+/* Üye-misafir listesi: 5 toplantıya gelen misafir (üye alınabilir) */
+.m-table tr.g-ready>td{background:#fdeef3}
+.m-table tr.g-ready>td:first-child{box-shadow:inset 3px 0 0 #e8a5bc}
+.g-ready-tag{display:inline-block!important;margin:3px 0 0 6px;padding:2px 9px;border-radius:999px;background:#B8487A;color:#fff!important;font-size:.74rem!important;font-weight:600;line-height:1.5;white-space:nowrap}

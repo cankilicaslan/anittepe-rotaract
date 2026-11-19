@@ -123,6 +123,8 @@ async function sendLoginMails(req: Request, input: Record<string, unknown>): Pro
       // Profil var ama giriş hesabı hiç açılmamış: aynı kimlikle hesap açılır
       const { error: cErr } = await admin.auth.admin.createUser({ id: p.id, email, email_confirm: true, user_metadata: { full_name: p.full_name } } as never);
       if (cErr) { console.error("Hesap açılamadı", p.id, cErr); skipped.push({ name: p.full_name, reason: String(cErr.message || "").toLowerCase().includes("already") ? "bu e-postayla başka bir hesap var" : "hesap açılamadı" }); continue; }
+      // Supabase şifresiz açılan hesaba da rastgele şifre koyar; şifreyi kişi kendisi oluşturacak
+      await admin.rpc("clear_unused_password", { p_uid: p.id });
     }
     const { error: rErr } = await anon.auth.resetPasswordForEmail(email, { redirectTo: REDIRECT_TO });
     if (rErr) {

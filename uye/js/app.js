@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611191805";
-import { createStore, trDate, guestAsMe } from "./store.js?v=202611191805";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611191805";
+import * as BP from "./board-plan.js?v=202611192133";
+import { createStore, trDate, guestAsMe } from "./store.js?v=202611192133";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611192133";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -297,11 +297,11 @@ function forgotView(prefill = "", msg = "", isErr = false) {
 }
 function setPasswordView(msg = "") {
   pwMode = true;
-  app.innerHTML = `<div class="pending card"><img src="../assets/logo-cranberry.webp" alt="Rotaract Ankara Anıttepe" style="width:200px"><h1>Yeni şifreni belirle</h1>
+  app.innerHTML = `<div class="pending card"><img src="../assets/logo-cranberry.webp" alt="Rotaract Ankara Anıttepe" style="width:200px"><h1>Panel şifreni oluştur</h1><p class="muted" style="margin:-6px 0 14px">Şifreni sen belirlersin; kimse göremez. Sonraki girişlerde e-postan ve bu şifreyle girersin.</p>
   <form id="f-newpw" style="display:grid;gap:14px;text-align:left;max-width:380px;margin:0 auto">${msg ? `<div class="err" role="alert">${esc(msg)}</div>` : ""}
-    <label class="f">Yeni şifre <small>En az 8 karakter</small><input type="password" name="pw" autocomplete="new-password" minlength="8" required></label>
-    <label class="f">Yeni şifre (tekrar)<input type="password" name="pw2" autocomplete="new-password" minlength="8" required></label>
-    <button class="btn" type="submit">Şifremi kaydet</button></form></div>`;
+    <label class="f">Şifren <small>En az 8 karakter</small><input type="password" name="pw" autocomplete="new-password" minlength="8" required></label>
+    <label class="f">Şifren (tekrar)<input type="password" name="pw2" autocomplete="new-password" minlength="8" required></label>
+    <button class="btn" type="submit">Şifremi oluştur</button></form></div>`;
   document.getElementById("f-newpw").onsubmit = async e => {
     e.preventDefault(); const f = e.target;
     if (f.pw.value !== f.pw2.value) return setPasswordView("İki şifre aynı değil.");
@@ -1997,7 +1997,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611191805");
+  const { mountComposer } = await import("./composer.js?v=202611192133");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -2006,7 +2006,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611191805");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611192133");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

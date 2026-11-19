@@ -1968,3 +1968,17 @@ language sql stable security definer set search_path = public, auth as $$
   from auth.users u
   where public.can_view_all() or public.has_role('sekreter');
 $$;
+
+-- =====================================================================
+-- v53: Panel mailiyle hesabı açılan kişiye rastgele şifre konmaz; şifreyi kişi kendisi oluşturur.
+--      Supabase admin createUser şifre verilmese de rastgele şifre koyduğu için hiç giriş yapmamış
+--      hesaplarda şifre boşaltılır (yalnızca sunucu/servis anahtarı çağırabilir).
+-- =====================================================================
+create or replace function public.clear_unused_password(p_uid uuid)
+returns void language sql security definer set search_path = public, auth as $$
+  update auth.users set encrypted_password = '' where id = p_uid and last_sign_in_at is null;
+$$;
+revoke all on function public.clear_unused_password(uuid) from public, anon, authenticated;
+grant execute on function public.clear_unused_password(uuid) to service_role;
+-- Mevcut rastgele şifreler (hiç giriş yapılmamış hesaplar)
+update auth.users set encrypted_password = '' where last_sign_in_at is null and coalesce(encrypted_password, '') <> '';

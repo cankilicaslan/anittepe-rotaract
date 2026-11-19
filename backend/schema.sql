@@ -1839,3 +1839,105 @@ returns boolean language sql stable security definer set search_path = public as
                    and p.roles && array['hizmet','uyelik','uluslararasi','pr','kulup','meslek','afet','hobi','interact']::text[])
       or exists (select 1 from public.app_owners o where o.user_id = auth.uid());
 $$;
+
+-- =====================================================================
+-- v50: Misafir hesapları. Misafir e-postayla davet edilir (invite-member, kind: "guest"); hesabı
+--      guests.user_id ile bağlanır, profiles'a satır açılmaz. Üyelerin görebildiği her şeyi
+--      görüntüler (yazamaz); kendi misafir bilgilerini düzenler. Üye alınınca aynı hesap üye olur.
+-- =====================================================================
+alter table public.guests add column if not exists user_id uuid unique references auth.users(id) on delete set null;
+
+create or replace function public.is_guest()
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.guests where user_id = auth.uid());
+$$;
+create or replace function public.is_viewer()
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.is_active() or public.is_guest();
+$$;
+grant execute on function public.is_guest(), public.is_viewer() to authenticated;
+
+-- Davet edilen misafir için profil açılmaz; hesap misafir kaydına bağlanır
+create or replace function public.handle_new_user()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.raw_user_meta_data->>'kind' = 'guest' and (new.raw_user_meta_data->>'guest_id') is not null then
+    update public.guests set user_id = new.id where id = (new.raw_user_meta_data->>'guest_id')::uuid and user_id is null;
+    return new;
+  end if;
+  insert into public.profiles (id, full_name, phone, email, status, roles, past_president)
+  values (
+    new.id,
+    coalesce(nullif(trim(new.raw_user_meta_data->>'full_name'), ''), split_part(new.email, '@', 1)),
+    nullif(trim(new.raw_user_meta_data->>'phone'), ''),
+    new.email,
+    'pending', '{}', false
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+-- Üyelerin görüntüleyebildikleri misafirlere de açık (yalnızca okuma)
+alter policy album_photos_select     on public.album_photos     using (public.is_viewer());
+alter policy albums_select           on public.albums           using (public.is_viewer());
+alter policy app_settings_select     on public.app_settings     using (public.is_viewer());
+alter policy club_event_rsvps_select on public.club_event_rsvps using (public.is_viewer());
+alter policy club_events_select      on public.club_events      using (public.is_viewer());
+alter policy meetings_select         on public.meetings         using (public.is_viewer());
+alter policy projects_select_members on public.projects         using (public.is_viewer());
+alter policy terms_select            on public.terms            using (public.is_viewer());
+alter policy profiles_select         on public.profiles         using (public.is_viewer() or id = auth.uid());
+alter policy photos_read             on storage.objects         using (bucket_id = 'photos' and public.is_viewer());
+
+-- Misafir kendi kaydını, yoklamasını ve kan grubunu görür
+drop policy if exists guests_select_own on public.guests;
+create policy guests_select_own on public.guests for select to authenticated using (user_id = auth.uid());
+drop policy if exists guest_attendance_select_own on public.guest_attendance;
+create policy guest_attendance_select_own on public.guest_attendance for select to authenticated
+  using (guest_id in (select id from public.guests where user_id = auth.uid()));
+drop policy if exists guest_private_select_own on public.guest_private;
+create policy guest_private_select_own on public.guest_private for select to authenticated
+  using (guest_id in (select id from public.guests where user_id = auth.uid()));
+
+-- Misafir kendi bilgilerini yalnızca bu fonksiyonla değiştirir (not, başlangıç toplantısı vb. değişmez)
+create or replace function public.update_my_guest(p jsonb)
+returns public.guests language plpgsql security definer set search_path = public as $$
+declare g public.guests;
+begin
+  select * into g from public.guests where user_id = auth.uid();
+  if not found then raise exception 'Misafir kaydın bulunamadı'; end if;
+  if p ? 'full_name' and coalesce(trim(p->>'full_name'), '') = '' then raise exception 'Adını yaz.'; end if;
+  update public.guests set
+    full_name  = case when p ? 'full_name'  then left(trim(p->>'full_name'), 120) else full_name end,
+    phone      = case when p ? 'phone'      then nullif(left(trim(p->>'phone'), 30), '') else phone end,
+    birth_date = case when p ? 'birth_date' then nullif(p->>'birth_date', '')::date else birth_date end,
+    profession = case when p ? 'profession' then nullif(left(trim(p->>'profession'), 120), '') else profession end,
+    instagram  = case when p ? 'instagram'  then nullif(left(regexp_replace(trim(p->>'instagram'), '^@+', ''), 30), '') else instagram end,
+    photo_url  = case when p ? 'photo_url'  then nullif(p->>'photo_url', '') else photo_url end
+  where id = g.id returning * into g;
+  if p ? 'blood_type' then
+    insert into public.guest_private (guest_id, blood_type) values (g.id, nullif(left(trim(p->>'blood_type'), 12), ''))
+    on conflict (guest_id) do update set blood_type = excluded.blood_type;
+  end if;
+  return g;
+end $$;
+revoke all on function public.update_my_guest(jsonb) from public, anon;
+grant execute on function public.update_my_guest(jsonb) to authenticated;
+
+-- Hesabı olan misafir üye alınırken aynı hesaba aktif üye profili açılır (yeni davet gerekmez)
+create or replace function public.guest_member_profile(p_guest uuid, p_joined date)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare g public.guests; v_email text;
+begin
+  if not public.is_admin() then raise exception 'Üye almak için Başkan yetkisi gerekiyor'; end if;
+  select * into g from public.guests where id = p_guest;
+  if not found or g.user_id is null then raise exception 'Misafirin panel hesabı yok'; end if;
+  select email into v_email from auth.users where id = g.user_id;
+  insert into public.profiles (id, full_name, phone, email, status, roles, past_president, title, joined_at)
+  values (g.user_id, g.full_name, g.phone, coalesce(v_email, g.email), 'active', '{}', false, 'Üye', p_joined)
+  on conflict (id) do update set status = 'active';
+  return g.user_id;
+end $$;
+revoke all on function public.guest_member_profile(uuid, date) from public, anon;
+grant execute on function public.guest_member_profile(uuid, date) to authenticated;

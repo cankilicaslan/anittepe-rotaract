@@ -1956,3 +1956,15 @@ select cron.schedule(
        body    := '{}'::jsonb
      ); $$
 );
+
+-- =====================================================================
+-- v52: "Şifresini oluşturdu" yalnızca en az bir kez giriş yapmış hesaplarda sayılır. Panel maili ile
+--      hesabı yeni açılanlara Supabase rastgele bir şifre koyuyor; bu kişiler hiç girmemiş görünmeli.
+-- =====================================================================
+create or replace function public.member_accounts()
+returns table (id uuid, has_password boolean, last_sign_in_at timestamptz)
+language sql stable security definer set search_path = public, auth as $$
+  select u.id, coalesce(u.encrypted_password, '') <> '' and u.last_sign_in_at is not null, u.last_sign_in_at
+  from auth.users u
+  where public.can_view_all() or public.has_role('sekreter');
+$$;

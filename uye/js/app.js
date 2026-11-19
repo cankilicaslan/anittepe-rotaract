@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611191642";
-import { createStore, trDate, guestAsMe } from "./store.js?v=202611191642";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611191642";
+import * as BP from "./board-plan.js?v=202611191647";
+import { createStore, trDate, guestAsMe } from "./store.js?v=202611191647";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611191647";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -911,7 +911,7 @@ async function viewMembers(v) {
       <div class="m-filters" role="group" aria-label="Listeyi süz">${FILTERS.map(([k, l, fn]) => `<button type="button" class="m-chip" data-f="${k}" aria-pressed="${k === F.f}">${l} <span class="m-n">${members.filter(fn).length}</span></button>`).join("")}</div>
     </div>
     <p class="muted m-count" id="mcount" role="status" aria-live="polite"></p>` +
-    (acc ? `<p class="muted acct-legend"><span class="lg"><span class="acct on"></span>Siteye şifresini oluşturdu</span> <span class="lg"><span class="acct"></span>Henüz oluşturmadı</span> <span class="lg">· ${members.filter(m => acc.get(m.id)?.has_password).length}/${members.length} kişi</span></p>` : "") +
+    (acc ? `<p class="muted acct-legend"><span class="lg"><span class="acct on"></span>Siteye şifresini oluşturdu</span> <span class="lg"><span class="acct"></span>Henüz oluşturmadı</span> <span class="lg">· ${members.filter(m => acc.get(m.id)?.has_password).length}/${members.length} kişi</span>${canPanelMail() ? (() => { const n = members.filter(m => neverLoggedIn(m, acc) && m.email).length; return ` <button type="button" class="btn ghost sm" id="pm-all" ${n ? "" : "disabled"}>Giriş yapmamışlara panel maili gönder (${n})</button>`; })() : ""}</p>` : "") +
     `<div class="tbl-wrap"><table class="stack m-table"><caption class="sr">Üye listesi</caption><thead><tr><th scope="col">Üye</th><th scope="col">İletişim</th><th scope="col">Doğum günü</th><th scope="col">Meslek / okul</th><th scope="col">Instagram</th>${bloodTh}<th scope="col">Üyelik</th>${admin ? '<th scope="col"><span class="sr">İşlem</span></th>' : ""}</tr></thead><tbody id="tb"></tbody></table></div>
     <div class="empty m-empty" id="mempty" hidden><p>Aramanla eşleşen üye yok.</p><button type="button" class="btn ghost sm" id="mclear">Aramayı temizle</button></div>
     ${guests.length ? `<section class="m-guests" aria-labelledby="g-h"><div class="m-guests-h"><h2 id="g-h">Misafirler</h2><span class="tag">${guests.length}</span></div>
@@ -942,6 +942,15 @@ async function viewMembers(v) {
       gtb.closest(".tbl-wrap").hidden = gs.length === 0;
     }
     tb.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => editMember(members.find(m => m.id === b.dataset.edit)));
+    const pmAll = document.getElementById("pm-all");
+    if (pmAll && !pmAll.dataset.bound) { pmAll.dataset.bound = "1"; pmAll.onclick = async () => {
+      const list = members.filter(m => neverLoggedIn(m, acc) && m.email);
+      if (!list.length) return;
+      if (!confirm(`Hiç giriş yapmamış ve şifresini oluşturmamış ${list.length} kişiye panel maili gönderilsin mi?\n\n${list.map(m => m.full_name).join("\n")}`)) return;
+      pmAll.disabled = true; pmAll.textContent = "Gönderiliyor…";
+      try { await sendPanelMails(list); } catch (er) { fail(er); }
+      refresh();
+    }; }
   };
   qEl.oninput = () => { F.q = qEl.value.trim().toLocaleLowerCase("tr"); render(); };
   document.getElementById("mclear").onclick = () => { qEl.value = ""; F.q = ""; F.f = "aktif"; v.querySelectorAll("[data-f]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.f === "aktif"))); render(); qEl.focus(); };
@@ -957,10 +966,22 @@ async function viewMembers(v) {
 
 // Başkan, asbaşkan ve geçmiş dönem başkanlığını yalnızca site sahibi atar (veritabanı da engeller)
 const OWNER_ONLY = ["baskan", "asbaskan"];
+// Panel maili: hiç giriş yapmamış ve şifre belirlememiş aktif üyelere şifre belirleme bağlantısı (Başkan, Sekreter, sahip)
+const canPanelMail = () => hasRole(me, "baskan") || hasRole(me, "sekreter");
+const neverLoggedIn = (m, accMap) => { const a = accMap?.get(m.id); return m.status === "active" && !(a?.has_password || a?.last_sign_in_at); };
+async function sendPanelMails(list) {
+  const r = await store.sendLoginMails(list.map(m => m.id));
+  const sent = r?.sent || [], skipped = r?.skipped || [];
+  const msg = [sent.length ? `Panel maili gönderildi: ${sent.map(esc).join(", ")}.` : "", skipped.length ? `Gönderilemedi: ${skipped.map(s => `${esc(s.name)} (${esc(s.reason)})`).join(", ")}.` : ""].filter(Boolean).join(" ");
+  toast(msg || "Gönderilecek kimse yok.", sent.length ? "" : "bad");
+  return r;
+}
+
 async function editMember(m) {
   const isNew = !m;
   m ||= { full_name: "", title: "Üye", phone: "", email: "", status: "active", joined_at: today(), roles: [], past_president: false };
-  const [priv, meetings] = await Promise.all([isNew ? {} : store.getPrivate(m.id), store.listMeetings().catch(() => [])]);
+  const [priv, meetings, accs] = await Promise.all([isNew ? {} : store.getPrivate(m.id), store.listMeetings().catch(() => []), isNew || !canPanelMail() ? null : store.listAccounts().catch(() => null)]);
+  const mailOk = !isNew && accs && neverLoggedIn(m, new Map(accs.map(a => [a.id, a])));
   const dlg = document.getElementById("dlg");
   dlg.innerHTML = `<form method="dialog" id="f-em">
     <h2>${isNew ? "Yeni üye ekle" : esc(m.full_name)}</h2>
@@ -974,6 +995,7 @@ async function editMember(m) {
       <label class="f">Instagram<input type="text" name="instagram" value="${esc(m.instagram || "")}" placeholder="@kullaniciadi"></label>
       <label class="f">Kan grubu<input type="text" name="blood_type" value="${esc(priv.blood_type || "")}" placeholder="ör. A Rh+"></label>
       <label class="f">Üyelik tarihi<input type="date" name="joined_at" value="${esc(m.joined_at || "")}"></label>
+${!isNew && accs ? `<div class="pm-row"><button type="button" class="btn ghost sm" id="pm-one" ${mailOk && m.email ? "" : "disabled"}>Panel maili gönder</button><small class="muted">${!mailOk ? "Bu kişi siteye girmiş ya da şifresini oluşturmuş." : m.email ? "Şifre belirleme bağlantısı e-posta adresine gider." : "Önce e-posta adresini kaydet."}</small></div>` : ""}
       <label class="f">Yoklamada başladığı toplantı <small>Üye alındığı toplantı; devam oranı buradan itibaren hesaplanır</small><select name="start_meeting_id"><option value="">Dönem başından</option>${meetings.map(x => `<option value="${x.id}" ${m.start_meeting_id === x.id ? "selected" : ""}>${x.term_no}. toplantı · ${trDate(x.date)}</option>`).join("")}</select></label>
     </div>
     <fieldset><legend style="font-weight:700;margin-bottom:6px">Dönem görevi</legend><div class="grid g2">
@@ -990,6 +1012,13 @@ async function editMember(m) {
   let downOut = false;
   dlg.onpointerdown = e => { downOut = outside(e); };
   dlg.onclick = e => { if (downOut && outside(e)) dlg.close(); downOut = false; };
+  const pmOne = dlg.querySelector("#pm-one");
+  if (pmOne) pmOne.onclick = async () => {
+    if (!confirm(`${m.full_name} için ${m.email} adresine panel maili gönderilsin mi?`)) return;
+    pmOne.disabled = true; pmOne.textContent = "Gönderiliyor…";
+    try { const r = await sendPanelMails([m]); pmOne.textContent = r?.sent?.length ? "Gönderildi" : "Panel maili gönder"; if (!r?.sent?.length) pmOne.disabled = false; }
+    catch (er) { fail(er); pmOne.disabled = false; pmOne.textContent = "Panel maili gönder"; }
+  };
   dlg.querySelector("form").onsubmit = async e => {
     if (e.submitter?.value !== "save") return;
     const fd = new FormData(e.target);
@@ -1898,7 +1927,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611191642");
+  const { mountComposer } = await import("./composer.js?v=202611191647");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1907,7 +1936,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611191642");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611191647");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

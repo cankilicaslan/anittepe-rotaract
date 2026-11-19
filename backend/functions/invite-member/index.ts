@@ -4,6 +4,8 @@
 // Yalnızca aktif "baskan" rolündeki üyeler çağırabilir.
 // Misafir daveti: Body { kind: "guest", guest_id } → misafirin kayıtlı e-postasına davet gider; profil açılmaz,
 // hesap guests.user_id ile bağlanır (handle_new_user). Başkan, sekreter ya da site sahibi çağırabilir.
+// Panel maili: Body { kind: "login", member_ids: [...] } → hiç giriş yapmamış ve şifre belirlememiş üyelere
+// şifre belirleme bağlantısı gider (hesabı hiç açılmamışsa önce profil kimliğiyle açılır). Başkan, sekreter, sahip.
 //
 // POST ${SUPABASE_URL}/functions/v1/invite-member
 // Header: Authorization: Bearer <kullanıcının access token'ı>
@@ -64,7 +66,7 @@ async function requireBaskan(req: Request, guest = false) {
   const { data: isAdmin } = await supabase.rpc("is_admin");
   const { data: isSek } = guest ? await supabase.rpc("has_role", { r: "sekreter" }) : { data: false };
   if (profile.status !== "active" || (isAdmin !== true && isSek !== true)) {
-    throw new HttpError(403, "Üye davet etmek için Başkan yetkisi gerekiyor.");
+    throw new HttpError(403, guest ? "Bu işlem için Başkan ya da Sekreter yetkisi gerekiyor." : "Üye davet etmek için Başkan yetkisi gerekiyor.");
   }
   return { user: userData.user, profile };
 }
@@ -93,6 +95,44 @@ function instagramHandle(v: unknown): string | null {
   const m = s.match(/instagram\.com\/([A-Za-z0-9._]+)/i);
   const h = (m ? m[1] : s).replace(/^@+/, "").replace(/\/+$/, "");
   return h ? h.slice(0, 30) : null;
+}
+
+async function sendLoginMails(req: Request, input: Record<string, unknown>): Promise<Response> {
+  await requireBaskan(req, true);
+  const ids = Array.isArray(input.member_ids) ? input.member_ids.filter((x) => typeof x === "string").slice(0, 60) as string[] : [];
+  if (!ids.length) throw new HttpError(400, "Kişi seçilmedi.");
+  const url = Deno.env.get("SUPABASE_URL")!;
+  const userClient = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    global: { headers: { Authorization: req.headers.get("Authorization")! } }, auth: { persistSession: false },
+  });
+  const anon = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, { auth: { persistSession: false, autoRefreshToken: false } });
+  const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false, autoRefreshToken: false } });
+  // Hesap durumu: şifresi olan ya da en az bir kez giriş yapmış kişiye mail gitmez
+  const { data: accts } = await userClient.rpc("member_accounts");
+  const acc = new Map((accts ?? []).map((a: { id: string; has_password: boolean; last_sign_in_at: string | null }) => [a.id, a]));
+  const { data: profs } = await admin.from("profiles").select("id, full_name, email, status").in("id", ids);
+  const sent: string[] = [], skipped: { name: string; reason: string }[] = [];
+  for (const p of profs ?? []) {
+    const a = acc.get(p.id) as { has_password: boolean; last_sign_in_at: string | null } | undefined;
+    if (a && (a.has_password || a.last_sign_in_at)) { skipped.push({ name: p.full_name, reason: "zaten giriş yapmış" }); continue; }
+    if (p.status !== "active") { skipped.push({ name: p.full_name, reason: "aktif üye değil" }); continue; }
+    const email = String(p.email ?? "").trim().toLowerCase();
+    if (!EMAIL_RE.test(email)) { skipped.push({ name: p.full_name, reason: "e-posta adresi yok" }); continue; }
+    if (!a) {
+      // Profil var ama giriş hesabı hiç açılmamış: aynı kimlikle hesap açılır
+      const { error: cErr } = await admin.auth.admin.createUser({ id: p.id, email, email_confirm: true, user_metadata: { full_name: p.full_name } } as never);
+      if (cErr) { console.error("Hesap açılamadı", p.id, cErr); skipped.push({ name: p.full_name, reason: String(cErr.message || "").toLowerCase().includes("already") ? "bu e-postayla başka bir hesap var" : "hesap açılamadı" }); continue; }
+    }
+    const { error: rErr } = await anon.auth.resetPasswordForEmail(email, { redirectTo: REDIRECT_TO });
+    if (rErr) {
+      console.error("Mail gönderilemedi", p.id, rErr);
+      const m = String(rErr.message || "").toLowerCase();
+      skipped.push({ name: p.full_name, reason: m.includes("rate") || (rErr as { status?: number }).status === 429 ? "mail sınırına takıldı, biraz sonra tekrar deneyin" : "mail gönderilemedi" });
+      continue;
+    }
+    sent.push(p.full_name);
+  }
+  return json({ ok: true, sent, skipped });
 }
 
 async function inviteGuest(req: Request, input: Record<string, unknown>): Promise<Response> {
@@ -142,6 +182,7 @@ Deno.serve(async (req: Request) => {
       throw new HttpError(400, "İstek gövdesi geçerli bir JSON değil.");
     }
     if (input.kind === "guest") return await inviteGuest(req, input);
+    if (input.kind === "login") return await sendLoginMails(req, input);
     await requireBaskan(req);
 
     const fullName = str(input.full_name, 120);

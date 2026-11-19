@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611191642";
-import { can, hasRole, hasAnyRole } from "./roles.js?v=202611191642";
+import { CONFIG } from "./config.js?v=202611191647";
+import { can, hasRole, hasAnyRole } from "./roles.js?v=202611191647";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -384,6 +384,7 @@ function demoStore() {
     },
     async setGuestStart(id, meetingId) { need("yoklama"); const g = S.guests.find(x => x.id === id); if (!g) throw new Error("Misafir bulunamadı."); g.start_meeting_id = meetingId || null; save(); },
     async listBloodTypes() { if (!hasRole(me(), "baskan")) return { members: {}, guests: {} }; const pick = o => Object.fromEntries(Object.entries(o || {}).map(([k, v]) => [k, v?.blood_type || ""])); return { members: pick(S.privates), guests: pick(S.guestPrivates) }; },
+    async sendLoginMails(ids) { if (!(hasRole(me(), "baskan") || hasRole(me(), "sekreter"))) throw new Error("Bu işlem için Başkan ya da Sekreter yetkisi gerekiyor."); const ps = S.profiles.filter(p => ids.includes(p.id)); return { ok: true, sent: ps.filter(p => p.email).map(p => p.full_name), skipped: ps.filter(p => !p.email).map(p => ({ name: p.full_name, reason: "e-posta adresi yok" })) }; },
     async inviteGuest(guest_id) { if (!(hasRole(me(), "baskan") || hasRole(me(), "sekreter"))) throw new Error("Misafir davet etmek için Başkan ya da Sekreter yetkisi gerekiyor."); const g = S.guests.find(x => x.id === guest_id); if (!g) throw new Error("Misafir bulunamadı."); if (!g.email) throw new Error("Önce misafirin e-posta adresini kaydedin."); g.user_id = "demo-" + uid(); save(); return { ok: true }; },
     async updateMyGuest() { throw new Error("Demo modunda misafir hesabıyla giriş yok."); },
     async uploadGuestPhoto() { throw new Error("Demo modunda misafir hesabıyla giriş yok."); },
@@ -699,6 +700,7 @@ async function supabaseStore() {
       return { members: Object.fromEntries((m.data || []).map(r => [r.member_id, r.blood_type || ""])), guests: Object.fromEntries((g.data || []).map(r => [r.guest_id, r.blood_type || ""])) };
     },
     async inviteGuest(guest_id) { return fn("invite-member", { kind: "guest", guest_id }); },
+    async sendLoginMails(member_ids) { return fn("invite-member", { kind: "login", member_ids }); },
     async updateMyGuest(patch) { return ok(await sb.rpc("update_my_guest", { p: patch })); },
     async uploadGuestPhoto(file) {
       const id = await meId(); const blob = await squareBlob(file, 480);

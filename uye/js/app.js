@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611191647";
-import { createStore, trDate, guestAsMe } from "./store.js?v=202611191647";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611191647";
+import * as BP from "./board-plan.js?v=202611191650";
+import { createStore, trDate, guestAsMe } from "./store.js?v=202611191650";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611191650";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -911,7 +911,7 @@ async function viewMembers(v) {
       <div class="m-filters" role="group" aria-label="Listeyi süz">${FILTERS.map(([k, l, fn]) => `<button type="button" class="m-chip" data-f="${k}" aria-pressed="${k === F.f}">${l} <span class="m-n">${members.filter(fn).length}</span></button>`).join("")}</div>
     </div>
     <p class="muted m-count" id="mcount" role="status" aria-live="polite"></p>` +
-    (acc ? `<p class="muted acct-legend"><span class="lg"><span class="acct on"></span>Siteye şifresini oluşturdu</span> <span class="lg"><span class="acct"></span>Henüz oluşturmadı</span> <span class="lg">· ${members.filter(m => acc.get(m.id)?.has_password).length}/${members.length} kişi</span>${canPanelMail() ? (() => { const n = members.filter(m => neverLoggedIn(m, acc) && m.email).length; return ` <button type="button" class="btn ghost sm" id="pm-all" ${n ? "" : "disabled"}>Giriş yapmamışlara panel maili gönder (${n})</button>`; })() : ""}</p>` : "") +
+    (acc ? `<p class="muted acct-legend"><span class="lg"><span class="acct on"></span>Siteye şifresini oluşturdu</span> <span class="lg"><span class="acct"></span>Henüz oluşturmadı</span> <span class="lg">· ${members.filter(m => acc.get(m.id)?.has_password).length}/${members.length} kişi</span>${canPanelMail() ? (() => { const n = members.filter(m => neverLoggedIn(m, acc) && m.email).length + guests.filter(g => guestNeverLoggedIn(g, acc)).length; return ` <button type="button" class="btn ghost sm" id="pm-all" ${n ? "" : "disabled"}>Giriş yapmamışlara panel maili gönder (${n})</button>`; })() : ""}</p>` : "") +
     `<div class="tbl-wrap"><table class="stack m-table"><caption class="sr">Üye listesi</caption><thead><tr><th scope="col">Üye</th><th scope="col">İletişim</th><th scope="col">Doğum günü</th><th scope="col">Meslek / okul</th><th scope="col">Instagram</th>${bloodTh}<th scope="col">Üyelik</th>${admin ? '<th scope="col"><span class="sr">İşlem</span></th>' : ""}</tr></thead><tbody id="tb"></tbody></table></div>
     <div class="empty m-empty" id="mempty" hidden><p>Aramanla eşleşen üye yok.</p><button type="button" class="btn ghost sm" id="mclear">Aramayı temizle</button></div>
     ${guests.length ? `<section class="m-guests" aria-labelledby="g-h"><div class="m-guests-h"><h2 id="g-h">Misafirler</h2><span class="tag">${guests.length}</span></div>
@@ -944,11 +944,11 @@ async function viewMembers(v) {
     tb.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => editMember(members.find(m => m.id === b.dataset.edit)));
     const pmAll = document.getElementById("pm-all");
     if (pmAll && !pmAll.dataset.bound) { pmAll.dataset.bound = "1"; pmAll.onclick = async () => {
-      const list = members.filter(m => neverLoggedIn(m, acc) && m.email);
-      if (!list.length) return;
-      if (!confirm(`Hiç giriş yapmamış ve şifresini oluşturmamış ${list.length} kişiye panel maili gönderilsin mi?\n\n${list.map(m => m.full_name).join("\n")}`)) return;
+      const list = members.filter(m => neverLoggedIn(m, acc) && m.email), glist = guests.filter(g => guestNeverLoggedIn(g, acc));
+      if (!list.length && !glist.length) return;
+      if (!confirm(`Hiç giriş yapmamış ve şifresini oluşturmamış ${list.length + glist.length} kişiye panel maili gönderilsin mi?\n\n${[...list.map(m => m.full_name), ...glist.map(g => g.full_name + " (misafir)")].join("\n")}`)) return;
       pmAll.disabled = true; pmAll.textContent = "Gönderiliyor…";
-      try { await sendPanelMails(list); } catch (er) { fail(er); }
+      try { await sendPanelMails(list, glist); } catch (er) { fail(er); }
       refresh();
     }; }
   };
@@ -969,8 +969,10 @@ const OWNER_ONLY = ["baskan", "asbaskan"];
 // Panel maili: hiç giriş yapmamış ve şifre belirlememiş aktif üyelere şifre belirleme bağlantısı (Başkan, Sekreter, sahip)
 const canPanelMail = () => hasRole(me, "baskan") || hasRole(me, "sekreter");
 const neverLoggedIn = (m, accMap) => { const a = accMap?.get(m.id); return m.status === "active" && !(a?.has_password || a?.last_sign_in_at); };
-async function sendPanelMails(list) {
-  const r = await store.sendLoginMails(list.map(m => m.id));
+// Misafir: hesabı yoksa ya da hesabı olup hiç girmemişse (e-postası olan)
+const guestNeverLoggedIn = (g, accMap) => { if (!g?.id || !g.email) return false; if (!g.user_id) return true; const a = accMap?.get(g.user_id); return !(a?.has_password || a?.last_sign_in_at); };
+async function sendPanelMails(list, guestList = []) {
+  const r = await store.sendLoginMails(list.map(m => m.id), guestList.map(g => g.id));
   const sent = r?.sent || [], skipped = r?.skipped || [];
   const msg = [sent.length ? `Panel maili gönderildi: ${sent.map(esc).join(", ")}.` : "", skipped.length ? `Gönderilemedi: ${skipped.map(s => `${esc(s.name)} (${esc(s.reason)})`).join(", ")}.` : ""].filter(Boolean).join(" ");
   toast(msg || "Gönderilecek kimse yok.", sent.length ? "" : "bad");
@@ -1927,7 +1929,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611191647");
+  const { mountComposer } = await import("./composer.js?v=202611191650");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1936,7 +1938,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611191647");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611191650");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

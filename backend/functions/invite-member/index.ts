@@ -100,7 +100,8 @@ function instagramHandle(v: unknown): string | null {
 async function sendLoginMails(req: Request, input: Record<string, unknown>): Promise<Response> {
   await requireBaskan(req, true);
   const ids = Array.isArray(input.member_ids) ? input.member_ids.filter((x) => typeof x === "string").slice(0, 60) as string[] : [];
-  if (!ids.length) throw new HttpError(400, "Kişi seçilmedi.");
+  const gids = Array.isArray(input.guest_ids) ? input.guest_ids.filter((x) => typeof x === "string").slice(0, 60) as string[] : [];
+  if (!ids.length && !gids.length) throw new HttpError(400, "Kişi seçilmedi.");
   const url = Deno.env.get("SUPABASE_URL")!;
   const userClient = createClient(url, Deno.env.get("SUPABASE_ANON_KEY")!, {
     global: { headers: { Authorization: req.headers.get("Authorization")! } }, auth: { persistSession: false },
@@ -110,7 +111,7 @@ async function sendLoginMails(req: Request, input: Record<string, unknown>): Pro
   // Hesap durumu: şifresi olan ya da en az bir kez giriş yapmış kişiye mail gitmez
   const { data: accts } = await userClient.rpc("member_accounts");
   const acc = new Map((accts ?? []).map((a: { id: string; has_password: boolean; last_sign_in_at: string | null }) => [a.id, a]));
-  const { data: profs } = await admin.from("profiles").select("id, full_name, email, status").in("id", ids);
+  const { data: profs } = ids.length ? await admin.from("profiles").select("id, full_name, email, status").in("id", ids) : { data: [] };
   const sent: string[] = [], skipped: { name: string; reason: string }[] = [];
   for (const p of profs ?? []) {
     const a = acc.get(p.id) as { has_password: boolean; last_sign_in_at: string | null } | undefined;
@@ -131,6 +132,36 @@ async function sendLoginMails(req: Request, input: Record<string, unknown>): Pro
       continue;
     }
     sent.push(p.full_name);
+  }
+  // Misafirler: hesabı yoksa panel daveti, hesabı var ama hiç girmemişse şifre belirleme bağlantısı
+  const { data: gs } = gids.length ? await admin.from("guests").select("id, full_name, email, user_id").in("id", gids) : { data: [] };
+  for (const g of gs ?? []) {
+    const name = `${g.full_name} (misafir)`;
+    const email = String(g.email ?? "").trim().toLowerCase();
+    if (!EMAIL_RE.test(email)) { skipped.push({ name, reason: "e-posta adresi yok" }); continue; }
+    if (!g.user_id) {
+      const { data: invited, error: invErr } = await admin.auth.admin.inviteUserByEmail(email, {
+        data: { kind: "guest", guest_id: g.id, full_name: g.full_name }, redirectTo: REDIRECT_TO,
+      });
+      if (invErr || !invited?.user) {
+        console.error("Misafir davet hatası", g.id, invErr);
+        const m = String(invErr?.message ?? "").toLowerCase();
+        skipped.push({ name, reason: m.includes("already") ? "bu e-postayla başka bir hesap var" : m.includes("rate") ? "mail sınırına takıldı, biraz sonra tekrar deneyin" : "davet gönderilemedi" });
+        continue;
+      }
+      await admin.from("guests").update({ user_id: invited.user.id }).eq("id", g.id).is("user_id", null);
+      sent.push(name); continue;
+    }
+    const a = acc.get(g.user_id) as { has_password: boolean; last_sign_in_at: string | null } | undefined;
+    if (a && (a.has_password || a.last_sign_in_at)) { skipped.push({ name, reason: "zaten giriş yapmış" }); continue; }
+    const { error: rErr } = await anon.auth.resetPasswordForEmail(email, { redirectTo: REDIRECT_TO });
+    if (rErr) {
+      console.error("Mail gönderilemedi", g.id, rErr);
+      const m = String(rErr.message || "").toLowerCase();
+      skipped.push({ name, reason: m.includes("rate") || (rErr as { status?: number }).status === 429 ? "mail sınırına takıldı, biraz sonra tekrar deneyin" : "mail gönderilemedi" });
+      continue;
+    }
+    sent.push(name);
   }
   return json({ ok: true, sent, skipped });
 }

@@ -12,6 +12,8 @@
 //   { action: "revert",  id }                  -> { row }   (yayınlanmış değişikliğin tersini öneri olarak hazırlar)
 //   { action: "direct",  edits, note }         -> { row }   (panelde elle düzeltilen metinleri yapay zekâsız yayınlar)
 //   { action: "status" }                       -> { ai: "gemini" | "claude" | null }
+//   { action: "news_get" }                     -> { items }  (anasayfadaki haber kartları, TR + EN)
+//   { action: "news", items }                  -> { row }    (haber kartlarını baştan yazar, yeni görselleri yükler, yayınlar)
 //
 // Gerekli secret: GITHUB_TOKEN (yalnızca bu depoya "Contents: read and write" yetkili).
 // İsteğe bağlı: ANTHROPIC_API_KEY (öncelikli) ya da GEMINI_API_KEY (ücretsiz katman); AI_PROVIDER ile seçim zorlanabilir; GEMINI_MODEL (varsayılan gemini-3.8-flash).
@@ -376,6 +378,113 @@ async function directPublish(user: { id: string; full_name: string }, body: Reco
   return await publish(data.id);
 }
 
+// ---------------------------------------------------------------- Haberler (HİTK haber paneli)
+type NewsItem = { date: string; title_tr: string; text_tr: string; title_en?: string; text_en?: string; alt_tr?: string; alt_en?: string;
+  link?: string; img?: string; pos?: number; bg?: string; image_data?: string; image_ext?: string };
+const TR_M = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+const EN_M = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const NEWS_BG = ["linear-gradient(135deg,#A30C4D,#D41367)", "linear-gradient(135deg,#17458F,#3E6CC0)", "linear-gradient(135deg,#F7A81B,#E58A00)", "linear-gradient(135deg,#E8508A,#F7A1C4)", "linear-gradient(135deg,#00A2E0,#0067C8)"];
+const tesc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const hesc = (s: string) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+function isoFromTime(t: string): string {
+  const m = String(t).trim().match(/^(\d{1,2})\s+(\S+)\s+(\d{4})$/);
+  if (!m) return "";
+  let mi = TR_M.indexOf(m[2]); if (mi < 0) mi = EN_M.indexOf(m[2]);
+  return mi < 0 ? "" : `${m[3]}-${String(mi + 1).padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+}
+// Haber bölümünün sınırları: <div class="news"> … (news-more paragrafından önceki son </div>)
+function newsBlock(html: string) {
+  const s = html.indexOf('<div class="news">');
+  const more = html.indexOf('<p class="news-more">', s);
+  if (s < 0 || more < 0) throw new HttpError(500, "Anasayfada haber bölümü bulunamadı.");
+  const e = html.lastIndexOf("</div>", more) + 6;
+  return { start: s, end: e, text: html.slice(s, e) };
+}
+async function newsGet() {
+  const [tr, en] = await Promise.all(FILES.map(f => readFile(f)));
+  const parse = (html: string) => [...parseHTML(newsBlock(html).text).document.querySelectorAll(".post")].map((p: any) => {
+    const img = p.querySelector("img"), art = p.querySelector(".art");
+    return {
+      href: p.getAttribute("href") || "", time: p.querySelector("time")?.textContent || "", title: p.querySelector("h3")?.textContent || "",
+      text: p.querySelector("p")?.textContent || "", alt: img?.getAttribute("alt") || "", src: img?.getAttribute("src") || "",
+      pos: Number((img?.getAttribute("style") || "").match(/object-position:\s*50%\s+(\d+)%/)?.[1] ?? 50),
+      bg: ((art?.getAttribute("style") || "").match(/background:(linear-gradient\([^;]*\))/) || [])[1] || "",
+    };
+  });
+  const T = parse(tr.text), E = parse(en.text);
+  return T.map((t, i) => ({
+    date: isoFromTime(t.time), title_tr: t.title, text_tr: t.text, alt_tr: t.alt,
+    title_en: E[i]?.title || "", text_en: E[i]?.text || "", alt_en: E[i]?.alt || "",
+    link: t.href, img: t.src.replace(/^(\.\.\/)+/, ""), pos: t.pos, bg: t.bg,
+  }));
+}
+const slug = (s: string) => s.toLocaleLowerCase("tr").replace(/ı/g, "i").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "haber";
+async function uploadAsset(path: string, b64: string, message: string) {
+  const r = await gh(`contents/${path}`, { method: "PUT", body: JSON.stringify({ message, content: b64, branch: BRANCH,
+    committer: { name: "HİTK site paneli", email: "anitteperotaract1996@gmail.com" } }) });
+  if (!r.ok) throw new HttpError(502, `Görsel siteye yüklenemedi (GitHub ${r.status}).`);
+}
+function newsHtml(items: NewsItem[], lang: "tr" | "en") {
+  const pre = lang === "en" ? "../" : "";
+  const body = items.map((it, i) => {
+    const [y, m, d] = it.date.split("-").map(Number);
+    const when = `${d} ${(lang === "en" ? EN_M : TR_M)[m - 1]} ${y}`;
+    const title = lang === "en" ? (it.title_en || it.title_tr) : it.title_tr;
+    const text = lang === "en" ? (it.text_en || it.text_tr) : it.text_tr;
+    const alt = lang === "en" ? (it.alt_en || it.alt_tr || title) : (it.alt_tr || title);
+    const cls = `post${i === 0 ? " wide" : ""} rv`;
+    const open = it.link ? `<a class="${cls}" href="${hesc(it.link)}" target="_blank" rel="noopener">` : `<div class="${cls}">`;
+    const close = it.link ? "</a>" : "</div>";
+    const art = it.img ? `<img src="${pre}${hesc(it.img)}" alt="${hesc(alt)}" loading="lazy" decoding="async" style="object-position:50% ${it.pos}%">` : "";
+    return `        ${open}
+          <div class="art ph" style="background:${it.bg}">${art}</div>
+          <div class="inner"><time>${when}</time><h3>${tesc(title)}</h3><p>${tesc(text)}</p></div>
+        ${close}`;
+  }).join("\n");
+  return `<div class="news">\n${body}\n      </div>`;
+}
+async function newsPublish(user: { id: string; full_name: string }, body: Record<string, unknown>) {
+  const raw = Array.isArray(body.items) ? body.items as NewsItem[] : [];
+  if (!raw.length) throw new HttpError(400, "En az bir haber olmalı.");
+  if (raw.length > 12) throw new HttpError(400, "En fazla 12 haber gösterilebilir.");
+  const s = (v: unknown, max: number) => String(v ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+  const items: NewsItem[] = [];
+  for (const [i, r] of raw.entries()) {
+    const it: NewsItem = {
+      date: s(r.date, 10), title_tr: s(r.title_tr, 140), text_tr: s(r.text_tr, 400), title_en: s(r.title_en, 140), text_en: s(r.text_en, 400),
+      alt_tr: s(r.alt_tr, 160), alt_en: s(r.alt_en, 160), link: s(r.link, 400), img: s(r.img, 160),
+      pos: Math.max(0, Math.min(100, Math.round(Number(r.pos ?? 50)) || 0)), bg: s(r.bg, 120),
+    };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(it.date)) throw new HttpError(400, `${i + 1}. haber: tarih seç.`);
+    if (!it.title_tr || !it.text_tr) throw new HttpError(400, `${i + 1}. haber: başlık ve kısa metin gerekli.`);
+    if (it.link && !/^https:\/\/[^\s"<>]+$/.test(it.link)) throw new HttpError(400, `${i + 1}. haber: bağlantı https:// ile başlamalı.`);
+    if (it.img && !/^assets\/haberler\/[a-z0-9._-]+\.(jpe?g|png|webp)$/i.test(it.img)) it.img = "";
+    if (!/^linear-gradient\([#0-9a-zA-Z ,%.]+\)$/.test(it.bg || "")) it.bg = NEWS_BG[i % NEWS_BG.length];
+    // Yeni görsel: depoya yüklenir
+    const data = typeof r.image_data === "string" ? r.image_data.replace(/^data:[^,]+,/, "") : "";
+    if (data) {
+      if (data.length > 2_800_000) throw new HttpError(400, `${i + 1}. haber: görsel çok büyük.`);
+      const ext = /^(jpg|jpeg|png|webp)$/i.test(String(r.image_ext)) ? String(r.image_ext).toLowerCase() : "jpg";
+      it.img = `assets/haberler/${it.date}-${slug(it.title_tr)}-${Date.now().toString(36)}.${ext}`;
+      await uploadAsset(it.img, data, `HİTK paneli: haber görseli (${it.title_tr.slice(0, 50)})`);
+    }
+    items.push(it);
+  }
+  items.sort((x, y) => y.date.localeCompare(x.date));   // en yeni en başta (geniş kart)
+  const files: Record<string, string> = {};
+  for (const f of FILES) files[f] = (await readFile(f)).text;
+  const edits: Edit[] = FILES.map(f => ({ file: f, old_str: newsBlock(files[f]).text, new_str: newsHtml(items, f === "index.html" ? "tr" : "en") }))
+    .filter(e => e.old_str !== e.new_str);
+  if (!edits.length) throw new HttpError(400, "Haberlerde bir değişiklik yok.");
+  const { data, error } = await admin().from("site_edits").insert({
+    session_id: crypto.randomUUID(), user_id: user.id, user_name: user.full_name,
+    prompt: `Haberler güncellendi (${items.length} haber)`, reply: `Haberler paneli: ${items[0].title_tr}`.slice(0, 200),
+    edits, status: "onerildi", model: "haberler",
+  }).select().single();
+  if (error) throw new HttpError(500, "Kayıt yazılamadı: " + error.message);
+  return await publish(data.id);
+}
+
 async function propose(user: { id: string; full_name: string }, prompt: string, sessionId: string) {
   const db = admin();
   const since = new Date(Date.now() - 864e5).toISOString();
@@ -480,6 +589,8 @@ Deno.serve(async (req) => {
       }
       case "status": return json({ ai: aiProvider() });
       case "direct": return json({ row: await directPublish(user, body) });
+      case "news_get": return json({ items: await newsGet() });
+      case "news": return json({ row: await newsPublish(user, body) });
       case "publish": return json({ row: await publish(id) });
       case "reject": return json({ row: await reject(id) });
       case "revert": return json({ row: await revert(user, id) });

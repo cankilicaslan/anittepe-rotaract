@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611191650";
-import { createStore, trDate, guestAsMe } from "./store.js?v=202611191650";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611191650";
+import * as BP from "./board-plan.js?v=202611191805";
+import { createStore, trDate, guestAsMe } from "./store.js?v=202611191805";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611191805";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -356,6 +356,8 @@ const PAGES = [
   // Site düzenleme: yalnızca Halkla İlişkiler ve Tanıtım (HİTK) görevlisi.
   // Site düzenleme: HİTK ve Sayman
   { id: "site", label: "Site düzenleme", show: () => hasRole(me, "pr") || hasRole(me, "sayman") },
+  // Anasayfa haberleri: HİTK (ve site sahibi) ekler, düzenler, kaldırır
+  { id: "haberler", label: "Anasayfa haberleri", show: () => hasRole(me, "pr") },
   // Geçmiş dönem başkanları YK-GYK planını yalnızca görüntüler
   { id: "yk-plan", label: "Gelecek Dönem YK-GYK Planı", show: () => !isPlanner() && me?.status === "active" && !!me.past_president }
 ];
@@ -442,7 +444,7 @@ function shell() {
     const t = await store.ensurePlanTerm(); store.setViewTerm(t);
     if (planSub === "takvim" && !(cal2Month >= "2027-07" && cal2Month <= "2028-06")) cal2Month = "2027-07";
     return planFn(v);
-  } : { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, "kulup-projeleri": viewClubProjects, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram, mektup: viewLetter, site: viewSite, arsiv: viewArchive, yukle: viewUpload, bagislar: viewDonations, "proje-formlari": viewProjectForms, "wa-toplanti": viewWaMeeting, "wa-aidat": viewWaDues, plan: viewBoardPlan, "yk-plan": v => viewBoardPlan(v, true) }[id];
+  } : { profil: viewProfile, takvim: viewCalendar, kulupler: viewClubEvents, "kulup-projeleri": viewClubProjects, duyurular: viewAnnounce, uyeler: viewMembers, yoklama: viewAttendance, aidat: viewDues, kasa: viewTreasury, projeler: viewProjects, instagram: viewInstagram, mektup: viewLetter, site: viewSite, haberler: viewNews, arsiv: viewArchive, yukle: viewUpload, bagislar: viewDonations, "proje-formlari": viewProjectForms, "wa-toplanti": viewWaMeeting, "wa-aidat": viewWaDues, plan: viewBoardPlan, "yk-plan": v => viewBoardPlan(v, true) }[id];
   fn(view).catch(e => { view.innerHTML = `<div class="err">${esc(e.message)}</div>`; });
   labelTables(view);
   new MutationObserver(() => labelTables(view)).observe(view, { childList: true, subtree: true });
@@ -1878,6 +1880,72 @@ function siteDiff(edits) {
       ${textOnly ? `<div class="d-old" aria-label="Eski">${esc(o) || "<i>(boş)</i>"}</div><div class="d-new" aria-label="Yeni">${esc(n) || "<i>(silinecek)</i>"}</div>` : `<p class="muted" style="margin:4px 0">Görünen metin aynı; bağlantı ya da görsel gibi kod kısmı değişiyor.</p>`}
       <details><summary>HTML farkı</summary><pre class="d-old">${esc(e.old_str)}</pre><pre class="d-new">${esc(e.new_str)}</pre></details></div>`; }).join("");
 }
+/* ---------------- HİTK: anasayfa haberleri ---------------- */
+// Haber kartları formla düzenlenir; "Yayınla" TR ve EN anasayfanın haber bölümünü baştan yazar (en yeni haber en başta, geniş kart).
+async function newsImage(file) {
+  const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("Görsel açılamadı.")); i.src = URL.createObjectURL(file); });
+  const k = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
+  const c = document.createElement("canvas"); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(img.src);
+  return c.toDataURL("image/jpeg", 0.84);
+}
+let newsDraft = null;
+async function viewNews(v) {
+  if (!newsDraft) {
+    v.innerHTML = header("Anasayfa haberleri") + `<div class="card"><p class="muted" style="margin:0">Haberler yükleniyor…</p></div>`;
+    try { newsDraft = (await store.listNews()).map(n => ({ ...n })); }
+    catch (e) { v.innerHTML = header("Anasayfa haberleri") + `<div class="card"><p class="err" style="margin:0">${esc(e.message)}</p></div>`; return; }
+  }
+  const ro = !hasRole(me, "pr") || !!preview;
+  const items = newsDraft;
+  const src = n => n.preview || (n.img ? "../" + n.img : "");
+  const card = (n, i) => `<article class="card nw-card" data-i="${i}">
+    <div class="nw-media">
+      <div class="nw-art" style="background:${esc(n.bg || "linear-gradient(135deg,#A30C4D,#D41367)")}">${src(n) ? `<img src="${esc(src(n))}" alt="" style="object-position:50% ${n.pos ?? 50}%">` : '<span class="muted">Görsel yok</span>'}</div>
+      <label class="btn ghost sm nw-pick">Görsel ${src(n) ? "değiştir" : "seç"}<input type="file" accept="image/*" class="sr" data-k="image"></label>
+      ${src(n) ? `<label class="f nw-pos">Görselin dikey konumu<input type="range" min="0" max="100" value="${n.pos ?? 50}" data-k="pos"></label>` : ""}
+    </div>
+    <div class="nw-fields">
+      <div class="grid g2">
+        <label class="f">Tarih<input type="date" value="${esc(n.date)}" data-k="date" required></label>
+        <label class="f">Bağlantı <small>Instagram gönderisi vb. (isteğe bağlı)</small><input type="url" value="${esc(n.link)}" data-k="link" placeholder="https://www.instagram.com/p/…"></label>
+      </div>
+      <label class="f">Başlık<input type="text" maxlength="140" value="${esc(n.title_tr)}" data-k="title_tr" required></label>
+      <label class="f">Kısa metin<textarea rows="2" maxlength="400" data-k="text_tr">${esc(n.text_tr)}</textarea></label>
+      <details class="nw-en"${n.title_en ? "" : " open"}><summary>İngilizce sayfa${n.title_en ? "" : " (boş bırakılırsa Türkçe metin kullanılır)"}</summary>
+        <label class="f">Title<input type="text" maxlength="140" value="${esc(n.title_en)}" data-k="title_en"></label>
+        <label class="f">Short text<textarea rows="2" maxlength="400" data-k="text_en">${esc(n.text_en)}</textarea></label>
+      </details>
+      <div class="row nw-acts">${i === 0 ? '<span class="tag cran">Anasayfada büyük kart</span>' : ""}<span class="spacer"></span><button type="button" class="btn ghost sm" data-del="${i}">Haberi kaldır</button></div>
+    </div>
+  </article>`;
+  v.innerHTML = header("Anasayfa haberleri", "Anasayfadaki Haberler bölümünü buradan güncelle. Yayınla dediğinde Türkçe ve İngilizce sayfa birlikte güncellenir; en yeni haber en başta ve büyük görünür.",
+    ro ? "" : `<div class="row"><button class="btn ghost" id="nw-add">Yeni haber ekle</button><button class="btn" id="nw-pub">Yayınla</button></div>`) +
+    `<p class="muted nw-note">${items.length} haber · değişiklikler "Yayınla"ya basana kadar sitede görünmez. <a href="../#haberler" target="_blank" rel="noopener">Anasayfada gör</a></p>
+    ${items.map(card).join("") || '<div class="card"><p class="muted" style="margin:0">Haber yok. "Yeni haber ekle" ile başla.</p></div>'}`;
+  if (ro) { lockView(v); return; }
+  const at = el => items[+el.closest("[data-i]").dataset.i];
+  v.querySelectorAll("[data-k]").forEach(el => {
+    const k = el.dataset.k;
+    if (k === "image") el.onchange = async () => {
+      const f = el.files[0]; if (!f) return;
+      try { const url = await newsImage(f); Object.assign(at(el), { preview: url, image_data: url.split(",")[1], image_ext: "jpg", pos: 50 }); viewNews(v); } catch (e) { fail(e); }
+    };
+    else if (k === "pos") el.oninput = () => { at(el).pos = +el.value; el.closest(".nw-card").querySelector(".nw-art img").style.objectPosition = `50% ${el.value}%`; };
+    else el.oninput = () => { at(el)[k] = el.value; };
+  });
+  v.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { const n = items[+b.dataset.del]; if (!confirm(`"${n.title_tr || "Bu haber"}" kaldırılsın mı? (Yayınla'ya basınca siteden de kalkar)`)) return; items.splice(+b.dataset.del, 1); viewNews(v); });
+  document.getElementById("nw-add").onclick = () => { items.unshift({ date: today(), title_tr: "", text_tr: "", title_en: "", text_en: "", link: "", img: "", pos: 50, bg: "" }); viewNews(v); v.querySelector('[data-k="title_tr"]')?.focus(); };
+  document.getElementById("nw-pub").onclick = async e => {
+    const bad = items.findIndex(n => !n.date || !n.title_tr.trim() || !n.text_tr.trim());
+    if (bad >= 0) { toast(`${bad + 1}. haberde tarih, başlık ve kısa metin gerekli.`, "bad"); v.querySelectorAll(".nw-card")[bad]?.scrollIntoView({ block: "center" }); return; }
+    if (!confirm(`${items.length} haber anasayfada yayınlansın mı?`)) return;
+    const b = e.target; b.disabled = true; b.textContent = "Yayınlanıyor…";
+    try { await store.publishNews(items.map(({ preview, ...n }) => n)); newsDraft = null; toast("Haberler yayınlandı. Sitede 1–2 dakika içinde görünür.", "ok"); viewNews(v); }
+    catch (er) { fail(er); b.disabled = false; b.textContent = "Yayınla"; }
+  };
+}
+
 async function viewSite(v) {
   const rerender = () => viewSite(v), uid = () => crypto.randomUUID();
   const rows = await store.listSiteEdits();
@@ -1929,7 +1997,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611191650");
+  const { mountComposer } = await import("./composer.js?v=202611191805");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1938,7 +2006,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611191650");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611191805");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

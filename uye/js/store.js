@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611191650";
-import { can, hasRole, hasAnyRole } from "./roles.js?v=202611191650";
+import { CONFIG } from "./config.js?v=202611191805";
+import { can, hasRole, hasAnyRole } from "./roles.js?v=202611191805";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -328,6 +328,20 @@ function demoStore() {
       else need("wa-aidat");
       (S.settings ||= {})[key] = value; save();
     },
+    async listNews() {
+      if (S.news) return clone(S.news);
+      const get = async u => new DOMParser().parseFromString(await (await fetch(u)).text(), "text/html");
+      const [tr, en] = await Promise.all([get("../index.html"), get("../en/index.html")]);
+      const TRM = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+      const iso = t => { const m = String(t).trim().match(/^(\d{1,2})\s+(\S+)\s+(\d{4})$/); const i = m ? TRM.indexOf(m[2]) : -1; return i < 0 ? "" : `${m[3]}-${String(i + 1).padStart(2, "0")}-${m[1].padStart(2, "0")}`; };
+      const E = [...en.querySelectorAll(".news .post")];
+      return [...tr.querySelectorAll(".news .post")].map((p, i) => { const img = p.querySelector("img"), e = E[i];
+        return { date: iso(p.querySelector("time")?.textContent), title_tr: p.querySelector("h3")?.textContent || "", text_tr: p.querySelector("p")?.textContent || "", alt_tr: img?.alt || "",
+          title_en: e?.querySelector("h3")?.textContent || "", text_en: e?.querySelector("p")?.textContent || "", alt_en: e?.querySelector("img")?.alt || "",
+          link: p.getAttribute("href") || "", img: (img?.getAttribute("src") || "").replace(/^(\.\.\/)+/, ""), pos: +((img?.getAttribute("style") || "").match(/50%\s+(\d+)%/)?.[1] ?? 50),
+          bg: ((p.querySelector(".art")?.getAttribute("style") || "").match(/background:(linear-gradient\([^;]*\))/) || [])[1] || "" }; });
+    },
+    async publishNews(items) { if (!hasRole(me(), "pr")) throw new Error("Haberleri yalnızca Halkla İlişkiler ve Tanıtım görevlisi düzenler."); S.news = items.map(({ image_data, image_ext, preview, ...it }) => ({ ...it, img: image_data ? "" : it.img })).sort((a, b) => b.date.localeCompare(a.date)); save(); return { status: "yayinlandi" }; },
     async listSiteEdits() { return clone((S.siteEdits ||= []).slice().sort((a, b) => b.created_at.localeCompare(a.created_at))); },
     async siteEdit(body) {
       const list = (S.siteEdits ||= []), m = me(), now = new Date().toISOString();
@@ -682,6 +696,9 @@ async function supabaseStore() {
     async setSetting(key, value) { ok(await sb.from("app_settings").upsert({ key, value, updated_at: new Date().toISOString(), updated_by: await meId() })); },
     async listSiteEdits() { return ok(await sb.from("site_edits").select("*").order("created_at", { ascending: false }).limit(300)); },
     async siteEdit(body) { return (await fn("site-edit", body)).row; },
+    // Anasayfa haberleri (HİTK): GitHub'daki güncel sayfadan okunur; yayınlanınca TR ve EN sayfa birlikte yazılır
+    async listNews() { return (await fn("site-edit", { action: "news_get" })).items || []; },
+    async publishNews(items) { return (await fn("site-edit", { action: "news", items })).row; },
     async saveGuest(g) {
       if (!(g.full_name || "").trim()) throw new Error("Misafirin adını yaz.");
       const row = { full_name: g.full_name.trim(), phone: g.phone || null, email: g.email || null, note: g.note || null };

@@ -912,3 +912,6 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 .le-arch-p.is-sel .le-arch-tick{display:grid}
 .le-arch-p:focus-visible,.le-arch-f:focus-visible{outline:3px solid var(--cran);outline-offset:2px}
 .le-arch-n{font-size:.85rem}
+
+/* Yoklama: misafirin ilk geldiği toplantı seçimi */
+.g-start{min-height:34px;padding:4px 8px;font-size:.85rem;max-width:210px}

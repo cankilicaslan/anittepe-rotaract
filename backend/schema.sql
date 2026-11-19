@@ -1772,3 +1772,8 @@ begin
   end if;
   return new;
 end $$;
+
+-- =====================================================================
+-- v47: Misafirin ilk geldiği toplantı Yoklama'dan seçilebilir; devam oranı ve listeler buradan başlar
+-- =====================================================================
+alter table public.guests add column if not exists start_meeting_id uuid references public.meetings(id) on delete set null;

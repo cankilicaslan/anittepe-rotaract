@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611191450";
-import { createStore, trDate } from "./store.js?v=202611191450";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611191450";
+import * as BP from "./board-plan.js?v=202611191455";
+import { createStore, trDate } from "./store.js?v=202611191455";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611191455";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -577,9 +577,12 @@ async function viewBoardPlan(v, ro = false) {
 /* --------------------------- Yardımcı hesaplar --------------------------- */
 // Üyenin yoklamada sayılmaya başladığı toplantı no'su (bu dönemde değilse dönem başı = 1).
 const memberStartNo = (m, meetings) => meetings.find(x => x.id === m?.start_meeting_id)?.term_no || 1;
-// Misafirin ilk geldiği toplantı no'su (hiç gelmediyse ilk kaydı; kaydı yoksa null).
-const guestStartNo = (gid, meetings, gatt) => {
+// Misafirin başladığı toplantı no'su: Yoklamada elle seçilen (start_meeting_id), yoksa ilk geldiği
+// (hiç gelmediyse ilk kaydı; kaydı yoksa null).
+const guestStartNo = (g, meetings, gatt) => {
   const no = id => meetings.find(m => m.id === id)?.term_no;
+  if (g?.start_meeting_id && no(g.start_meeting_id)) return no(g.start_meeting_id);
+  const gid = g?.id;
   const mine = gatt.filter(a => a.member_id === gid).map(a => ({ s: a.status, n: no(a.meeting_id) })).filter(x => x.n);
   const came = mine.filter(x => x.s === "geldi").map(x => x.n);
   const list = came.length ? came : mine.map(x => x.n);
@@ -1075,7 +1078,7 @@ async function viewAttendance(v) {
   const gatt = gattRaw.map(a => ({ ...a, member_id: a.guest_id }));
   const gmap = new Map(gatt.map(a => [a.meeting_id + "|" + a.member_id, a]));
   const guestList = guests.map(g => ({ ...g, title: "Misafir" })).sort((a, b) => a.full_name.localeCompare(b.full_name, "tr"));
-  const startOf = new Map([...members.map(m => [m.id, memberStartNo(m, meetings)]), ...guestList.map(g => [g.id, guestStartNo(g.id, meetings, gatt)])]);
+  const startOf = new Map([...members.map(m => [m.id, memberStartNo(m, meetings)]), ...guestList.map(g => [g.id, guestStartNo(g, meetings, gatt)])]);
   const stats = members.map(m => ({ m, s: attendanceStats(m.id, meetings, att, startOf.get(m.id)) }));
   const gstats = guestList.map(g => ({ m: g, start: startOf.get(g.id), s: startOf.get(g.id) ? attendanceStats(g.id, meetings, gatt, startOf.get(g.id)) : null }));
   const avg = stats.length ? stats.reduce((x, y) => x + y.s.oran, 0) / stats.length : 0;
@@ -1090,9 +1093,12 @@ async function viewAttendance(v) {
   const statRow = (p, s, extra) => `<tr><td>${person(p)}</td><td>${extra}</td><td class="num">${s.geldi}</td><td class="num">${s.gelmedi}</td><td class="num">${s.mazeretli}</td><td class="num">${s.isaretsiz}</td>
       <td><div class="row" style="flex-wrap:nowrap"><div class="bar" style="flex:1"><i style="width:${s.oran * 100}%"></i></div><b style="min-width:44px;text-align:right">${pct(s.oran)}</b></div></td><td class="num">${pct(s.oranMazeretHaric)}</td></tr>`;
   const startTxt = no => no > 1 ? `${no}. toplantıdan` : "Dönem başından";
+  // Misafirin ilk geldiği toplantı: seçilebilir (boş = ilk yoklama kaydından otomatik)
+  const gStartCtl = (g, start) => ro ? `${start}. toplantı` : `<select class="g-start" data-gstart="${g.id}" aria-label="${esc(g.full_name)} ilk geldiği toplantı"><option value="">${start && !g.start_meeting_id ? `Otomatik · ${start}. toplantı` : "Otomatik (ilk kaydı)"}</option>${meetings.map(m => `<option value="${m.id}" ${g.start_meeting_id === m.id ? "selected" : ""}>${m.term_no}. toplantı · ${trDate(m.date)}</option>`).join("")}</select>`;
   const matrixRow = (p, map, kind) => { const st = startOf.get(p.id); return `<tr><td title="${esc(p.full_name)}">${esc(p.full_name)}</td>${meetings.map(m => {
     const fut = m.date > today() ? "future" : "";
     if (kind === "cp" && m.term_no < st) return `<td class="${fut}"><span class="cell pre" title="Henüz üye değildi">–</span></td>`;
+    if (kind === "cg" && st && m.term_no < st) return `<td class="${fut}"><span class="cell pre" title="Henüz misafir olarak gelmemişti">–</span></td>`;
     const s = map.get(m.id + "|" + p.id)?.status;
     return `<td class="${fut}"><button class="cell ${s || ""}" data-cm="${m.id}" data-${kind}="${p.id}" ${ro ? "disabled" : ""} aria-label="${esc(p.full_name)}, ${m.term_no}. toplantı: ${s || "işaretsiz"}">${s ? SHORT[s] : "·"}</button></td>`;
   }).join("")}</tr>`; };
@@ -1124,7 +1130,7 @@ async function viewAttendance(v) {
     </div>
     <div class="att-list">${curMembers.map(m => segRow(m, amap.get(cur.id + "|" + m.id)?.status, "m")).join("")}</div>
     <h3 style="margin:20px 0 8px">Misafirler</h3>
-    ${guestList.length ? `<div class="att-list">${guestList.map(g => segRow(g, gmap.get(cur.id + "|" + g.id)?.status, "g")).join("")}</div>` : `<p class="muted" style="margin:0 0 8px">Henüz misafir eklenmedi.</p>`}
+    ${guestList.length ? `<div class="att-list">${guestList.filter(g => !startOf.get(g.id) || startOf.get(g.id) <= cur.term_no).map(g => segRow(g, gmap.get(cur.id + "|" + g.id)?.status, "g")).join("")}</div>` : `<p class="muted" style="margin:0 0 8px">Henüz misafir eklenmedi.</p>`}
     ${ro ? "" : `<form class="row" id="f-guest" style="margin-top:12px;align-items:flex-end">
       <label class="f" style="flex:1;min-width:200px">Yeni misafir<input type="text" name="full_name" placeholder="Ad soyad" required></label>
       <label class="f" style="min-width:160px">Telefon <small>isteğe bağlı</small><input type="tel" name="phone" placeholder="05xx xxx xx xx"></label>
@@ -1140,8 +1146,8 @@ async function viewAttendance(v) {
   <div class="card"><h2>Misafirlerin devam durumu</h2>
     <p class="muted" style="margin-top:-6px">Oran, misafirin ilk geldiği toplantıdan itibaren hesaplanır.</p>
     ${gstats.length ? `<div class="tbl-wrap"><table><thead><tr><th>Misafir</th><th>İlk geldiği</th><th class="num">Geldi</th><th class="num">Gelmedi</th><th class="num">Mazeretli</th><th class="num">İşaretsiz</th><th>Devam oranı</th><th class="num">Mazeret hariç</th></tr></thead><tbody>
-    ${gstats.filter(x => x.s).sort((a, b) => b.s.oran - a.s.oran).map(({ m, s, start }) => statRow(m, s, `${start}. toplantı${ro ? "" : ` <button type="button" class="btn ghost sm" data-gdel="${m.id}" aria-label="${esc(m.full_name)} misafirini sil">Sil</button>`}`)).join("")}
-    ${gstats.filter(x => !x.s).map(({ m }) => `<tr><td>${person(m)}</td><td colspan="7" class="muted">Henüz yoklama kaydı yok${ro ? "" : ` <button type="button" class="btn ghost sm" data-gdel="${m.id}">Sil</button>`}</td></tr>`).join("")}
+    ${gstats.filter(x => x.s).sort((a, b) => b.s.oran - a.s.oran).map(({ m, s, start }) => statRow(m, s, `${gStartCtl(m, start)}${ro ? "" : ` <button type="button" class="btn ghost sm" data-gdel="${m.id}" aria-label="${esc(m.full_name)} misafirini sil">Sil</button>`}`)).join("")}
+    ${gstats.filter(x => !x.s).map(({ m }) => `<tr><td>${person(m)}</td><td>${ro ? "–" : gStartCtl(m, null)}</td><td colspan="6" class="muted">Henüz yoklama kaydı yok${ro ? "" : ` <button type="button" class="btn ghost sm" data-gdel="${m.id}">Sil</button>`}</td></tr>`).join("")}
     </tbody></table></div>` : `<p class="muted" style="margin:0">Henüz misafir yok. Yukarıdaki yoklamadan misafir ekleyebilirsin.</p>`}
   </div>
   <details class="card"><summary style="cursor:pointer;font-weight:700">Dönemin tamamı (${term.meeting_count} toplantı tablosu)</summary>
@@ -1168,6 +1174,7 @@ async function viewAttendance(v) {
     if (!name) return;
     run(async () => { const g = await store.saveGuest({ full_name: name, phone: f.phone.value.trim() }); await store.setGuestAttendance(cur.id, g.id, "geldi"); toast(`${esc(name)} misafir olarak eklendi.`); });
   };
+  v.querySelectorAll("[data-gstart]").forEach(sel => sel.onchange = () => run(() => store.setGuestStart(sel.dataset.gstart, sel.value || null)));
   v.querySelectorAll("[data-gdel]").forEach(b => b.onclick = () => {
     const g = guestList.find(x => x.id === b.dataset.gdel);
     if (g && confirm(`${g.full_name} misafir listesinden ve tüm yoklama kayıtlarından silinsin mi?`)) run(() => store.deleteGuest(g.id));
@@ -1797,7 +1804,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611191450");
+  const { mountComposer } = await import("./composer.js?v=202611191455");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1806,7 +1813,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611191450");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611191455");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

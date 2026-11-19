@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611191450";
-import { can, hasRole, hasAnyRole } from "./roles.js?v=202611191450";
+import { CONFIG } from "./config.js?v=202611191455";
+import { can, hasRole, hasAnyRole } from "./roles.js?v=202611191455";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -378,6 +378,7 @@ function demoStore() {
       if (blood_type !== undefined) (S.guestPrivates ||= {})[id] = { blood_type };
       save(); return clone(g);
     },
+    async setGuestStart(id, meetingId) { need("yoklama"); const g = S.guests.find(x => x.id === id); if (!g) throw new Error("Misafir bulunamadı."); g.start_meeting_id = meetingId || null; save(); },
     async getGuestPrivate(id) { return can(me(), "yoklama") ? clone((S.guestPrivates || {})[id] || {}) : {}; },
     async deleteGuest(id) { need("yoklama"); S.guests = S.guests.filter(g => g.id !== id); S.guestAtt = S.guestAtt.filter(a => a.guest_id !== id); save(); },
     async listGuestAttendance() { return can(me(), "yoklama") ? clone(S.guestAtt) : []; },
@@ -683,6 +684,7 @@ async function supabaseStore() {
       if (blood_type !== undefined) ok(await sb.from("guest_private").upsert({ guest_id: id, blood_type: blood_type || null }));
       return row;
     },
+    async setGuestStart(id, meetingId) { ok(await sb.from("guests").update({ start_meeting_id: meetingId || null }).eq("id", id)); },
     async getGuestPrivate(id) { const { data } = await sb.from("guest_private").select("*").eq("guest_id", id).maybeSingle(); return data || {}; },
     async deleteGuest(id) { ok(await sb.from("guests").delete().eq("id", id)); },
     async listGuestAttendance() {

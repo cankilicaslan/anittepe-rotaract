@@ -1941,3 +1941,18 @@ begin
 end $$;
 revoke all on function public.guest_member_profile(uuid, date) from public, anon;
 grant execute on function public.guest_member_profile(uuid, date) to authenticated;
+
+-- =====================================================================
+-- v51: Toplantıdan 6 gün önce tüm üyelere ve e-postası kayıtlı misafirlere otomatik toplantı duyurusu
+--      (meeting-reminder fonksiyonu; her sabah 09.00 Türkiye). Her toplantı için bir kez (reminder_log).
+-- =====================================================================
+select cron.unschedule(jobid) from cron.job where jobname = 'meeting-reminder';
+select cron.schedule(
+  'meeting-reminder',
+  '0 6 * * *',  -- 06.00 UTC = 09.00 Türkiye
+  $$ select net.http_post(
+       url     := 'https://fyjcgfbooajuljebxnil.supabase.co/functions/v1/meeting-reminder',
+       headers := '{"Content-Type": "application/json"}'::jsonb,
+       body    := '{}'::jsonb
+     ); $$
+);

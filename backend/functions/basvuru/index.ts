@@ -3,7 +3,8 @@
 //   1) public.applications tablosuna kaydeder (e-posta gitmese bile başvuru kaybolmaz),
 //   2) kulübün Gmail adresine (anitteperotaract1996@gmail.com) e-posta olarak gönderir.
 // Kimlik istemez (ziyaretçiler kullanır). Kötüye kullanıma karşı: alan uzunluk sınırları, gizli "hp"
-// tuzak alanı ve aynı IP'den 10 dakikada en fazla 5 başvuru.
+// tuzak alanı, site dışı kaynak (Origin) reddi, çok hızlı doldurulan form reddi (t < 3 sn),
+// rastgele harf dizisi gibi isimler (mail atılmaz) ve aynı IP'den 10 dakikada en fazla 5 başvuru.
 //
 // POST ${SUPABASE_URL}/functions/v1/basvuru
 // Body: { kind: "misafir"|"iletisim"|"panel", subject, body, reply_to?, page?, hp?, confirm? }
@@ -30,6 +31,19 @@ const json = (body: unknown, status: number, h: Record<string, string>) =>
   new Response(JSON.stringify(body), { status, headers: { ...h, "Content-Type": "application/json; charset=utf-8" } });
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Bot isimleri çoğunlukla boşluksuz, rastgele büyük/küçük harf karışık dizilerdir (ör. "hGtKdqWzpL").
+export function looksLikeBotName(name: string): boolean {
+  const n = name.trim();
+  if (!n) return false;
+  if (/https?:|www\.|\.(com|ru|xyz|top)\b/i.test(n)) return true;
+  const words = n.split(/\s+/);
+  if (words.length > 1) return false;               // ad soyad gibi görünüyor
+  if (n.length < 7) return false;                   // kısa tek isimlere dokunma
+  const innerUpper = (n.slice(1).match(/[A-ZÇĞİÖŞÜ]/g) || []).length;
+  const vowels = (n.match(/[aeıioöuüAEIİOÖUÜ]/g) || []).length;
+  return innerUpper >= 2 || vowels / n.length < 0.2;
+}
 
 // "Etiket: değer" satırlarını tabloya, kalanını paragrafa çevir
 function bodyHtml(subject: string, body: string): string {
@@ -130,6 +144,11 @@ Deno.serve(async (req: Request) => {
   let input: Record<string, unknown>;
   try { input = await req.json(); } catch { return json({ ok: false, error: "Geçersiz istek." }, 400, h); }
   if (typeof input.hp === "string" && input.hp.trim()) return json({ ok: true, emailed: false }, 200, h); // bot tuzağı
+  // Site dışından (Origin'siz ya da başka siteden) gelen istekler sessizce yok sayılır
+  const origin = req.headers.get("origin");
+  if (!origin || !ALLOWED_ORIGINS.some((r) => r.test(origin))) return json({ ok: true, emailed: false }, 200, h);
+  // Sayfa açıldıktan 3 saniye içinde gönderilen form insan işi değildir
+  if (typeof input.t === "number" && input.t < 3000) return json({ ok: true, emailed: false }, 200, h);
 
   const kind = ["misafir", "iletisim", "panel"].includes(String(input.kind)) ? String(input.kind) : "iletisim";
   const subject = String(input.subject ?? "").trim().slice(0, 200);
@@ -147,10 +166,15 @@ Deno.serve(async (req: Request) => {
     if ((count ?? 0) >= 5) return json({ ok: false, error: "Çok fazla başvuru gönderildi. Birkaç dakika sonra tekrar dene." }, 429, h);
   }
 
+  // Anlamsız isim: kayda "[spam]" olarak düşer, kulübe ve başvurana mail atılmaz
+  const confirmName = String(((input.confirm ?? {}) as Record<string, unknown>).name ?? "");
+  const spam = kind !== "panel" && looksLikeBotName(confirmName || subject.split(": ").slice(1).join(": "));
+
   const { data: row, error: insErr } = await admin.from("applications")
-    .insert({ kind, subject, body, reply_to: EMAIL_RE.test(replyTo) ? replyTo : null, page, ip })
+    .insert({ kind, subject: spam ? `[spam] ${subject}`.slice(0, 200) : subject, body, reply_to: EMAIL_RE.test(replyTo) ? replyTo : null, page, ip })
     .select("id").single();
   if (insErr) console.error("Başvuru kaydedilemedi", insErr);
+  if (spam) { console.log("basvuru: spam elendi"); return json({ ok: true, emailed: false }, 200, h); }
 
   let emailed = false;
   try {

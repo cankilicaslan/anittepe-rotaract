@@ -715,6 +715,7 @@ footer.site{padding-top:44px}
   .hero-inner{padding-bottom:clamp(40px,5vw,72px)}
   .tl.static .tl-sticky{padding-block:clamp(56px,6.5vw,88px)}
 }
+.hp-f{position:absolute!important;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
 </style>
 
 <div class="progress" id="progress" aria-hidden="true"></div>
@@ -799,7 +800,7 @@ footer.site{padding-top:44px}
           <li><b>We welcome you at the door</b><span>A member introduces you to the club. No commitment.</span></li>
         </ol>
       </div>
-      <form class="apply-form" id="gf" novalidate>
+      <form class="apply-form" id="gf" novalidate><label class="hp-f" aria-hidden="true">Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
         <div class="gf-fields" id="gfFields">
           <p class="req-note"><span class="req" aria-hidden="true">*</span> marks required fields.</p>
           <label><span class="lbl">Full name<span class="req" aria-hidden="true"> *</span></span><input id="g-name" name="name" required autocomplete="name" autocapitalize="words"></label>
@@ -1107,7 +1108,7 @@ footer.site{padding-top:44px}
           <a href="https://www.facebook.com/AnittepeRotaractKulubu/" target="_blank" rel="noopener">Facebook</a>
         </div>
       </div>
-      <form class="cf" id="cf" novalidate>
+      <form class="cf" id="cf" novalidate><label class="hp-f" aria-hidden="true">Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label>
         <label><span class="lbl">Full name<span class="req" aria-hidden="true"> *</span></span><input id="f-name" name="name" required autocomplete="name" autocapitalize="words"></label>
         <label><span class="lbl">Email<span class="req" aria-hidden="true"> *</span></span><input id="f-mail" name="email" type="email" required autocomplete="email"></label>
         <label class="full">Subject
@@ -1233,7 +1234,7 @@ footer.site{padding-top:44px}
   $$("#gInterest button").forEach(b=>b.addEventListener("click",()=>b.setAttribute("aria-pressed",b.getAttribute("aria-pressed")!=="true")));
 
   // Formlar kulüp sunucusuna (Supabase) gider: başvuru kaydedilir ve kulüp Gmail adresine iletilir. Ulaşılamazsa e-posta uygulaması açılır.
-  const sendMail=(subject,body,replyTo,kind,confirm)=>fetch("https://fyjcgfbooajuljebxnil.supabase.co/functions/v1/basvuru",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({kind:kind||(/başvuru|application/i.test(subject)?"misafir":"iletisim"),subject,body,reply_to:replyTo,confirm,page:location.href})})
+  const sendMail=(subject,body,replyTo,kind,confirm)=>fetch("https://fyjcgfbooajuljebxnil.supabase.co/functions/v1/basvuru",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({kind:kind||(/başvuru|application/i.test(subject)?"misafir":"iletisim"),subject,body,reply_to:replyTo,confirm,page:location.href,hp:[...document.querySelectorAll('input[name="website"]')].map(i=>i.value).join(""),t:Math.round(performance.now())})})
     .then(r=>r.json()).then(j=>{if(!j.ok)throw new Error(j.error||"not sent");return true})
     .catch(()=>{location.href="mailto:anitteperotaract1996@gmail.com?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(body);return false});
 

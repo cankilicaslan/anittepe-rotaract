@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611171919";
-import { createStore, trDate } from "./store.js?v=202611171919";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611171919";
+import * as BP from "./board-plan.js?v=202611191450";
+import { createStore, trDate } from "./store.js?v=202611191450";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611191450";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -586,8 +586,17 @@ const guestStartNo = (gid, meetings, gatt) => {
   return list.length ? Math.min(...list) : null;
 };
 // Oran, kişinin başladığı toplantıdan (startNo) itibaren yapılan toplantılara göre hesaplanır.
+// Toplantı yapıldı mı? Geçmiş günler evet; bugünkü toplantı 19.30 olunca ya da yoklaması işaretlenmeye başlanınca sayılır.
+const MEETING_TIME = "19:30";
+const nowHM = () => { const d = new Date(); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+function meetingHeld(m, att = []) {
+  const t = today();
+  if (m.date < t) return true;
+  if (m.date > t) return false;
+  return nowHM() >= MEETING_TIME || att.some(a => a.meeting_id === m.id);
+}
 function attendanceStats(memberId, meetings, att, startNo = 1) {
-  const held = meetings.filter(m => m.date <= today() && m.term_no >= startNo);
+  const held = meetings.filter(m => m.term_no >= startNo && meetingHeld(m, att));
   const ids = new Set(held.map(m => m.id));
   const mine = att.filter(a => a.member_id === memberId && ids.has(a.meeting_id));
   const c = { geldi: 0, gelmedi: 0, mazeretli: 0 };
@@ -1057,8 +1066,9 @@ async function viewAttendance(v) {
   const [term, meetings, att, all, guests, gattRaw] = await Promise.all([store.getTerm(), store.listMeetings(), store.listAttendance(), store.listMembers(), store.listGuests(), store.listGuestAttendance()]);
   const members = all.filter(m => m.status === "active").sort((a, b) => a.full_name.localeCompare(b.full_name, "tr"));
   if (!meetings.length) { v.innerHTML = header("Yoklama", `${esc(term.name)} dönemi`) + `<div class="card"><p class="muted" style="margin:0">Bu dönem için henüz toplantı tanımlanmamış.</p></div>`; return; }
-  const held = meetings.filter(m => m.date <= today());
-  if (!selMeeting || !meetings.find(m => m.id === selMeeting)) selMeeting = (held.at(-1) || meetings[0])?.id;
+  const held = meetings.filter(m => meetingHeld(m, [...att, ...gattRaw]));
+  // Varsayılan: bugün toplantı varsa o, yoksa son yapılan toplantı
+  if (!selMeeting || !meetings.find(m => m.id === selMeeting)) selMeeting = (meetings.find(m => m.date === today()) || held.at(-1) || meetings[0])?.id;
   const cur = meetings.find(m => m.id === selMeeting);
   const amap = new Map(att.map(a => [a.meeting_id + "|" + a.member_id, a]));
   // Misafir kayıtları üye kayıtlarıyla aynı biçime getirilir (member_id = misafir id'si).
@@ -1787,7 +1797,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611171919");
+  const { mountComposer } = await import("./composer.js?v=202611191450");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -1796,7 +1806,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611171919");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611191450");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

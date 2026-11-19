@@ -1777,3 +1777,45 @@ end $$;
 -- v47: Misafirin ilk geldiği toplantı Yoklama'dan seçilebilir; devam oranı ve listeler buradan başlar
 -- =====================================================================
 alter table public.guests add column if not exists start_meeting_id uuid references public.meetings(id) on delete set null;
+
+-- =====================================================================
+-- v48: Misafir fotoğrafı; misafir üye alınınca fotoğrafı, doğum tarihi, meslek, Instagram ve kan grubu
+--      üye profiline taşınır (önceden misafir kaydıyla birlikte siliniyordu)
+-- =====================================================================
+alter table public.guests add column if not exists photo_url text;
+
+create or replace function public.convert_guest(p_guest uuid, p_member uuid, p_joined date)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v_att int := 0; v_ch int := 0; v_first uuid; g public.guests%rowtype; v_blood text;
+begin
+  if not public.is_admin() then raise exception 'Üye almak için Başkan yetkisi gerekiyor'; end if;
+  select * into g from public.guests where id = p_guest;
+  if not found then raise exception 'Misafir bulunamadı'; end if;
+  if not exists (select 1 from public.profiles where id = p_member) then raise exception 'Üye profili bulunamadı'; end if;
+  insert into public.attendance (meeting_id, member_id, status, note)
+    select ga.meeting_id, p_member, ga.status, ga.note from public.guest_attendance ga where ga.guest_id = p_guest
+  on conflict (meeting_id, member_id) do nothing;
+  get diagnostics v_att = row_count;
+  select m.id into v_first from public.guest_attendance ga join public.meetings m on m.id = ga.meeting_id
+   where ga.guest_id = p_guest order by m.date nulls last, m.term_no limit 1;
+  if v_first is null then
+    select m.id into v_first from public.meetings m where m.date >= p_joined order by m.date, m.term_no limit 1;
+  end if;
+  update public.profiles set joined_at = p_joined, start_meeting_id = coalesce(v_first, start_meeting_id),
+    photo_url  = coalesce(nullif(photo_url, ''), g.photo_url),
+    birth_date = coalesce(birth_date, g.birth_date),
+    profession = coalesce(nullif(profession, ''), g.profession),
+    instagram  = coalesce(nullif(instagram, ''), g.instagram)
+  where id = p_member;
+  select blood_type into v_blood from public.guest_private where guest_id = p_guest;
+  if coalesce(v_blood, '') <> '' then
+    insert into public.profile_private (member_id, blood_type) values (p_member, v_blood)
+    on conflict (member_id) do update set blood_type = coalesce(nullif(profile_private.blood_type, ''), excluded.blood_type);
+  end if;
+  insert into public.charges (due_id, member_id, amount)
+    select d.id, p_member, d.amount from public.dues d where d.due_date >= p_joined and public.term_is_current(d.term_id)
+  on conflict (due_id, member_id) do nothing;
+  get diagnostics v_ch = row_count;
+  delete from public.guests where id = p_guest;
+  return jsonb_build_object('attendance', v_att, 'charges', v_ch);
+end $$;

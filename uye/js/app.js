@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611201611";
-import { createStore, trDate, guestAsMe } from "./store.js?v=202611201611";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611201611";
+import * as BP from "./board-plan.js?v=202611201631";
+import { createStore, trDate, guestAsMe } from "./store.js?v=202611201631";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611201631";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1997,7 +1997,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611201611");
+  const { mountComposer } = await import("./composer.js?v=202611201631");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -2006,7 +2006,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611201611");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611201631");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });
@@ -2555,6 +2555,18 @@ function bindShare(root, albums) {
 // Üye ve misafir fotoğrafları: profil fotoğraflarından canlı oluşur (kopya tutulmaz). Biri profil
 // fotoğrafını değiştirince burada da hemen değişir. İndirilen dosyanın adı kişinin adıdır.
 const PEOPLE_DIR = "kisiler";
+// Klasör kapakları: fotoğrafı olmayan klasörde türüne özel renkli kapak, kişi klasörlerinde yüz kolajı
+const COVER_ICONS = {
+  toplanti: '<path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 20a6 6 0 0 1 12 0M10 20a6 6 0 0 1 12 0"/>',
+  ocakbasi: '<path d="M12 3c1 3 4 4.5 4 8.5a4 4 0 0 1-8 0c0-1.6.7-2.8 1.6-3.8.2 1.3.9 2.2 1.9 2.6C11 8 11 5.5 12 3Z"/><path d="M5 21h14M7 18l10 3M17 18 7 21"/>',
+  proje: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"/>',
+  etkinlik: '<path d="m12 3 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9Z"/>',
+  diger: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
+  kisiler: '<path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4 21a8 8 0 0 1 16 0"/>',
+};
+const typeCover = (k, note = "") => `<div class="fcov fcov-${COVER_ICONS[k] ? k : "diger"}"><svg viewBox="0 0 24 24" aria-hidden="true">${COVER_ICONS[k] || COVER_ICONS.diger}</svg>${note ? `<span>${esc(note)}</span>` : ""}</div>`;
+const mosaicCover = list => { const pics = list.filter(p => p.photo_url).slice(0, 4); const n = pics.length >= 4 ? 4 : pics.length >= 2 ? 2 : 1;
+  return `<div class="fmos fmos-${n}">${pics.slice(0, n).map(p => `<img src="${esc(p.photo_url)}" alt="" loading="lazy">`).join("")}</div>`; };
 const fileSafe = s => String(s || "foto").replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
 async function peoplePhotos() {
   const [members, guests] = await Promise.all([store.listMembers().catch(() => []), me.is_guest ? Promise.resolve([]) : store.listGuests().catch(() => [])]);
@@ -2581,7 +2593,7 @@ async function viewPeopleArchive(v, sub) {
     v.innerHTML = crumbs([["#arsiv", "Fotoğraf arşivi"], ["", "Üye ve misafir fotoğrafları"]]) +
       header("Üye ve misafir fotoğrafları", "Profil fotoğraflarından kendiliğinden oluşur; biri fotoğrafını değiştirince burada da güncellenir.") +
       `<div class="folder-grid">${SUBS.map(([k, label]) => { const list = P[k]; return `<a class="folder" href="#arsiv/${PEOPLE_DIR}/${k}">
-        <div class="cover">${list[0] ? `<img src="${esc(list[0].photo_url)}" alt="" loading="lazy">` : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>'}</div>
+        <div class="cover">${list.length ? mosaicCover(list) : typeCover("kisiler")}</div>
         <div class="meta"><b>${label}</b><span>${list.length} fotoğraf</span></div></a>`; }).join("")}</div>`;
     return;
   }
@@ -2621,7 +2633,7 @@ async function viewArchive(v) {
     const list = albums.filter(a => a.type === type).sort((a, b) => b.date.localeCompare(a.date));
     v.innerHTML = crumbs([["#arsiv", "Fotoğraf arşivi"], ["", ALBUM_TYPES[type][0]]]) + header(ALBUM_TYPES[type][0], `${list.length} etkinlik · ${list.reduce((s, a) => s + a.photo_count, 0)} fotoğraf`) +
       (list.length ? `<div class="album-grid">${list.map(a => `<div class="album-item"><a class="album-card" href="${albumHref(a)}">
-        <div class="cover">${a.cover_url ? `<img src="${esc(a.cover_url)}" alt="" loading="lazy">` : `<span class="empty">Henüz fotoğraf yok</span>`}</div>
+        <div class="cover">${a.cover_url ? `<img src="${esc(a.cover_url)}" alt="" loading="lazy">` : typeCover(a.type, "Henüz fotoğraf yok")}</div>
         <div class="meta"><b>${esc(a.name)}</b><span>${trDate(a.date)} · ${a.photo_count} fotoğraf</span></div></a>${manager ? `<div class="album-acts"><button type="button" class="btn ghost sm" data-aedit="${a.id}" aria-label="${esc(a.name)} klasörünü düzenle">Düzenle</button><button type="button" class="btn ghost sm danger-t" data-adel="${a.id}" aria-label="${esc(a.name)} klasörünü sil">Sil</button></div>` : ""}</div>`).join("")}</div><dialog id="adlg"></dialog>`
         : `<div class="card"><p class="muted" style="margin:0">Bu klasörde henüz etkinlik yok.${manager ? " Fotoğraf arşivi ana sayfasından yükleme linki oluşturabilirsin." : ""}</p></div>`);
     v.querySelectorAll("[data-aedit]").forEach(b => b.onclick = () => editAlbumDialog(list.find(a => a.id === b.dataset.aedit), () => viewArchive(v)));
@@ -2649,10 +2661,10 @@ async function viewArchive(v) {
       const list = albums.filter(a => a.type === k), cover = list.find(a => a.cover_url);
       if (k === "diger" && !list.length) return "";
       return `<a class="folder" href="#arsiv/${k}">
-        <div class="cover">${cover ? `<img src="${esc(cover.cover_url)}" alt="" loading="lazy">` : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>`}</div>
+        <div class="cover">${cover ? `<img src="${esc(cover.cover_url)}" alt="" loading="lazy">` : typeCover(k)}</div>
         <div class="meta"><b>${label}</b><span>${list.length} etkinlik · ${list.reduce((s, a) => s + a.photo_count, 0)} fotoğraf</span></div></a>`;
     }).join("")}${(() => { const c = people.uyeler[0] || people.misafirler[0]; return `<a class="folder" href="#arsiv/${PEOPLE_DIR}">
-        <div class="cover">${c ? `<img src="${esc(c.photo_url)}" alt="" loading="lazy">` : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>'}</div>
+        <div class="cover">${c ? mosaicCover([...people.uyeler, ...people.misafirler]) : typeCover("kisiler")}</div>
         <div class="meta"><b>Üye ve misafir fotoğrafları</b><span>${people.guestAccess ? "2 klasör" : "Üyeler"} · ${people.uyeler.length + people.misafirler.length} fotoğraf</span></div></a>`; })()}</div>`;
 
   const f = document.getElementById("f-album");

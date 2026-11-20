@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611201634";
-import { createStore, trDate, guestAsMe } from "./store.js?v=202611201634";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611201634";
+import * as BP from "./board-plan.js?v=202611201637";
+import { createStore, trDate, guestAsMe } from "./store.js?v=202611201637";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611201637";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1997,7 +1997,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611201634");
+  const { mountComposer } = await import("./composer.js?v=202611201637");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -2006,7 +2006,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611201634");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611201637");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });
@@ -2596,7 +2596,7 @@ async function viewPeopleArchive(v, sub) {
     v.innerHTML = crumbs([["#arsiv", "Fotoğraf arşivi"], ["", "Üye ve misafir fotoğrafları"]]) +
       header("Üye ve misafir fotoğrafları", "Profil fotoğraflarından kendiliğinden oluşur; biri fotoğrafını değiştirince burada da güncellenir.") +
       `<div class="folder-grid">${SUBS.map(([k, label]) => { const list = P[k]; return `<a class="folder" href="#arsiv/${PEOPLE_DIR}/${k}">
-        <div class="cover">${list.length ? mosaicCover(list) : typeCover("kisiler")}</div>
+        <div class="cover"><img src="../assets/arsiv/${k}.svg" alt="" loading="lazy"></div>
         <div class="meta"><b>${label}</b><span>${list.length} fotoğraf</span></div></a>`; }).join("")}</div>`;
     return;
   }
@@ -2667,7 +2667,7 @@ async function viewArchive(v) {
         <div class="cover">${cover ? `<img src="${esc(cover.cover_url)}" alt="" loading="lazy">` : typeCover(k)}</div>
         <div class="meta"><b>${label}</b><span>${list.length} etkinlik · ${list.reduce((s, a) => s + a.photo_count, 0)} fotoğraf</span></div></a>`;
     }).join("")}${(() => { const c = people.uyeler[0] || people.misafirler[0]; return `<a class="folder" href="#arsiv/${PEOPLE_DIR}">
-        <div class="cover">${c ? mosaicCover([...people.uyeler, ...people.misafirler]) : typeCover("kisiler")}</div>
+        <div class="cover"><img src="../assets/arsiv/kisiler.svg" alt="" loading="lazy"></div>
         <div class="meta"><b>Üye ve misafir fotoğrafları</b><span>2 klasör · ${people.uyeler.length + people.misafirler.length} fotoğraf</span></div></a>`; })()}</div>`;
 
   const f = document.getElementById("f-album");

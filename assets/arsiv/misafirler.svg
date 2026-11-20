@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="Misafirler">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#E8508A"/><stop offset=".6" stop-color="#F4789F"/><stop offset="1" stop-color="#F7A81B"/></linearGradient>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#5A1030" flood-opacity=".28"/></filter>
+  </defs>
+  <rect width="800" height="600" fill="url(#bg)"/>
+  <circle cx="690" cy="110" r="150" fill="#fff" fill-opacity=".10"/>
+  <circle cx="90" cy="520" r="130" fill="#fff" fill-opacity=".08"/>
+  <!-- Açık kapı: hoş geldin -->
+  <g filter="url(#sh)">
+    <rect x="210" y="110" width="250" height="390" rx="18" fill="#fff" fill-opacity=".95"/>
+    <rect x="236" y="136" width="198" height="364" rx="10" fill="#FCE3EC"/>
+    <path d="M236 136 340 166v364l-104-30Z" fill="#fff"/>
+    <circle cx="322" cy="340" r="9" fill="#F7A81B"/>
+  </g>
+  <!-- Misafir: kapıdan giren, kesik çizgili çerçeve -->
+  <g transform="translate(520 300)" filter="url(#sh)">
+    <circle r="112" fill="#fff"/>
+    <circle r="96" fill="none" stroke="#E8508A" stroke-width="5" stroke-dasharray="14 12"/>
+    <circle cy="-20" r="38" fill="#E8508A"/>
+    <path d="M-66 64c12-44 38-66 66-66s54 22 66 66a96 96 0 0 1-132 0Z" fill="#E8508A"/>
+  </g>
+  <!-- "Hoş geldin" el ve parıltılar -->
+  <g transform="translate(640 196)">
+    <circle r="40" fill="#F7A81B" stroke="#fff" stroke-width="7"/>
+    <path d="M-12 14v-24a5 5 0 0 1 10 0v12m0-16a5 5 0 0 1 10 0v16m0-12a5 5 0 0 1 10 0v18c0 10-8 16-18 16h-4c-6 0-10-3-13-8l-9-14a5 5 0 0 1 8-6l6 8" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <g fill="#fff">
+    <path d="M150 170l8 20 20 8-20 8-8 20-8-20-20-8 20-8Z"/>
+    <path d="M700 430l6 14 14 6-14 6-6 14-6-14-14-6 14-6Z" fill-opacity=".85"/>
+    <path d="M520 90l5 12 12 5-12 5-5 12-5-12-12-5 12-5Z" fill-opacity=".8"/>
+  </g>
+</svg>

@@ -1982,3 +1982,17 @@ revoke all on function public.clear_unused_password(uuid) from public, anon, aut
 grant execute on function public.clear_unused_password(uuid) to service_role;
 -- Mevcut rastgele şifreler (hiç giriş yapılmamış hesaplar)
 update auth.users set encrypted_password = '' where last_sign_in_at is null and coalesce(encrypted_password, '') <> '';
+
+-- =====================================================================
+-- v54: Arşivdeki "Üye ve misafir fotoğrafları": misafirlerin adı ve fotoğrafı tüm üyelere ve misafirlere
+--      açık (yalnızca ad + fotoğraf; diğer misafir bilgileri gizli kalır). İndirme panelde YK/GYK'ya açık.
+-- =====================================================================
+create or replace function public.guest_photos()
+returns table (id uuid, full_name text, photo_url text)
+language sql stable security definer set search_path = public as $$
+  select g.id, g.full_name, g.photo_url from public.guests g
+  where public.is_viewer() and coalesce(g.photo_url, '') <> ''
+  order by g.full_name;
+$$;
+revoke all on function public.guest_photos() from public, anon;
+grant execute on function public.guest_photos() to authenticated;

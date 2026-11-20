@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611201631";
-import { can, hasRole, hasAnyRole } from "./roles.js?v=202611201631";
+import { CONFIG } from "./config.js?v=202611201634";
+import { can, hasRole, hasAnyRole } from "./roles.js?v=202611201634";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -405,6 +405,7 @@ function demoStore() {
     async getGuestPrivate(id) { return can(me(), "yoklama") ? clone((S.guestPrivates || {})[id] || {}) : {}; },
     async deleteGuest(id) { need("yoklama"); S.guests = S.guests.filter(g => g.id !== id); S.guestAtt = S.guestAtt.filter(a => a.guest_id !== id); save(); },
     async listGuestAttendance() { return can(me(), "yoklama") ? clone(S.guestAtt) : []; },
+    async listGuestPhotos() { return (S.guests || []).filter(g => g.photo_url).map(g => ({ id: g.id, full_name: g.full_name, photo_url: g.photo_url })); },
     async setGuestAttendance(meeting_id, guest_id, status) {
       need("yoklama");
       S.guestAtt = S.guestAtt.filter(a => !(a.meeting_id === meeting_id && a.guest_id === guest_id));
@@ -692,6 +693,7 @@ async function supabaseStore() {
     async listGuests() { return ok(await sb.from("guests").select("*").order("full_name")); },
     // Yalnızca adlar (telefon/e-posta yok): HİTK de okuyabilir
     async listGuestNames() { return (ok(await sb.rpc("guest_names")) || []).map(r => r.full_name); },
+    async listGuestPhotos() { return ok(await sb.rpc("guest_photos")) || []; },
     async getSetting(key) { const d = ok(await sb.from("app_settings").select("value").eq("key", key).maybeSingle()); return d ? d.value : null; },
     async setSetting(key, value) { ok(await sb.from("app_settings").upsert({ key, value, updated_at: new Date().toISOString(), updated_by: await meId() })); },
     async listSiteEdits() { return ok(await sb.from("site_edits").select("*").order("created_at", { ascending: false }).limit(300)); },

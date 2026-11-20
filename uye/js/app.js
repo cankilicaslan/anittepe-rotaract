@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611201631";
-import { createStore, trDate, guestAsMe } from "./store.js?v=202611201631";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611201631";
+import * as BP from "./board-plan.js?v=202611201634";
+import { createStore, trDate, guestAsMe } from "./store.js?v=202611201634";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611201634";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1997,7 +1997,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611201631");
+  const { mountComposer } = await import("./composer.js?v=202611201634");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -2006,7 +2006,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611201631");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611201634");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });
@@ -2569,15 +2569,18 @@ const mosaicCover = list => { const pics = list.filter(p => p.photo_url).slice(0
   return `<div class="fmos fmos-${n}">${pics.slice(0, n).map(p => `<img src="${esc(p.photo_url)}" alt="" loading="lazy">`).join("")}</div>`; };
 const fileSafe = s => String(s || "foto").replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
 async function peoplePhotos() {
-  const [members, guests] = await Promise.all([store.listMembers().catch(() => []), me.is_guest ? Promise.resolve([]) : store.listGuests().catch(() => [])]);
+  // Misafirlerin yalnızca adı ve fotoğrafı herkese açık (guest_photos)
+  const [members, guests] = await Promise.all([store.listMembers().catch(() => []), (store.listGuestPhotos ? store.listGuestPhotos() : Promise.resolve([])).catch(() => [])]);
   const has = p => p.photo_url && /^https?:|^\.\.\/|^data:/.test(p.photo_url);
   const by = (a, b) => a.full_name.localeCompare(b.full_name, "tr");
   return {
     uyeler: members.filter(m => m.status !== "passive" && has(m)).sort(by),
     misafirler: guests.filter(has).sort(by),
-    guestAccess: guests.length > 0,
+    guestAccess: true,
   };
 }
+// İndirme yalnızca YK ve GYK görevlilerine (site sahibi dahil); diğerleri yalnızca görüntüler
+const canDownloadPeople = () => !me?.is_guest && hasAnyRole(me);
 async function downloadAs(url, name) {
   try {
     const blob = await (await fetch(url)).blob();
@@ -2597,13 +2600,13 @@ async function viewPeopleArchive(v, sub) {
         <div class="meta"><b>${label}</b><span>${list.length} fotoğraf</span></div></a>`; }).join("")}</div>`;
     return;
   }
-  const label = SUBS.find(([k]) => k === sub)[1], list = P[sub];
+  const label = SUBS.find(([k]) => k === sub)[1], list = P[sub], dl = canDownloadPeople();
   v.innerHTML = crumbs([["#arsiv", "Fotoğraf arşivi"], [`#arsiv/${PEOPLE_DIR}`, "Üye ve misafir fotoğrafları"], ["", label]]) +
-    header(label, `${list.length} fotoğraf · dosya adları kişinin adıyla`, list.length ? `<button type="button" class="btn ghost" id="pp-all">Tümünü indir</button>` : "") +
-    (list.length ? `<div class="photo-grid people-grid">${list.map((p, i) => `<figure class="pp-item"><button type="button" class="ph" data-i="${i}" aria-label="${esc(p.full_name)} fotoğrafını büyüt"><img src="${esc(p.photo_url)}" alt="${esc(p.full_name)}" loading="lazy"></button>
-      <figcaption><b>${esc(p.full_name)}</b><button type="button" class="btn ghost sm" data-dl="${i}">İndir</button></figcaption></figure>`).join("")}</div>`
+    header(label, `${list.length} fotoğraf${dl ? " · dosya adları kişinin adıyla" : ""}`, list.length && dl ? `<button type="button" class="btn ghost" id="pp-all">Tümünü indir</button>` : "") +
+    (list.length ? `<div class="photo-grid people-grid${dl ? "" : " no-dl"}">${list.map((p, i) => `<figure class="pp-item"><button type="button" class="ph" data-i="${i}" aria-label="${esc(p.full_name)} fotoğrafını büyüt"><img src="${esc(p.photo_url)}" alt="${esc(p.full_name)}" loading="lazy"></button>
+      <figcaption><b>${esc(p.full_name)}</b>${dl ? `<button type="button" class="btn ghost sm" data-dl="${i}">İndir</button>` : ""}</figcaption></figure>`).join("")}</div>`
       : `<div class="card"><p class="muted" style="margin:0">Bu klasörde henüz fotoğraf yok. Profil fotoğrafı eklenince burada görünür.</p></div>`) +
-    `<dialog id="lb" class="lightbox"></dialog>`;
+    `<dialog id="lb" class="lightbox${dl ? "" : " no-dl"}"></dialog>`;
   v.querySelectorAll("[data-dl]").forEach(b => b.onclick = () => { const p = list[+b.dataset.dl]; downloadAs(p.photo_url, p.full_name); });
   const all = document.getElementById("pp-all");
   if (all) all.onclick = async () => { all.disabled = true; for (const p of list) { await downloadAs(p.photo_url, p.full_name); await new Promise(r => setTimeout(r, 350)); } all.disabled = false; };
@@ -2611,10 +2614,10 @@ async function viewPeopleArchive(v, sub) {
   const show = i => {
     cur = (i + list.length) % list.length; const p = list[cur];
     lb.innerHTML = `<div class="lb-top"><span>${cur + 1} / ${list.length} · ${esc(p.full_name)}</span><div class="spacer"></div>
-      <button type="button" class="btn ghost sm" id="lb-dl">İndir</button><button type="button" class="btn ghost sm" id="lb-x" aria-label="Kapat">Kapat</button></div>
+      ${dl ? '<button type="button" class="btn ghost sm" id="lb-dl">İndir</button>' : ""}<button type="button" class="btn ghost sm" id="lb-x" aria-label="Kapat">Kapat</button></div>
       <div class="lb-body"><button type="button" class="lb-nav" id="lb-prev" aria-label="Önceki">‹</button><img src="${esc(p.photo_url)}" alt="${esc(p.full_name)}"><button type="button" class="lb-nav" id="lb-next" aria-label="Sonraki">›</button></div>`;
     lb.querySelector("#lb-x").onclick = () => lb.close();
-    lb.querySelector("#lb-dl").onclick = () => downloadAs(p.photo_url, p.full_name);
+    const lbd = lb.querySelector("#lb-dl"); if (lbd) lbd.onclick = () => downloadAs(p.photo_url, p.full_name);
     lb.querySelector("#lb-prev").onclick = () => show(cur - 1);
     lb.querySelector("#lb-next").onclick = () => show(cur + 1);
     if (!lb.open) lb.showModal();
@@ -2665,7 +2668,7 @@ async function viewArchive(v) {
         <div class="meta"><b>${label}</b><span>${list.length} etkinlik · ${list.reduce((s, a) => s + a.photo_count, 0)} fotoğraf</span></div></a>`;
     }).join("")}${(() => { const c = people.uyeler[0] || people.misafirler[0]; return `<a class="folder" href="#arsiv/${PEOPLE_DIR}">
         <div class="cover">${c ? mosaicCover([...people.uyeler, ...people.misafirler]) : typeCover("kisiler")}</div>
-        <div class="meta"><b>Üye ve misafir fotoğrafları</b><span>${people.guestAccess ? "2 klasör" : "Üyeler"} · ${people.uyeler.length + people.misafirler.length} fotoğraf</span></div></a>`; })()}</div>`;
+        <div class="meta"><b>Üye ve misafir fotoğrafları</b><span>2 klasör · ${people.uyeler.length + people.misafirler.length} fotoğraf</span></div></a>`; })()}</div>`;
 
   const f = document.getElementById("f-album");
   if (f) f.onsubmit = async e => {

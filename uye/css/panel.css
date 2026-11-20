@@ -986,3 +986,12 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
   .le-ib{width:40px;height:40px}
   .bp-x1{min-width:32px;min-height:32px}
 }
+
+/* Arşiv: üye ve misafir fotoğrafları (profil fotoğraflarından) */
+.people-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.pp-item{margin:0;display:flex;flex-direction:column;gap:6px}
+.pp-item .ph{aspect-ratio:1/1}
+.pp-item .ph img{width:100%;height:100%;object-fit:cover}
+.pp-item figcaption{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0}
+.pp-item figcaption b{font-size:.86rem;line-height:1.25;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+@media (max-width:640px){.people-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.pp-item figcaption{flex-direction:column;align-items:stretch}.pp-item figcaption .btn{width:100%}}

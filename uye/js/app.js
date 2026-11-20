@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611201146";
-import { createStore, trDate, guestAsMe } from "./store.js?v=202611201146";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611201146";
+import * as BP from "./board-plan.js?v=202611201611";
+import { createStore, trDate, guestAsMe } from "./store.js?v=202611201611";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611201611";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1997,7 +1997,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611201146");
+  const { mountComposer } = await import("./composer.js?v=202611201611");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -2006,7 +2006,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611201146");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611201611");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });
@@ -2552,10 +2552,69 @@ function bindShare(root, albums) {
   });
 }
 
+// Üye ve misafir fotoğrafları: profil fotoğraflarından canlı oluşur (kopya tutulmaz). Biri profil
+// fotoğrafını değiştirince burada da hemen değişir. İndirilen dosyanın adı kişinin adıdır.
+const PEOPLE_DIR = "kisiler";
+const fileSafe = s => String(s || "foto").replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
+async function peoplePhotos() {
+  const [members, guests] = await Promise.all([store.listMembers().catch(() => []), me.is_guest ? Promise.resolve([]) : store.listGuests().catch(() => [])]);
+  const has = p => p.photo_url && /^https?:|^\.\.\/|^data:/.test(p.photo_url);
+  const by = (a, b) => a.full_name.localeCompare(b.full_name, "tr");
+  return {
+    uyeler: members.filter(m => m.status !== "passive" && has(m)).sort(by),
+    misafirler: guests.filter(has).sort(by),
+    guestAccess: guests.length > 0,
+  };
+}
+async function downloadAs(url, name) {
+  try {
+    const blob = await (await fetch(url)).blob();
+    const ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `${fileSafe(name)}.${ext}` });
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } catch { window.open(url, "_blank", "noopener"); }
+}
+async function viewPeopleArchive(v, sub) {
+  const P = await peoplePhotos();
+  const SUBS = [["uyeler", "Üyeler"], ...(P.guestAccess ? [["misafirler", "Misafirler"]] : [])];
+  if (!sub || !SUBS.some(([k]) => k === sub)) {
+    v.innerHTML = crumbs([["#arsiv", "Fotoğraf arşivi"], ["", "Üye ve misafir fotoğrafları"]]) +
+      header("Üye ve misafir fotoğrafları", "Profil fotoğraflarından kendiliğinden oluşur; biri fotoğrafını değiştirince burada da güncellenir.") +
+      `<div class="folder-grid">${SUBS.map(([k, label]) => { const list = P[k]; return `<a class="folder" href="#arsiv/${PEOPLE_DIR}/${k}">
+        <div class="cover">${list[0] ? `<img src="${esc(list[0].photo_url)}" alt="" loading="lazy">` : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>'}</div>
+        <div class="meta"><b>${label}</b><span>${list.length} fotoğraf</span></div></a>`; }).join("")}</div>`;
+    return;
+  }
+  const label = SUBS.find(([k]) => k === sub)[1], list = P[sub];
+  v.innerHTML = crumbs([["#arsiv", "Fotoğraf arşivi"], [`#arsiv/${PEOPLE_DIR}`, "Üye ve misafir fotoğrafları"], ["", label]]) +
+    header(label, `${list.length} fotoğraf · dosya adları kişinin adıyla`, list.length ? `<button type="button" class="btn ghost" id="pp-all">Tümünü indir</button>` : "") +
+    (list.length ? `<div class="photo-grid people-grid">${list.map((p, i) => `<figure class="pp-item"><button type="button" class="ph" data-i="${i}" aria-label="${esc(p.full_name)} fotoğrafını büyüt"><img src="${esc(p.photo_url)}" alt="${esc(p.full_name)}" loading="lazy"></button>
+      <figcaption><b>${esc(p.full_name)}</b><button type="button" class="btn ghost sm" data-dl="${i}">İndir</button></figcaption></figure>`).join("")}</div>`
+      : `<div class="card"><p class="muted" style="margin:0">Bu klasörde henüz fotoğraf yok. Profil fotoğrafı eklenince burada görünür.</p></div>`) +
+    `<dialog id="lb" class="lightbox"></dialog>`;
+  v.querySelectorAll("[data-dl]").forEach(b => b.onclick = () => { const p = list[+b.dataset.dl]; downloadAs(p.photo_url, p.full_name); });
+  const all = document.getElementById("pp-all");
+  if (all) all.onclick = async () => { all.disabled = true; for (const p of list) { await downloadAs(p.photo_url, p.full_name); await new Promise(r => setTimeout(r, 350)); } all.disabled = false; };
+  const lb = document.getElementById("lb"); let cur = 0;
+  const show = i => {
+    cur = (i + list.length) % list.length; const p = list[cur];
+    lb.innerHTML = `<div class="lb-top"><span>${cur + 1} / ${list.length} · ${esc(p.full_name)}</span><div class="spacer"></div>
+      <button type="button" class="btn ghost sm" id="lb-dl">İndir</button><button type="button" class="btn ghost sm" id="lb-x" aria-label="Kapat">Kapat</button></div>
+      <div class="lb-body"><button type="button" class="lb-nav" id="lb-prev" aria-label="Önceki">‹</button><img src="${esc(p.photo_url)}" alt="${esc(p.full_name)}"><button type="button" class="lb-nav" id="lb-next" aria-label="Sonraki">›</button></div>`;
+    lb.querySelector("#lb-x").onclick = () => lb.close();
+    lb.querySelector("#lb-dl").onclick = () => downloadAs(p.photo_url, p.full_name);
+    lb.querySelector("#lb-prev").onclick = () => show(cur - 1);
+    lb.querySelector("#lb-next").onclick = () => show(cur + 1);
+    if (!lb.open) lb.showModal();
+  };
+  v.querySelectorAll(".ph").forEach(b => b.onclick = () => show(+b.dataset.i));
+}
+
 async function viewArchive(v) {
   const [type, albumId] = route;
+  if (type === PEOPLE_DIR) return viewPeopleArchive(v, albumId);
   if (albumId) return viewAlbum(v, albumId);
-  const albums = await store.listAlbums();
+  const [albums, people] = await Promise.all([store.listAlbums(), peoplePhotos()]);
   const manager = canManageAlbums();
 
   if (type && ALBUM_TYPES[type]) {
@@ -2592,7 +2651,9 @@ async function viewArchive(v) {
       return `<a class="folder" href="#arsiv/${k}">
         <div class="cover">${cover ? `<img src="${esc(cover.cover_url)}" alt="" loading="lazy">` : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>`}</div>
         <div class="meta"><b>${label}</b><span>${list.length} etkinlik · ${list.reduce((s, a) => s + a.photo_count, 0)} fotoğraf</span></div></a>`;
-    }).join("")}</div>`;
+    }).join("")}${(() => { const c = people.uyeler[0] || people.misafirler[0]; return `<a class="folder" href="#arsiv/${PEOPLE_DIR}">
+        <div class="cover">${c ? `<img src="${esc(c.photo_url)}" alt="" loading="lazy">` : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>'}</div>
+        <div class="meta"><b>Üye ve misafir fotoğrafları</b><span>${people.guestAccess ? "2 klasör" : "Üyeler"} · ${people.uyeler.length + people.misafirler.length} fotoğraf</span></div></a>`; })()}</div>`;
 
   const f = document.getElementById("f-album");
   if (f) f.onsubmit = async e => {

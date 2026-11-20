@@ -273,8 +273,11 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
 
   // Fotoğraf alanı (tüm türlerde aynı, en üstte)
   const dzThumb = el('div', { class: 'cmp-dz-thumb', 'aria-hidden': 'true' });
-  const dzTitle = el('strong', { class: 'cmp-dz-title', text: 'Fotoğrafı buraya sürükleyin' });
-  const dzSub = el('span', { class: 'cmp-dz-sub', text: 'ya da tıklayıp seçin · panodan yapıştırabilirsiniz (Ctrl+V)' });
+  const TOUCH = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  const DZ_EMPTY = TOUCH ? 'Fotoğraf seç' : 'Fotoğrafı buraya sürükleyin';
+  const DZ_SUB = TOUCH ? 'Galeriden ya da kameradan fotoğraf ekle' : 'ya da tıklayıp seçin · panodan yapıştırabilirsiniz (Ctrl+V)';
+  const dzTitle = el('strong', { class: 'cmp-dz-title', text: DZ_EMPTY });
+  const dzSub = el('span', { class: 'cmp-dz-sub', text: DZ_SUB });
   const dropzone = el('div', {
     class: 'cmp-dropzone',
     role: 'button',
@@ -880,11 +883,11 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     canvas.classList.toggle('can-drag', act);
     dzThumb.style.backgroundImage = has ? `url("${cur.url}")` : '';
     const pageName = page ? `${state.cur + 1}. sayfanın` : (state.extra.length ? 'Kapağın' : '');
-    dzTitle.textContent = has ? (pageName ? `${pageName} fotoğrafını değiştir` : 'Fotoğrafı değiştir') : 'Fotoğrafı buraya sürükleyin';
+    dzTitle.textContent = has ? (pageName ? `${pageName} fotoğrafını değiştir` : 'Fotoğrafı değiştir') : DZ_EMPTY;
     removeBtn.textContent = page ? 'Sayfayı kaldır' : 'Fotoğrafı kaldır';
     dzSub.textContent = has
-      ? `${cur.name} · yeni bir fotoğraf sürükleyin, seçin ya da yapıştırın`
-      : 'ya da tıklayıp seçin · panodan yapıştırabilirsiniz (Ctrl+V)';
+      ? (TOUCH ? `${cur.name} · değiştirmek için dokun` : `${cur.name} · yeni bir fotoğraf sürükleyin, seçin ya da yapıştırın`)
+      : DZ_SUB;
   }
 
   const openPicker = () => fileInput.click();

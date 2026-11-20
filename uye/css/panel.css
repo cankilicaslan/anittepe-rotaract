@@ -27,7 +27,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 label.f{display:grid;gap:6px;font-weight:600;font-size:.9rem}
 label.f small{font-weight:400;color:var(--muted)}
-input[type=text],input[type=email],input[type=tel],input[type=password],input[type=number],input[type=date],input[type=time],input[type=month],input[type=search],select,textarea{
+input[type=text],input[type=email],input[type=tel],input[type=password],input[type=number],input[type=date],input[type=time],input[type=month],input[type=search],input[type=url],select,textarea{
   width:100%;min-height:42px;padding:9px 12px;border:1px solid #E2D2DA;border-radius:10px;background:#fff}
 textarea{min-height:96px;resize:vertical}
 input:focus,select:focus,textarea:focus{border-color:var(--cran);outline:none;box-shadow:0 0 0 3px var(--cran-soft)}
@@ -946,3 +946,43 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 .nw-en .f{margin-bottom:8px}
 .nw-acts{align-items:center}
 @media (max-width:720px){.nw-card{grid-template-columns:1fr}}
+
+/* =====================================================================
+   Mobil iyileştirmeler (2026-11-20): masaüstünde görünen her şey mobilde de görünür,
+   dokunma hedefleri en az 40–44px, küçük yazılar okunur boyda, yatay kaydırılan şeritler belli.
+   ===================================================================== */
+@media (max-width:860px){
+  /* Planlama: Kişiler listesi mobilde de görünür (çerçevelerin altında), kompakt ızgara */
+  .bp-side{display:block !important;position:static;max-height:none}
+  .bp-side .bp-people{grid-template-columns:repeat(auto-fill,minmax(84px,1fr))}
+  .bp-side .bp-hide{display:flex;flex-direction:column;gap:2px;margin-bottom:10px}
+  /* Dokunma hedefleri */
+  .g-start{min-height:44px;max-width:100%}
+  .kasa-tabs .kasa-pick{min-height:40px}
+  .icon-btn{width:44px;height:44px}
+  /* Küçük yazılar */
+  .cal-filters .cf{font-size:.78rem}
+  .g-ready-tag{font-size:.78rem!important}
+  .tag{line-height:1.35}
+  /* Üye listesi: hesap durumu satırı düzenli, panel maili düğmesi tam genişlik */
+  .acct-legend{gap:6px 12px;margin-top:0}
+  .acct-legend #pm-all{margin:6px 0 0;width:100%}
+  /* Yatay kayan filtre şeridi: sağ kenarda devamı olduğu belli olsun */
+  .m-filters{-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent);padding-right:24px}
+  /* Sayfa başlığındaki düğmeler alt alta değil, sığdığı kadar yan yana; uzun metin taşmasın */
+  .page-h .row{flex-wrap:wrap;gap:8px}
+  .page-h .row > .btn{flex:1 1 auto;white-space:nowrap}
+  .page-h p{overflow-wrap:anywhere}
+  /* Pencereler (alt sayfa): üstte tutma çizgisi, içerik güvenli alanda */
+  dialog:not(.lightbox)::before{content:"";display:block;width:40px;height:4px;border-radius:2px;background:var(--line);margin:8px auto 0}
+  /* Anasayfa haberleri: görsel üstte, alanlar tam genişlik */
+  .nw-card{gap:12px}
+  .nw-fields .grid.g2{grid-template-columns:1fr}
+  /* Uzun e-posta/bağlantılar kart içinde taşmasın */
+  .card a{overflow-wrap:anywhere}
+}
+@media (pointer:coarse){
+  .cell{width:38px;height:36px}
+  .le-ib{width:40px;height:40px}
+  .bp-x1{min-width:32px;min-height:32px}
+}

@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611192133";
-import { createStore, trDate, guestAsMe } from "./store.js?v=202611192133";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611192133";
+import * as BP from "./board-plan.js?v=202611201130";
+import { createStore, trDate, guestAsMe } from "./store.js?v=202611201130";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611201130";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -519,7 +519,7 @@ async function viewBoardPlan(v, ro = false) {
     const placed = BP.placedIds(slots), multi = slots[BP.MULTI] || [];
     // Sağ liste: bir göreve yerleşen kişi en sona iner (yerleşmeyenler önce, ikisi de alfabetik)
     const lastPlaced = (arr, kind) => arr.slice().sort((x, y) => placed.has(kind + ":" + x.id) - placed.has(kind + ":" + y.id));
-    v.innerHTML = (ro ? header("Gelecek Dönem YK-GYK Planı", "2027-2028 dönemi için asbaşkanın hazırladığı taslak yönetim kurulu ve genişletilmiş yönetim kurulu. Yalnızca görüntüleme; görevler dönem başında atanır.") : "") + (ro ? "" : header("Yönetim kurulu planlama", "2027-2028 dönemi için yönetim kurulunu yerleştir. Çerçeveye tıklayıp kişi seç ya da sağdaki listeden sürükleyip bırak. Bir göreve iki kişi için dolu çerçevedeki + düğmesini kullan (ya da kişiyi + üzerine bırak). Bu taslak kimseye görev vermez.", `<span class="muted bp-save" id="bp-save" role="status" aria-live="polite"></span>`)) + `
+    v.innerHTML = (ro ? header("Gelecek Dönem YK-GYK Planı", "2027-2028 dönemi için asbaşkanın hazırladığı taslak yönetim kurulu ve genişletilmiş yönetim kurulu. Yalnızca görüntüleme; görevler dönem başında atanır.") : "") + (ro ? "" : header("Yönetim kurulu planlama", "2027-2028 dönemi için yönetim kurulunu yerleştir. Çerçeveye dokunup kişi seç ya da Kişiler listesinden sürükleyip bırak. Bir göreve iki kişi için dolu çerçevedeki + düğmesini kullan (ya da kişiyi + üzerine bırak). Bu taslak kimseye görev vermez.", `<span class="muted bp-save" id="bp-save" role="status" aria-live="polite"></span>`)) + `
     <div class="bp-wrap">
       <div class="bp-main">
         <section class="card bp-sec"><h2>Yönetim Kurulu</h2>
@@ -1997,7 +1997,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611192133");
+  const { mountComposer } = await import("./composer.js?v=202611201130");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -2006,7 +2006,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611192133");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611201130");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

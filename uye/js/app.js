@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611201130";
-import { createStore, trDate, guestAsMe } from "./store.js?v=202611201130";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611201130";
+import * as BP from "./board-plan.js?v=202611201146";
+import { createStore, trDate, guestAsMe } from "./store.js?v=202611201146";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611201146";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1264,6 +1264,13 @@ async function viewAttendance(v) {
       <button class="btn sm" style="margin-bottom:4px">Ekle ve "geldi" işaretle</button>
     </form>`}
   </div>
+  <details class="card att-matrix" open><summary style="cursor:pointer;font-weight:700">Dönemin tamamı (${term.meeting_count} toplantı tablosu)</summary>
+    <div class="legend" style="margin:12px 0"><span><span class="cell geldi">✓</span>Geldi</span><span><span class="cell gelmedi">✕</span>Gelmedi</span><span><span class="cell mazeretli">M</span>Mazeretli</span><span><span class="cell">·</span>İşaretsiz</span><span><span class="cell pre">–</span>Henüz üye değil</span>${ro ? "" : "<span>Hücreye tıklayınca durum değişir.</span>"}</div>
+    <div class="tbl-wrap"><table class="matrix"><thead><tr><th>Üye</th>${meetings.map(m => `<th class="${m.date > today() ? "future" : ""}" title="${trDate(m.date)}${m.label ? " · " + esc(m.label) : ""}">${m.term_no}${m.label ? `<br><small class="mlabel">(${esc(m.label)})</small>` : ""}</th>`).join("")}</tr></thead><tbody>
+    ${members.map(p => matrixRow(p, amap, "cp")).join("")}
+    ${guestList.length ? `<tr><th colspan="${meetings.length + 1}" style="text-align:left;padding-top:14px">Misafirler</th></tr>${guestList.map(g => matrixRow(g, gmap, "cg")).join("")}` : ""}
+    </tbody></table></div>
+  </details>
   <div class="card"><h2>Üyelerin devam durumu</h2>
     <p class="muted" style="margin-top:-6px">Oran, üyenin yoklamada başladığı (üye alındığı) toplantıdan bugüne kadar yapılan toplantılara göre hesaplanır. Başlangıç toplantısı Üye listesinde üyeyi düzenleyerek değiştirilir.</p>
     <div class="tbl-wrap"><table><thead><tr><th>Üye</th><th>Başlangıç</th><th class="num">Geldi</th><th class="num">Gelmedi</th><th class="num">Mazeretli</th><th class="num">İşaretsiz</th><th>Devam oranı</th><th class="num">Mazeret hariç</th></tr></thead><tbody>
@@ -1276,14 +1283,7 @@ async function viewAttendance(v) {
     ${gstats.filter(x => x.s).sort((a, b) => b.s.oran - a.s.oran).map(({ m, s, start }) => statRow(m, s, `${gStartCtl(m, start)}${ro ? "" : ` <button type="button" class="btn ghost sm" data-gdel="${m.id}" aria-label="${esc(m.full_name)} misafirini sil">Sil</button>`}`)).join("")}
     ${gstats.filter(x => !x.s).map(({ m }) => `<tr><td>${person(m)}</td><td>${ro ? "–" : gStartCtl(m, null)}</td><td colspan="6" class="muted">Henüz yoklama kaydı yok${ro ? "" : ` <button type="button" class="btn ghost sm" data-gdel="${m.id}">Sil</button>`}</td></tr>`).join("")}
     </tbody></table></div>` : `<p class="muted" style="margin:0">Henüz misafir yok. Yukarıdaki yoklamadan misafir ekleyebilirsin.</p>`}
-  </div>
-  <details class="card"><summary style="cursor:pointer;font-weight:700">Dönemin tamamı (${term.meeting_count} toplantı tablosu)</summary>
-    <div class="legend" style="margin:12px 0"><span><span class="cell geldi">✓</span>Geldi</span><span><span class="cell gelmedi">✕</span>Gelmedi</span><span><span class="cell mazeretli">M</span>Mazeretli</span><span><span class="cell">·</span>İşaretsiz</span><span><span class="cell pre">–</span>Henüz üye değil</span>${ro ? "" : "<span>Hücreye tıklayınca durum değişir.</span>"}</div>
-    <div class="tbl-wrap"><table class="matrix"><thead><tr><th>Üye</th>${meetings.map(m => `<th class="${m.date > today() ? "future" : ""}" title="${trDate(m.date)}${m.label ? " · " + esc(m.label) : ""}">${m.term_no}${m.label ? `<br><small class="mlabel">(${esc(m.label)})</small>` : ""}</th>`).join("")}</tr></thead><tbody>
-    ${members.map(p => matrixRow(p, amap, "cp")).join("")}
-    ${guestList.length ? `<tr><th colspan="${meetings.length + 1}" style="text-align:left;padding-top:14px">Misafirler</th></tr>${guestList.map(g => matrixRow(g, gmap, "cg")).join("")}` : ""}
-    </tbody></table></div>
-  </details>`;
+  </div>`;
 
   document.getElementById("msel").onchange = e => { selMeeting = e.target.value; refreshKeep(v, viewAttendance); };
   // Yoklama işleme bölümü büyük düğmeyle açılır/kapanır; işaretleme sonrası yeniden çizimde açık kalır
@@ -1997,7 +1997,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611201130");
+  const { mountComposer } = await import("./composer.js?v=202611201146");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -2006,7 +2006,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611201130");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611201146");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

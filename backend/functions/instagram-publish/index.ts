@@ -154,6 +154,10 @@ async function graph(method: "GET" | "POST", path: string, params: Record<string
     if (e.code === 190) {
       throw new HttpError(502, "Instagram erişim anahtarının süresi dolmuş veya geçersiz. IG_ACCESS_TOKEN yenilenmeli (KURULUM.md).");
     }
+    // 200/10: anahtarın sahibi uygulamaya izin vermiyor (izin geri alınmış, uygulama geliştirme modunda ve kişi rolsüz, ya da Meta kısıtlamış)
+    if (e.code === 200 || e.code === 10 || /Cannot call API for app/i.test(String(e.message ?? ""))) {
+      throw new HttpError(502, "Instagram, kulübün paylaşım anahtarını reddediyor: anahtarın bağlı olduğu Facebook hesabı uygulamaya verdiği izni geri almış ya da uygulama erişimi kısıtlanmış. Meta geliştirici panelinden yeni bir erişim anahtarı (IG_ACCESS_TOKEN) alınmalı.");
+    }
     if (e.code === 4 || e.code === 9 || e.code === 32 || e.code === 613) {
       throw new HttpError(502, "Instagram paylaşım sınırına ulaşıldı. Bir süre sonra tekrar deneyin.");
     }

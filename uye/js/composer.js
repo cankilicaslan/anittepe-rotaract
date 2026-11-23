@@ -381,13 +381,12 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   const capId = uid('caption');
   const captionTa = el('textarea', { id: capId, rows: '8', maxlength: '2200', placeholder: 'Gönderi açıklaması… Yapay zekâ ile yazdırabilir, sonra düzenleyebilirsiniz.' });
   const aiBtn = el('button', { type: 'button', class: 'cmp-btn cmp-btn-soft' }, el('span', { class: 'cmp-spark', 'aria-hidden': 'true', text: '✦' }), ' Yapay zekâ ile açıklama yaz');
-  const tagBtn = el('button', { type: 'button', class: 'cmp-btn cmp-btn-soft', text: '@ İsimleri etiketle', title: 'Açıklamada geçen kulüp ve kişilerin Instagram hesaplarını ekler' });
   const capNote = el('p', { class: 'cmp-note', hidden: true, text: 'Demo modunda şablonla yazıldı' });
   const capCount = el('span', { class: 'cmp-count', 'aria-live': 'off', text: '0 / 2200' });
   const captionSection = el('section', { class: 'cmp-caption', 'aria-label': 'Gönderi açıklaması' },
     el('div', { class: 'cmp-caption-head' }, el('label', { for: capId, text: 'Gönderi açıklaması' }), capCount),
     captionTa,
-    el('div', { class: 'cmp-caption-foot' }, aiBtn, tagBtn, capNote),
+    el('div', { class: 'cmp-caption-foot' }, aiBtn, capNote),
   );
 
   // Eylemler
@@ -444,7 +443,6 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   if (readOnly) {
     publishBtn.disabled = true;
     aiBtn.disabled = true;
-    tagBtn.disabled = true;
     publishBtn.title = 'Salt okunur: paylaşım yetkiniz yok';
   }
 
@@ -1278,19 +1276,46 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   }
 
   // Kulüp ve kişi adlarının yanına Instagram hesapları (üye + misafir bilgileri panelden)
+  let igLib = null, igPeople = null, tagTimer = 0, tagSeen = new Set();
+  const tagSkip = new Set();
+  const handlesIn = t => new Set((String(t).match(/\(@[A-Za-z0-9._]+\)/g) || []).map(x => x.slice(2, -1)));
+  async function loadTags() {
+    if (!igLib) igLib = await import('./ig-tags.js?v=202611231555');
+    if (!igPeople) {
+      const [members, guests] = await Promise.all([store.listMembers().catch(() => []), store.listGuests().catch(() => [])]);
+      igPeople = [...members, ...guests];
+    }
+  }
   async function withTags(text) {
     if (!text) return text;
-    const { tagCaption } = await import('./ig-tags.js?v=202611231551');
-    const [members, guests] = await Promise.all([store.listMembers().catch(() => []), store.listGuests().catch(() => [])]);
-    return tagCaption(text, [...members, ...guests]);
+    try { await loadTags(); } catch (e) { console.warn('Etiket listesi yüklenemedi', e); return text; }
+    return igLib.tagCaption(text, igPeople, tagSkip);
   }
-  tagBtn.addEventListener('click', async () => {
-    if (readOnly || state.busy || !state.caption.trim()) return;
-    const before = state.caption, next = await withTags(before);
-    state.caption = next; captionTa.value = next; capCount.textContent = `${next.length} / 2200`;
-    const n = (next.match(/\(@/g) || []).length - (before.match(/\(@/g) || []).length;
-    toast(n > 0 ? `${n} etiket eklendi.` : 'Eklenecek yeni etiket bulunmadı.');
+  // Açıklamaya elle ad yazılınca etiket kendiliğinden eklenir; elle silinen etiket bir daha eklenmez
+  async function autoTag() {
+    clearTimeout(tagTimer);
+    if (readOnly || state.busy || !captionTa.value.trim()) return;
+    try { await loadTags(); } catch { return; }
+    const before = captionTa.value, now = handlesIn(before);
+    tagSeen.forEach(h => { if (!now.has(h)) tagSkip.add(h); });
+    now.forEach(h => tagSkip.delete(h));
+    const next = igLib.tagCaption(before, igPeople, tagSkip);
+    tagSeen = handlesIn(next);
+    if (next === before) return;
+    // İmleci yerinde tut: eklenen parçaların imleçten önceki kısmı kadar kaydır
+    const shift = pos => { let a = 0, b = 0; while (a < pos) { if (before[a] === next[b] && !(next.startsWith(' (@', b) && !before.startsWith(' (@', a))) { a++; b++; } else b++; } return b; };
+    const focused = document.activeElement === captionTa, s = shift(captionTa.selectionStart), e = shift(captionTa.selectionEnd), top = captionTa.scrollTop;
+    captionTa.value = state.caption = next;
+    capCount.textContent = `${next.length} / 2200`;
+    if (focused) { const end = next.startsWith(' (@', s) ? s + next.slice(s).indexOf(')') + 1 : s; captionTa.setSelectionRange(s === e ? end : s, s === e ? end : e); captionTa.scrollTop = top; }
+  }
+  captionTa.addEventListener('input', () => {
+    clearTimeout(tagTimer);
+    // Sözcük yazılırken beklenir; boşluk ya da noktalama yazılınca (veya kısa bir aradan sonra) etiketlenir
+    const last = captionTa.value[captionTa.selectionStart - 1] || '';
+    tagTimer = setTimeout(autoTag, /[\p{L}\d'’@_]/u.test(last) ? 1500 : 250);
   });
+  captionTa.addEventListener('blur', autoTag);
 
   aiBtn.addEventListener('click', async () => {
     if (readOnly || state.busy) return;
@@ -1300,6 +1325,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     aiBtn.lastChild.textContent = ' Yazılıyor…';
     try {
       const res = await store.generateCaption({ ...f, date: state.date, hybridhub: f.type === 'toplanti' && state.hybridhub });
+      tagSkip.clear();
       const next = await withTags((res && res.caption) || '');
       // Mevcut açıklama varsa yeni metni göstererek sor; onaylanmazsa eskisi kalır
       if (state.caption.trim() && next && state.caption.trim() !== next.trim()) {
@@ -1307,6 +1333,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
         if (!confirm(`Şu anki açıklama silinir. Yeni açıklama (${words} kelime):\n\n${next}\n\nBu açıklama kullanılsın mı?`)) return;
       }
       state.caption = next;
+      tagSeen = handlesIn(next);
       state.captionSource = res && res.source;
       captionTa.value = state.caption;
       capCount.textContent = `${state.caption.length} / 2200`;
@@ -1396,6 +1423,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
       termInput.focus();
       return;
     }
+    await autoTag();
     setBusy(true);
     publishBtn.textContent = 'Paylaşılıyor…';
     const fields = postFields();

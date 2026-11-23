@@ -107,7 +107,8 @@ function tagSection(text, list, budget) {
 }
 
 // Türkçe ve İngilizce bölümler ayrı ayrı etiketlenir (örnekteki gibi ikisinde de). Instagram bir açıklamada en çok 20 etikete izin verir.
-export function tagCaption(text, people = []) {
-  const list = targets(people), budget = { n: Math.max(0, 20 - (String(text).match(/@[A-Za-z0-9._]+/g) || []).length) };
+// skip: elle silinen etiketler (hesap adları) yeniden eklenmez
+export function tagCaption(text, people = [], skip = new Set()) {
+  const list = targets(people).filter(t => !skip.has(t.handle)), budget = { n: Math.max(0, 20 - (String(text).match(/@[A-Za-z0-9._]+/g) || []).length) };
   return String(text || "").split(/(\n_{4,}\n)/).map(part => /^\n_{4,}\n$/.test(part) ? part : tagSection(part, list, budget)).join("");
 }

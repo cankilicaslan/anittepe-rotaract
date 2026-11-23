@@ -4,6 +4,7 @@
 // POST ${SUPABASE_URL}/functions/v1/caption
 // Header: Authorization: Bearer <kullanıcının access token'ı>
 // Body:   { type, term_no, club_no, ocakbasi_no, summary, date, hybridhub? }
+// Biçim:  Türkçe paragraflar + kapanış, "______", 🇬🇧EN🇬🇧, İngilizce paragraflar + kapanış. @ etiketlerini panel ekler (uye/js/ig-tags.js).
 // Yanıt:  200 { caption, source: "ai" }   |   4xx/5xx { error: "<Türkçe mesaj>" }
 //
 // Gerekli secret: ANTHROPIC_API_KEY  (SUPABASE_URL ve SUPABASE_ANON_KEY Supabase tarafından otomatik verilir)
@@ -66,21 +67,31 @@ const SYSTEM_PROMPT = `Sen Ankara Anıttepe Rotaract Kulübü'nün Instagram hes
 
 Kulüp hakkında: Ankara'da gençlerden oluşan, Rotary'ye bağlı bir gönüllülük ve liderlik kulübü. Üyeler iki haftada bir perşembe akşamı toplanır, hizmet projeleri, etkinlikler ve "Ocakbaşı" adını verdiğimiz samimi sohbet buluşmaları düzenler.
 
-Görevin: Açıklamanın açılış cümlesi ve hashtag'leri hazır. Sen yalnızca açılıştan sonra gelecek TEK paragrafı yazarsın.
+Görevin: Gönderinin Türkçe metnini ve onun İngilizce karşılığını yazmak. Türkçe açılış cümlesi ve iki dildeki kapanış cümleleri koddan gelir; onları sen yazmazsın.
 
-Yazım kuralları:
-- Türkçe yaz. Sıcak, samimi, içten bir ton kullan; kurumsal ve abartılı olma.
-- Tek paragraf, 2 ile 4 cümle, toplam 25 ile 55 kelime.
-- Üyenin yazdığı notlar ham bilgidir, çoğu zaman kısa ve dağınıktır. Notları olduğu gibi kopyalama ya da madde madde sıralama: içindeki bilgileri koruyarak yaratıcı, akıcı ve canlı cümlelerle yeniden kur; cümle yapılarını çeşitlendir. Yaratıcılık anlatımda olsun, bilgide değil: notlarda olmayan kişi, sayı, yer veya olay ekleme.
-- "Ocakbaşı", kulübümüzün bir üyenin evinde yaptığı samimi sohbet buluşmasının adıdır; gerçek bir ocakbaşı, mangal ya da restoran değildir. Ocakbaşı gönderilerinde ateş, ızgara, mangal, kebap, ocak, sofra gibi kelimelerin gerçek anlamını çağrıştırma; notlarda geçmiyorsa yemekten söz etme.
-- Sana gönderinin bilgileri (tür, başlık, tarih, toplantı numaraları, ev sahibi) ayrıca verilir. Bunlar bağlamı anlaman içindir; açılış cümlesinde zaten yazdıkları için paragrafta tekrar etme.
-- Örnek dil: "Bu akşam hem dönem hedeflerimizi konuştuk hem de yeni üyelerimizi aramızda görmenin mutluluğunu yaşadık.", "Gönüllülerimizle birlikte topladığımız kitapları okullara ulaştırdık." gibi akıcı, içten ve doğal cümleler kur.
-- Ev sahibinden söz etmen gerekirse yalnızca sana verilen hazır "Ev sahipliği ifadesi"ni aynen kullan; başka kalıp ya da ek kullanma.
-- Not verilmediyse yalnızca türe uygun, bilgi uydurmayan tek bir sıcak cümle yaz.
+Biçim: Önce Türkçe paragraflar, sonra tek başına bir satırda ===EN===, sonra İngilizce paragraflar. Paragrafları boş satırla ayır. Başka hiçbir şey yazma.
+
+Türkçe bölüm (hazır açılış cümlesinden sonra gelecek):
+- 1 ile 3 kısa paragraf, her biri 1 ile 2 cümle, toplam en fazla 90 kelime. Not azsa az yaz.
+- Kulüp adına, birinci çoğul kişiyle (gerçekleştirdik, değerlendirdik, paylaştık), ölçülü, içten ve kurumsal bir dille yaz. Örnek üslup: "Toplantımızda, kulübümüzün kuruluşunun 30. yıl dönümünü kutlayarak 30 yıllık hizmet ve dostluk yolculuğumuzun gururunu paylaştık. Ayrıca önümüzdeki süreçte gerçekleştireceğimiz çalışmaları değerlendirdik."
+- Üye alımı, ziyaret ya da tören gibi özel bir konu varsa ona ayrı bir paragraf ayır; uygunsa son paragrafta kısa bir teşekkür, hoş geldin ya da temenni yaz.
+- Notlar ham bilgidir: kopyalama, bilgileri koruyarak akıcı cümlelerle yeniden kur. Notlarda olmayan kişi, sayı, yer veya olay ekleme.
+- Açılış cümlesindeki bilgileri (toplantı numaraları, tarih, yer, ev sahibi) tekrar etme.
+- Not verilmediyse türe uygun, bilgi uydurmayan tek bir cümle yaz.
+
+İngilizce bölüm:
+- Sana "Hazır İngilizce açılış" verildiyse o cümleyi yazma, ondan sonrasını yaz. Verilmediyse ilk paragrafta Türkçe açılış cümlesinin İngilizcesini yaz.
+- Türkçe paragrafların sırasını ve içeriğini koruyan doğal bir çeviri olsun; yeni bilgi ekleme.
+- Terimler: kulüp adları "X Rotaract Club", dönem "term", asbaşkan "vice president", üye alım töreni "new member induction ceremony", "Ocakbaşı" özel ad olarak kalır.
+
+Ortak kurallar:
+- Kişi adlarını notlarda geçtiği gibi, adı ve soyadıyla tam yaz. Başka Rotaract kulüplerinin adını her birinde ayrı ayrı ve tam yaz: Türkçede "Çankaya Rotaract Kulübü", İngilizcede "Çankaya Rotaract Club". "Çankaya ve Kızılay Rotaract kulüpleri" gibi birleştirme, "Rotaract Club of X" yazma.
+- @ ile kullanıcı adı yazma; etiketler sonradan eklenir. Notlarda @ ya da parantez içinde hesap varsa metne alma.
+- Hashtag, emoji, başlık, tırnak içine alma ya da "İşte metin:" gibi giriş yazma.
 - Uzun tire (—) ve kısa tire (–) kullanma.
-- Klişelerden kaçın: "unutulmaz bir gün", "dolu dolu", "harika bir etkinlik", "birlikte daha güçlüyüz", "kelimeler yetersiz" gibi kalıpları kullanma.
-- En fazla 1 emoji, yalnızca içerikle gerçekten ilgiliyse.
-- Hashtag, başlık, tırnak işareti ya da "İşte paragraf:" gibi giriş yazma. Yalnızca paragrafın kendisini yaz.`;
+- Klişelerden kaçın: "unutulmaz bir gün", "dolu dolu", "harika bir etkinlik", "birlikte daha güçlüyüz", "kelimeler yetersiz".
+- "Ocakbaşı", kulübümüzün bir üyenin evinde yaptığı samimi sohbet buluşmasının adıdır; gerçek bir ocakbaşı, mangal ya da restoran değildir. Ateş, ızgara, mangal, kebap gibi kelimelerin gerçek anlamını çağrıştırma; notlarda geçmiyorsa yemekten söz etme.
+- Ev sahibinden söz etmen gerekirse yalnızca sana verilen hazır "Ev sahipliği ifadesi"ni aynen kullan.`;
 
 const TYPE_LABELS: Record<string, string> = {
   toplanti: "Kulüp toplantısı",
@@ -89,7 +100,8 @@ const TYPE_LABELS: Record<string, string> = {
   etkinlik: "Etkinlik",
 };
 
-const TAGS = "#Rotaract #AnıttepeRotaract #Bölge2430 #RotaractAnkara";
+const CLOSE_TR = "30 yıldır hizmet yoluyla dostluk.";
+const CLOSE_EN = "30 Years of Fellowship Through Service.";
 
 function toInt(v: unknown): number | null {
   const n = typeof v === "string" ? parseInt(v, 10) : typeof v === "number" ? Math.trunc(v) : NaN;
@@ -129,27 +141,32 @@ function genitive(name: string): string {
   return `${name.trim()}’${vowels.includes(w.slice(-1)) ? "n" : ""}${v}n`;
 }
 
-// Açılış cümlesi her zaman aynı kalıpla, koddan gelir.
-function buildOpening(body: Record<string, unknown>, title: string, host: string): string {
+const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
+
+// Açılış cümleleri her zaman aynı kalıpla, koddan gelir. Proje ve etkinlikte İngilizce açılışı (başlık çevirisi gerektiği için) yapay zekâ yazar.
+function buildOpening(body: Record<string, unknown>, title: string, host: string): { tr: string; en: string } {
   const type = String(body.type ?? "");
-  const termNo = toInt(body.term_no);
-  const clubNo = toInt(body.club_no);
-  const ocakNo = toInt(body.ocakbasi_no);
+  const termNo = toInt(body.term_no), clubNo = toInt(body.club_no), ocakNo = toInt(body.ocakbasi_no);
   const dateTr = formatDateTr(body.date);
-  const when = dateTr ? `, ${dateTr} tarihinde` : "";
+  const when = dateTr ? `${dateTr} tarihinde ` : "";
   if (type === "toplanti") {
-    const hub = body.hybridhub === true ? " HybridHub’da (@hybridhub.tr)" : "";
-    return `Dönemimizin ${termNo ?? "?"}. ve kulübümüzün ${clubNo ?? "?"}. toplantısı${when}${hub} gerçekleşti.`;
+    const hub = body.hybridhub === true;
+    return {
+      tr: `Ankara Anıttepe Rotaract Kulübü olarak ${clubNo ?? "?"}. kulüp toplantımızı, dönemimizin ${termNo ?? "?"}. toplantısını ${hub ? "HybridHub’da (@hybridhub.tr) " : ""}gerçekleştirdik.`,
+      en: `Ankara Anıttepe Rotaract Club held its ${clubNo ? ordinal(clubNo) : "?"} club meeting${hub ? " at HybridHub (@hybridhub.tr)" : ""}, marking the ${termNo ? ordinal(termNo) : "?"} meeting of the term.`,
+    };
   }
   if (type === "ocakbasi") {
-    return `Dönemimizin ${ocakNo ?? "?"}. Ocakbaşı buluşması${when}${host ? ` ${genitive(host)} ev sahipliğinde` : ""} gerçekleşti.`;
+    return {
+      tr: `Ankara Anıttepe Rotaract Kulübü olarak dönemimizin ${ocakNo ?? "?"}. Ocakbaşı buluşmasını ${host ? `${genitive(host)} ev sahipliğinde ` : ""}gerçekleştirdik.`,
+      en: `Ankara Anıttepe Rotaract Club held the ${ocakNo ? ordinal(ocakNo) : "?"} Ocakbaşı gathering of the term${host ? `, hosted by ${host}` : ""}.`,
+    };
   }
-  const kind = type === "proje" ? "projemiz" : "etkinliğimiz";
-  const name = title ? `${title} ${kind}` : kind.charAt(0).toUpperCase() + kind.slice(1);
-  return `${name}${when} gerçekleşti.`;
+  const kind = type === "proje" ? "projemizi" : "etkinliğimizi";
+  return { tr: `Ankara Anıttepe Rotaract Kulübü olarak ${title ? `${title} ` : ""}${kind} ${when}gerçekleştirdik.`, en: "" };
 }
 
-function buildUserPrompt(body: Record<string, unknown>, opening: string, notes: string, title: string, host: string): string {
+function buildUserPrompt(body: Record<string, unknown>, opening: { tr: string; en: string }, notes: string, title: string, host: string): string {
   const type = String(body.type ?? "");
   const info = [`Gönderi türü: ${TYPE_LABELS[type] ?? type}`];
   if (title) info.push(`Başlık: ${title}`);
@@ -161,12 +178,13 @@ function buildUserPrompt(body: Record<string, unknown>, opening: string, notes: 
   if (host) info.push(`Ev sahipliği ifadesi (gerekirse aynen kullan): "${genitive(host)} ev sahipliğinde"`);
   return [
     ...info,
-    `Hazır açılış cümlesi (tekrar etme): ${opening}`,
+    `Hazır Türkçe açılış cümlesi (tekrar etme): ${opening.tr}`,
+    opening.en ? `Hazır İngilizce açılış (tekrar etme): ${opening.en}` : "Hazır İngilizce açılış yok: İngilizce bölümün ilk paragrafı Türkçe açılışın çevirisi olsun.",
     notes
       ? `Üyenin notları (ham bilgi; kopyalama, bu bilgilerle yaratıcı ve akıcı cümleler kur):\n${notes}`
       : "Not verilmedi.",
     "",
-    "Açılıştan sonra gelecek tek paragrafı yaz.",
+    "Türkçe paragrafları, ===EN=== satırını ve İngilizce paragrafları yaz.",
   ].join("\n");
 }
 
@@ -222,11 +240,15 @@ Deno.serve(async (req: Request) => {
       .trim();
     // Yarıda kesilen ya da boş yanıt yerine notlar kullanılır (Başkan Mektubu yapay zekâsındaki gibi)
     if (response.stop_reason === "max_tokens") { console.error("caption: yanıt max_tokens nedeniyle kesildi"); text = ""; }
-    const para = cleanCaption(text) || cleanCaption(notes.replace(/\s*\n\s*/g, " "));
-    const source = cleanCaption(text) ? "ai" : "notlar";
-
-    const tags = TAGS + (body.type === "ocakbasi" ? " #Ocakbaşı" : "");
-    return json({ caption: [opening, para, tags].filter(Boolean).join("\n\n"), source });
+    const [rawTr, rawEn = ""] = text.split(/\n*\s*===\s*EN\s*===\s*\n*/);
+    const tr = cleanCaption(rawTr ?? ""), en = cleanCaption(rawEn);
+    const ok = !!tr && !!en;
+    const source = ok ? "ai" : "notlar";
+    const trBody = ok ? tr : cleanCaption(notes);
+    const caption = [
+      opening.tr, trBody, CLOSE_TR, "______", "🇬🇧EN🇬🇧", opening.en || (ok ? "" : `Ankara Anıttepe Rotaract Club carried out its ${title ? `“${title}” ` : ""}${body.type === "proje" ? "project" : "event"}.`), ok ? en : "", CLOSE_EN,
+    ].filter(Boolean).join("\n\n");
+    return json({ caption, source });
   } catch (err) {
     if (err instanceof HttpError) return json({ error: err.message }, err.status);
     if (err instanceof Anthropic.APIError) {

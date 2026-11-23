@@ -381,12 +381,13 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   const capId = uid('caption');
   const captionTa = el('textarea', { id: capId, rows: '8', maxlength: '2200', placeholder: 'Gönderi açıklaması… Yapay zekâ ile yazdırabilir, sonra düzenleyebilirsiniz.' });
   const aiBtn = el('button', { type: 'button', class: 'cmp-btn cmp-btn-soft' }, el('span', { class: 'cmp-spark', 'aria-hidden': 'true', text: '✦' }), ' Yapay zekâ ile açıklama yaz');
+  const tagBtn = el('button', { type: 'button', class: 'cmp-btn cmp-btn-soft', text: '@ İsimleri etiketle', title: 'Açıklamada geçen kulüp ve kişilerin Instagram hesaplarını ekler' });
   const capNote = el('p', { class: 'cmp-note', hidden: true, text: 'Demo modunda şablonla yazıldı' });
   const capCount = el('span', { class: 'cmp-count', 'aria-live': 'off', text: '0 / 2200' });
   const captionSection = el('section', { class: 'cmp-caption', 'aria-label': 'Gönderi açıklaması' },
     el('div', { class: 'cmp-caption-head' }, el('label', { for: capId, text: 'Gönderi açıklaması' }), capCount),
     captionTa,
-    el('div', { class: 'cmp-caption-foot' }, aiBtn, capNote),
+    el('div', { class: 'cmp-caption-foot' }, aiBtn, tagBtn, capNote),
   );
 
   // Eylemler
@@ -443,6 +444,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   if (readOnly) {
     publishBtn.disabled = true;
     aiBtn.disabled = true;
+    tagBtn.disabled = true;
     publishBtn.title = 'Salt okunur: paylaşım yetkiniz yok';
   }
 
@@ -1275,6 +1277,21 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     publishBtn.setAttribute('aria-busy', String(b));
   }
 
+  // Kulüp ve kişi adlarının yanına Instagram hesapları (üye + misafir bilgileri panelden)
+  async function withTags(text) {
+    if (!text) return text;
+    const { tagCaption } = await import('./ig-tags.js?v=202611231548');
+    const [members, guests] = await Promise.all([store.listMembers().catch(() => []), store.listGuests().catch(() => [])]);
+    return tagCaption(text, [...members, ...guests]);
+  }
+  tagBtn.addEventListener('click', async () => {
+    if (readOnly || state.busy || !state.caption.trim()) return;
+    const before = state.caption, next = await withTags(before);
+    state.caption = next; captionTa.value = next; capCount.textContent = `${next.length} / 2200`;
+    const n = (next.match(/\(@/g) || []).length - (before.match(/\(@/g) || []).length;
+    toast(n > 0 ? `${n} etiket eklendi.` : 'Eklenecek yeni etiket bulunmadı.');
+  });
+
   aiBtn.addEventListener('click', async () => {
     if (readOnly || state.busy) return;
     const f = postFields();
@@ -1283,7 +1300,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
     aiBtn.lastChild.textContent = ' Yazılıyor…';
     try {
       const res = await store.generateCaption({ ...f, date: state.date, hybridhub: f.type === 'toplanti' && state.hybridhub });
-      const next = (res && res.caption) || '';
+      const next = await withTags((res && res.caption) || '');
       // Mevcut açıklama varsa yeni metni göstererek sor; onaylanmazsa eskisi kalır
       if (state.caption.trim() && next && state.caption.trim() !== next.trim()) {
         const words = next.trim().split(/\s+/).length;

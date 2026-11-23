@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611231428";
-import { can, hasRole, hasAnyRole } from "./roles.js?v=202611231428";
+import { CONFIG } from "./config.js?v=202611231548";
+import { can, hasRole, hasAnyRole } from "./roles.js?v=202611231548";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -53,22 +53,21 @@ export function templateCaption({ type, term_no, club_no, ocakbasi_no, summary, 
   const pick = l => ((s.match(new RegExp("^" + l + ":\\s*(.+)$", "m")) || [])[1] || "").trim();
   const title = pick("Başlık"), host = pick("Ev sahibi");
   const notes = s.replace(/^Başlık:.*$/m, "").replace(/^Ev sahibi:.*$/m, "").replace(/^Kısa açıklama:\s*/m, "").trim();
-  const when = date ? `, ${trDate(date)} tarihinde` : "";
-  let tags = "#Rotaract #AnıttepeRotaract #Bölge2430 #RotaractAnkara";
-  let opening, fallback;
+  const ord = n => `${n}${n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th"}`;
+  const when = date ? `${trDate(date)} tarihinde ` : "";
+  let tr, en;
   if (type === "toplanti") {
-    opening = `Dönemimizin ${term_no || "?"}. ve kulübümüzün ${club_no || "?"}. toplantısı${when}${hybridhub ? " HybridHub’da (@hybridhub.tr)" : ""} gerçekleşti.`;
-    fallback = "Gündemimizi konuştuk, fikirlerimizi paylaştık. Bir sonraki toplantıda seni de aramızda görmek isteriz.";
+    tr = `Ankara Anıttepe Rotaract Kulübü olarak ${club_no || "?"}. kulüp toplantımızı, dönemimizin ${term_no || "?"}. toplantısını ${hybridhub ? "HybridHub’da (@hybridhub.tr) " : ""}gerçekleştirdik.`;
+    en = `Ankara Anıttepe Rotaract Club held its ${club_no ? ord(+club_no) : "?"} club meeting${hybridhub ? " at HybridHub (@hybridhub.tr)" : ""}, marking the ${term_no ? ord(+term_no) : "?"} meeting of the term.`;
   } else if (type === "ocakbasi") {
-    opening = `Dönemimizin ${ocakbasi_no || "?"}. Ocakbaşı buluşması${when}${host ? ` ${genitive(host)} ev sahipliğinde` : ""} gerçekleşti.`;
-    fallback = "Sohbet, dostluk ve bol kahkaha dolu bir akşamdı.";
-    tags += " #Ocakbaşı";
+    tr = `Ankara Anıttepe Rotaract Kulübü olarak dönemimizin ${ocakbasi_no || "?"}. Ocakbaşı buluşmasını ${host ? `${genitive(host)} ev sahipliğinde ` : ""}gerçekleştirdik.`;
+    en = `Ankara Anıttepe Rotaract Club held the ${ocakbasi_no ? ord(+ocakbasi_no) : "?"} Ocakbaşı gathering of the term${host ? `, hosted by ${host}` : ""}.`;
   } else {
-    const kind = type === "proje" ? "projemiz" : "etkinliğimiz";
-    opening = `${title ? `${title} ${kind}` : kind.charAt(0).toUpperCase() + kind.slice(1)}${when} gerçekleşti.`;
-    fallback = "Emeği geçen herkese teşekkür ederiz.";
+    tr = `Ankara Anıttepe Rotaract Kulübü olarak ${title ? `${title} ` : ""}${type === "proje" ? "projemizi" : "etkinliğimizi"} ${when}gerçekleştirdik.`;
+    en = `Ankara Anıttepe Rotaract Club carried out its ${title ? `“${title}” ` : ""}${type === "proje" ? "project" : "event"}.`;
   }
-  return [opening, notes || fallback, tags].join("\n\n");
+  // Yapay zekâ yokken notlar çevrilmez; İngilizce bölümde yalnızca açılış ve kapanış bulunur
+  return [tr, notes, "30 yıldır hizmet yoluyla dostluk.", "______", "🇬🇧EN🇬🇧", en, "30 Years of Fellowship Through Service."].filter(Boolean).join("\n\n");
 }
 
 // Mektup yapay zekâsı bağlı değilken: notları kullanarak şablon paragraf (uydurma bilgi yok).

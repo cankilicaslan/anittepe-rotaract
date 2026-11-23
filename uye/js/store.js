@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611231418";
-import { can, hasRole, hasAnyRole } from "./roles.js?v=202611231418";
+import { CONFIG } from "./config.js?v=202611231428";
+import { can, hasRole, hasAnyRole } from "./roles.js?v=202611231428";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -244,7 +244,7 @@ function demoStore() {
       S.albums.push(a); save(); return clone(a);
     },
     async updateAlbum(id, patch) { needAlbums(); Object.assign(S.albums.find(a => a.id === id), patch); save(); },
-    async deleteAlbum(id) { needAlbums(); S.albums = S.albums.filter(a => a.id !== id); S.albumPhotos = S.albumPhotos.filter(p => p.album_id !== id); save(); },
+    async deleteAlbum(id) { needAlbums(); if (!["pr", "baskan", "sekreter"].some(r => hasRole(me(), r))) throw new Error("Klasörü yalnızca HİTK, Başkan ya da Sekreter silebilir."); S.albums = S.albums.filter(a => a.id !== id); S.albumPhotos = S.albumPhotos.filter(p => p.album_id !== id); save(); },
     async listPhotos(albumId) {
       return clone(S.albumPhotos.filter(p => p.album_id === albumId)).map(p => ({ ...p, thumb_url: p.data, url: p.data, uploader: S.profiles.find(x => x.id === p.uploaded_by)?.full_name || "" }));
     },
@@ -258,7 +258,7 @@ function demoStore() {
       save(); return clone(row);
     },
     async deleteAlbumPhoto(photo) {
-      const m = me(); if (!(photo.uploaded_by === m?.id || can(m, "arsiv-yonetim", "edit"))) throw new Error("Bu fotoğrafı yalnızca yükleyen kişi ya da yöneticiler silebilir.");
+      const m = me(); if (!(photo.uploaded_by === m?.id || ["pr", "baskan", "sekreter"].some(r => hasRole(m, r)))) throw new Error("Bu fotoğrafı yalnızca yükleyen kişi, HİTK, Başkan ya da Sekreter silebilir.");
       S.albumPhotos = S.albumPhotos.filter(p => p.id !== photo.id);
       const a = S.albums.find(x => x.id === photo.album_id); if (a && a.cover_path === photo.data) a.cover_path = S.albumPhotos.find(p => p.album_id === a.id)?.data || null;
       save();

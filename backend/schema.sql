@@ -2183,3 +2183,17 @@ begin
   delete from public.guests where id = p_guest;
   return jsonb_build_object('attendance', v_att, 'charges', v_fee->'parts', 'total', v_fee->'total');
 end $$;
+
+-- =====================================================================
+-- v58: Arşivde fotoğraf silme: yükleyen kişi (yalnızca kendi fotoğrafı), HİTK (pr), Başkan, Sekreter (ve site sahibi).
+--      Klasör silmek içindeki fotoğrafları da sildiği için aynı yetkiye bağlıdır; ad/tarih düzenleme değişmez.
+-- =====================================================================
+create or replace function public.can_delete_photos()
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.is_admin() or public.has_role('sekreter') or public.has_role('pr');
+$$;
+grant execute on function public.can_delete_photos() to authenticated;
+alter policy album_photos_delete on public.album_photos using (uploaded_by = auth.uid() or public.can_delete_photos());
+alter policy "photos_delete" on storage.objects using (bucket_id = 'photos' and (owner = auth.uid() or public.can_delete_photos()));
+drop policy if exists albums_delete_gate on public.albums;
+create policy albums_delete_gate on public.albums as restrictive for delete to authenticated using (public.can_delete_photos());

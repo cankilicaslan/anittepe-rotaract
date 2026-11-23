@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611231411";
-import { can, hasRole, hasAnyRole } from "./roles.js?v=202611231411";
+import { CONFIG } from "./config.js?v=202611231418";
+import { can, hasRole, hasAnyRole } from "./roles.js?v=202611231418";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -26,14 +26,22 @@ function genitive(name) {
   return `${name.trim()}’${vowels.includes(w.slice(-1)) ? "n" : ""}${v}n`;
 }
 
-// Yeni üye aidatı: 1000 + 500 + (24 − üye alındığı toplantının numarası) × 350 (sunucudaki karşılığı: convert_guest, v56)
+// Yeni üye aidatı (sunucudaki karşılığı: new_member_charges, v57): BKP (yılbaşından önce 2000, sonra 1000) + 500 + (24 − üye alındığı
+// toplantının numarası) × 350. Toplam 1 ay arayla 2 taksit; dönemin son 4 ayında (1 Mart'tan itibaren) tek ödeme.
 // Üye alındığı toplantı: üyelik tarihine kadarki (o gün dahil) son toplantı.
-export function newMemberFee(meetings, joined) {
+export function newMemberFee(meetings, joined, termStart) {
+  const ny = +String(termStart).slice(0, 4) + 1;
   const no = Math.max(0, ...(meetings || []).filter(m => m.date <= joined).map(m => m.term_no));
   const left = Math.max(24 - no, 0);
-  const items = [{ kind: "yeni_bolge", label: "Bölge katkı payı", amount: 1000 }, { kind: "yeni_rotary", label: "Uluslararası Rotary aidatı", amount: 500 },
-    { kind: "yeni_toplanti", label: "Kalan toplantı ücreti", amount: left * 350, note: `24 − ${no} = ${left} toplantı × 350 TL (${no}. toplantıda üye)` }];
-  return { items, left, total: items.reduce((s, x) => s + x.amount, 0) };
+  const items = [{ label: "Bölge katkı payı", amount: joined < `${ny}-01-01` ? 2000 : 1000 }, { label: "Uluslararası Rotary aidatı", amount: 500 },
+    { label: `Kalan toplantı ücreti: 24 − ${no} = ${left} toplantı × 350 TL`, amount: left * 350 }];
+  const total = items.reduce((s, x) => s + x.amount, 0);
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const f = new Date(joined + "T12:00:00"); f.setDate(f.getDate() + 14);
+  const last = new Date(f.getFullYear(), f.getMonth() + 2, 0).getDate(), n = new Date(f.getFullYear(), f.getMonth() + 1, Math.min(f.getDate(), last), 12);
+  const parts = joined >= `${ny}-03-01` ? [{ kind: "yeni_tek", label: "Yeni üye aidatı · tek ödeme", amount: total, due_date: iso(f) }]
+    : [{ kind: "yeni_1", label: "Yeni üye aidatı · 1. taksit", amount: Math.ceil(total / 2), due_date: iso(f) }, { kind: "yeni_2", label: "Yeni üye aidatı · 2. taksit", amount: Math.floor(total / 2), due_date: iso(n) }];
+  return { items, total, parts };
 }
 // Misafir hesabı: panelde üyelerin gördüğünü görür ama görevi yoktur; her yerde "Misafir" olarak görünür.
 export const guestAsMe = g => ({ id: g.user_id || "guest-" + g.id, guest_id: g.id, user_id: g.user_id || null, start_meeting_id: g.start_meeting_id || null, is_guest: true, status: "guest", roles: [], past_president: false, hide_roles: false, title: "Misafir",
@@ -391,14 +399,14 @@ function demoStore() {
       const firstMeet = atts.map(a => S.meetings.find(m => m.id === a.meeting_id)).filter(Boolean).sort((x, y) => String(x.date).localeCompare(String(y.date)))[0]
         || S.meetings.filter(m => m.date >= joined_at).sort((x, y) => String(x.date).localeCompare(String(y.date)))[0];
       const prof = S.profiles.find(x => x.id === p.id); prof.joined_at = joined_at; if (firstMeet) prof.start_meeting_id = firstMeet.id;
-      const items = newMemberFee(S.meetings.filter(m => (m.term_id || S.term.id) === S.term.id), joined_at).items.filter(x => x.amount > 0);
-      items.forEach(x => {
+      const fee = newMemberFee(S.meetings.filter(m => (m.term_id || S.term.id) === S.term.id), joined_at, S.term.start_date);
+      fee.parts.forEach(x => {
         let d = S.dues.find(y => y.kind === x.kind && (y.term_id || S.term.id) === S.term.id);
-        if (!d) S.dues.push(d = { id: uid(), term_id: S.term.id, label: "Yeni üye: " + x.label, period: null, amount: x.kind === "yeni_toplanti" ? 350 : x.amount, due_date: null, kind: x.kind, created_at: new Date().toISOString() });
-        S.charges.push({ id: uid(), due_id: d.id, member_id: p.id, amount: x.amount, note: x.note || null, paid_at: null });
+        if (!d) S.dues.push(d = { id: uid(), term_id: S.term.id, label: x.label, period: null, amount: 0, due_date: null, kind: x.kind, created_at: new Date().toISOString() });
+        S.charges.push({ id: uid(), due_id: d.id, member_id: p.id, amount: x.amount, due_date: x.due_date, detail: { items: fee.items, total: fee.total, parts: fee.parts.length }, paid_at: null });
       });
       S.guests = S.guests.filter(x => x.id !== guest_id); S.guestAtt = S.guestAtt.filter(a => a.guest_id !== guest_id);
-      save(); return { profile: clone(prof), attendance: atts.length, charges: items.length, total: items.reduce((s, x) => s + x.amount, 0) };
+      save(); return { profile: clone(prof), attendance: atts.length, charges: fee.parts.length, total: fee.total };
     },
     async updateGuestInfo(id, patch) {
       need("yoklama");

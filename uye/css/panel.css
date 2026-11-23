@@ -1028,3 +1028,6 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 .fee-list small{display:block}
 .fee-list .sum{border:0;font-weight:800}
 .fee-note{font-size:.84rem}
+
+.fee-list.sm{font-size:.82rem;margin:6px 0 0;font-weight:400}
+.fee-list.sm li{padding:3px 0}

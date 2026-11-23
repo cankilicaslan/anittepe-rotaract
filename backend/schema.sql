@@ -2110,3 +2110,76 @@ begin
   delete from public.guests where id = p_guest;
   return jsonb_build_object('attendance', v_att, 'charges', v_ch, 'total', 1500 + v_left * 350);
 end $$;
+
+-- =====================================================================
+-- v57: Yeni üye aidatı: yılbaşından önce BKP 2000, sonra 1000 TL; toplam 1 ay arayla 2 taksit,
+--      dönemin son 4 ayında (1 Mart'tan itibaren) tek ödeme. Kişiye özel son ödeme tarihi charges.due_date'te.
+-- =====================================================================
+alter table public.charges add column if not exists due_date date;
+alter table public.charges add column if not exists detail jsonb;
+
+create or replace function public.new_member_charges(p_member uuid, p_joined date)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v_term uuid; v_y int; v_x int; v_left int; v_bkp int; v_total int; v_parts int; v_first date; v_detail jsonb;
+begin
+  select id, extract(year from start_date)::int into v_term, v_y from public.terms where is_current limit 1;
+  if v_term is null then raise exception 'Güncel dönem bulunamadı'; end if;
+  select coalesce(max(term_no), 0) into v_x from public.meetings where term_id = v_term and date <= p_joined;
+  v_left  := greatest(24 - v_x, 0);
+  v_bkp   := case when p_joined < make_date(v_y + 1, 1, 1) then 2000 else 1000 end;
+  v_total := v_bkp + 500 + v_left * 350;
+  -- Dönem 30 Haziran'da biter; son 4 ay (1 Mart ve sonrası) tek taksit
+  v_parts := case when p_joined >= make_date(v_y + 1, 3, 1) then 1 else 2 end;
+  -- Kulübün ödeme aralığı 14 gün: 1. taksit üyelikten 14 gün sonra, 2. taksit ondan 1 ay sonra
+  v_first := p_joined + 14;
+  v_detail := jsonb_build_array(
+    jsonb_build_object('label', 'Bölge katkı payı', 'amount', v_bkp),
+    jsonb_build_object('label', 'Uluslararası Rotary aidatı', 'amount', 500),
+    jsonb_build_object('label', format('Kalan toplantı ücreti: 24 − %s = %s toplantı × 350 TL', v_x, v_left), 'amount', v_left * 350));
+  insert into public.dues (term_id, label, amount, kind)
+    select v_term, l, 0, k from (values ('Yeni üye aidatı · 1. taksit', 'yeni_1'), ('Yeni üye aidatı · 2. taksit', 'yeni_2'), ('Yeni üye aidatı · tek ödeme', 'yeni_tek')) as t(l, k)
+    where (v_parts = 1) = (k = 'yeni_tek')
+  on conflict (term_id, kind) where kind is not null do nothing;
+  insert into public.charges (due_id, member_id, amount, due_date, detail)
+    select d.id, p_member,
+      case d.kind when 'yeni_1' then ceil(v_total / 2.0) when 'yeni_2' then floor(v_total / 2.0) else v_total end,
+      case d.kind when 'yeni_2' then (v_first + interval '1 month')::date else v_first end,
+      jsonb_build_object('items', v_detail, 'total', v_total, 'parts', v_parts)
+    from public.dues d where d.term_id = v_term and d.kind = any (case when v_parts = 1 then array['yeni_tek'] else array['yeni_1','yeni_2'] end)
+  on conflict (due_id, member_id) do nothing;
+  return jsonb_build_object('total', v_total, 'parts', v_parts);
+end $$;
+revoke all on function public.new_member_charges(uuid, date) from public, anon, authenticated;
+
+create or replace function public.convert_guest(p_guest uuid, p_member uuid, p_joined date)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v_att int := 0; v_first uuid; g public.guests%rowtype; v_blood text; v_fee jsonb;
+begin
+  if not public.is_admin() then raise exception 'Üye almak için Başkan yetkisi gerekiyor'; end if;
+  select * into g from public.guests where id = p_guest;
+  if not found then raise exception 'Misafir bulunamadı'; end if;
+  if not exists (select 1 from public.profiles where id = p_member) then raise exception 'Üye profili bulunamadı'; end if;
+  insert into public.attendance (meeting_id, member_id, status, note)
+    select ga.meeting_id, p_member, ga.status, ga.note from public.guest_attendance ga where ga.guest_id = p_guest
+  on conflict (meeting_id, member_id) do nothing;
+  get diagnostics v_att = row_count;
+  select m.id into v_first from public.guest_attendance ga join public.meetings m on m.id = ga.meeting_id
+   where ga.guest_id = p_guest order by m.date nulls last, m.term_no limit 1;
+  if v_first is null then
+    select m.id into v_first from public.meetings m where m.date >= p_joined order by m.date, m.term_no limit 1;
+  end if;
+  update public.profiles set joined_at = p_joined, start_meeting_id = coalesce(v_first, start_meeting_id),
+    photo_url  = coalesce(nullif(photo_url, ''), g.photo_url),
+    birth_date = coalesce(birth_date, g.birth_date),
+    profession = coalesce(nullif(profession, ''), g.profession),
+    instagram  = coalesce(nullif(instagram, ''), g.instagram)
+  where id = p_member;
+  select blood_type into v_blood from public.guest_private where guest_id = p_guest;
+  if coalesce(v_blood, '') <> '' then
+    insert into public.profile_private (member_id, blood_type) values (p_member, v_blood)
+    on conflict (member_id) do update set blood_type = coalesce(nullif(profile_private.blood_type, ''), excluded.blood_type);
+  end if;
+  v_fee := public.new_member_charges(p_member, p_joined);
+  delete from public.guests where id = p_guest;
+  return jsonb_build_object('attendance', v_att, 'charges', v_fee->'parts', 'total', v_fee->'total');
+end $$;

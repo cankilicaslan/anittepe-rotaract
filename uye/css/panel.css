@@ -1014,3 +1014,17 @@ tr.pf-com:focus-visible{outline:2px solid var(--cran,#D41367);outline-offset:-2p
 
 /* İndirme hakkı olmayanlarda fotoğraf sağ tık/uzun basma ile kaydedilmeye kapalı (yalnızca görüntüleme) */
 .people-grid.no-dl img,.lightbox.no-dl img{-webkit-user-drag:none;user-select:none;-webkit-touch-callout:none;pointer-events:none}
+
+/* Profil: kendi toplantı tablosu (açılır) */
+.my-att>summary{cursor:pointer;font-weight:700;min-height:44px;display:flex;align-items:center;gap:8px;list-style:none}
+.my-att>summary::-webkit-details-marker{display:none}
+.my-att>summary::after{content:"▾";margin-left:auto;color:var(--cran);transition:transform .15s}
+.my-att[open]>summary::after{transform:rotate(180deg)}
+.my-att .matrix .cell{display:inline-grid;place-items:center;cursor:default}
+
+/* Yeni üye aidatı dökümü */
+.fee-list{list-style:none;margin:4px 0 12px;padding:0}
+.fee-list li{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--line)}
+.fee-list small{display:block}
+.fee-list .sum{border:0;font-weight:800}
+.fee-note{font-size:.84rem}

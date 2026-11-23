@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611201637";
-import { createStore, trDate, guestAsMe } from "./store.js?v=202611201637";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611201637";
+import * as BP from "./board-plan.js?v=202611231406";
+import { createStore, trDate, guestAsMe, newMemberFee } from "./store.js?v=202611231406";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611231406";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -698,6 +698,21 @@ function cropPhoto(file) {
 }
 
 /* ------------------------------ Profil ------------------------------ */
+// Profil: kişinin kendi toplantı tablosu (Yoklama'daki dönem tablosuyla aynı biçim, tek satır, salt okunur)
+function myMeetingsTable(p, meetings, marks, startNo, preTitle) {
+  if (!meetings.length) return "";
+  const SHORT = { geldi: "✓", gelmedi: "✕", mazeretli: "M" }, NAME = { geldi: "geldi", gelmedi: "gelmedi", mazeretli: "mazeretli" };
+  const by = new Map(marks.map(x => [x.meeting_id, x.status]));
+  const cell = m => {
+    const s = by.get(m.id);
+    if (startNo && m.term_no < startNo) return `<span class="cell pre" title="${preTitle}">–</span>`;
+    return `<span class="cell ${s || ""}" role="img" aria-label="${m.term_no}. toplantı, ${trDate(m.date)}: ${NAME[s] || "işaretsiz"}" title="${trDate(m.date)}: ${NAME[s] || "işaretsiz"}">${SHORT[s] || "·"}</span>`;
+  };
+  return `<details class="card my-att" style="margin-top:16px"><summary>Katıldığım toplantılar (${meetings.length} toplantı tablosu)</summary>
+    <div class="legend" style="margin:12px 0"><span><span class="cell geldi">✓</span>Geldi</span><span><span class="cell gelmedi">✕</span>Gelmedi</span><span><span class="cell mazeretli">M</span>Mazeretli</span><span><span class="cell">·</span>İşaretsiz</span><span><span class="cell pre">–</span>${preTitle}</span></div>
+    <div class="tbl-wrap"><table class="matrix"><thead><tr><th>${p.is_guest ? "Misafir" : "Üye"}</th>${meetings.map(m => `<th class="${m.date > today() ? "future" : ""}" title="${trDate(m.date)}${m.label ? " · " + esc(m.label) : ""}">${m.term_no}${m.label ? `<br><small class="mlabel">(${esc(m.label)})</small>` : ""}</th>`).join("")}</tr></thead>
+    <tbody><tr><td title="${esc(p.full_name)}">${esc(p.full_name)}</td>${meetings.map(m => `<td class="${m.date > today() ? "future" : ""}">${cell(m)}</td>`).join("")}</tr></tbody></table></div></details>`;
+}
 async function viewProfile(v) {
   if (me.is_guest) return viewGuestProfile(v);
   const [meetings, att, charges, dues, priv] = await Promise.all([store.listMeetings(), store.listAttendance(), store.listCharges(), store.listDues(), store.getPrivate(me.id)]);
@@ -717,7 +732,7 @@ async function viewProfile(v) {
   </div>
   <div class="grid g2">
     <div class="card"><h2>Aidat durumu</h2>${debt.open.length ? `<div class="tbl-wrap"><table><thead><tr><th>Dönem</th><th>Son ödeme</th><th class="num">Tutar</th></tr></thead><tbody>
-      ${debt.open.sort((a, b) => (a.due.due_date || "").localeCompare(b.due.due_date || "")).map(c => `<tr><td>${esc(c.due.label)}</td><td>${trDate(c.due.due_date)} ${c.due.due_date < today() ? '<span class="tag bad">Gecikti</span>' : ""}</td><td class="num">${TL(c.amount)}</td></tr>`).join("")}
+      ${debt.open.sort((a, b) => (a.due.due_date || "").localeCompare(b.due.due_date || "")).map(c => `<tr><td>${esc(c.due.label)}${c.note ? `<br><small class="muted">${esc(c.note)}</small>` : ""}</td><td>${c.due.due_date ? trDate(c.due.due_date) : "—"} ${c.due.due_date && c.due.due_date < today() ? '<span class="tag bad">Gecikti</span>' : ""}</td><td class="num">${TL(c.amount)}</td></tr>`).join("")}
       </tbody></table></div>` : `<p class="muted" style="margin:0">Ödenmemiş aidatın yok.</p>`}</div>
     <div class="card"><h2>Toplantılara devam</h2>
       <p style="margin:0 0 8px">Bu dönem yapılan ${st.held} toplantının ${st.geldi} tanesine katıldın.</p>
@@ -725,6 +740,7 @@ async function viewProfile(v) {
       <p class="muted" style="font-size:.86rem;margin:10px 0 0">Mazeretli toplantılar hariç devam oranın ${pct(st.oranMazeretHaric)}. ${st.isaretsiz ? `${st.isaretsiz} toplantı henüz işlenmedi.` : ""}</p>
     </div>
   </div>
+  ${myMeetingsTable(me, meetings, att.filter(x => x.member_id === me.id), memberStartNo(me, meetings), "Henüz üye değil")}
   <form class="card" id="f-me" style="margin-top:16px"><h2>Bilgilerim</h2>
     <div class="grid g2">
       <label class="f">Ad soyad<input type="text" name="full_name" value="${esc(me.full_name)}" required></label>
@@ -773,6 +789,7 @@ async function viewProfile(v) {
 async function viewGuestProfile(v) {
   const [meetings, gatt, priv] = await Promise.all([store.listMeetings().catch(() => []), store.listGuestAttendance().catch(() => []), store.getGuestPrivate(me.guest_id).catch(() => ({}))]);
   const date = new Map(meetings.map(m => [m.id, m.date]));
+  const gRows = gatt.filter(a => a.guest_id === me.guest_id).map(a => ({ ...a, member_id: a.guest_id }));
   const mine = gatt.filter(a => a.guest_id === me.guest_id && a.status === "geldi").map(a => date.get(a.meeting_id)).filter(Boolean).sort();
   v.innerHTML = header("Profilim") + `
   <div class="card"><div class="profile-head">
@@ -784,6 +801,7 @@ async function viewGuestProfile(v) {
     <div class="stat"><span>İlk geldiğin toplantı</span><b>${mine.length ? trDate(mine[0]) : "—"}</b></div>
     <div class="stat"><span>Son geldiğin toplantı</span><b>${mine.length ? trDate(mine[mine.length - 1]) : "—"}</b></div>
   </div>
+  ${myMeetingsTable(me, meetings, gRows, guestStartNo({ id: me.guest_id, start_meeting_id: me.start_meeting_id }, meetings, gRows), "Henüz gelmemişti")}
   <form class="card" id="f-me" style="margin-top:16px"><h2>Bilgilerim</h2>
     <div class="grid g2">
       <label class="f">Ad soyad<input type="text" name="full_name" value="${esc(me.full_name)}" required></label>
@@ -1107,9 +1125,9 @@ async function editGuest(g) {
 
 async function convertGuestDialog(g, cameCount) {
   if (!g) return;
-  const dues = await store.listDues().catch(() => []);
   const dlg = document.getElementById("dlg");
-  const dueLine = d => { const upcoming = dues.filter(x => x.due_date && x.due_date >= d).sort((x, y) => x.due_date.localeCompare(y.due_date)); return upcoming.length ? `Borç olarak eklenecek taksitler: ${upcoming.map(x => `${esc(x.label)} (son ödeme ${trDate(x.due_date)}, ${TL(x.amount)})`).join(", ")}.` : "Bu tarihten sonra son ödemesi olan taksit yok; aidat borcu eklenmez."; };
+  const fee = newMemberFee(cameCount);
+  const feeHtml = `<ul class="fee-list">${fee.items.map(x => `<li><span>${esc(x.label)}${x.note ? `<small class="muted">${esc(x.note)}</small>` : ""}</span><b>${TL(x.amount)}</b></li>`).join("")}<li class="sum"><span>Toplam</span><b>${TL(fee.total)}</b></li></ul>`;
   dlg.innerHTML = `<form method="dialog" class="conv-form"><h2>${esc(g.full_name)} üye olarak alınsın</h2>
     <p class="muted" style="margin:0 0 12px">Misafir listesinden çıkar ve üye listesine eklenir. Panel hesabı için e-posta adresine davet gider.</p>
     <div class="grid g2">
@@ -1119,14 +1137,13 @@ async function convertGuestDialog(g, cameCount) {
       <label class="f">Telefon<input type="tel" name="phone" value="${esc(g.phone || "")}"></label>
     </div>
     <div class="conv-sum">
-      <p><b>Aidat:</b> <span id="conv-dues">${dueLine(today())}</span></p>
+      <p><b>Yeni üye aidatı</b></p>${feeHtml}
       <p><b>Devam:</b> ${cameCount ? `Misafir olarak geldiği ${cameCount} toplantı devamına aktarılacak.` : "Misafir olarak kayıtlı devamı yok; devam oranı üyelik tarihinden sonraki ilk toplantıdan başlar."}</p>
     </div>
     <div class="row"><button class="btn" value="ok">Üye al</button><button class="btn ghost" value="cancel" formnovalidate>Vazgeç</button></div>
   </form>`;
   if (!dlg.open) dlg.showModal();
   const form = dlg.querySelector("form");
-  form.joined_at.oninput = () => { if (form.joined_at.value) dlg.querySelector("#conv-dues").innerHTML = dueLine(form.joined_at.value); };
   form.onsubmit = async e => {
     if (e.submitter?.value !== "ok") return;
     e.preventDefault();
@@ -1135,7 +1152,7 @@ async function convertGuestDialog(g, cameCount) {
     try {
       const r = await store.convertGuest({ guest_id: g.id, full_name: String(fd.get("full_name")).trim(), email: String(fd.get("email")).trim(), phone: String(fd.get("phone") || "").trim(), joined_at: fd.get("joined_at") });
       dlg.close();
-      toast(`${esc(g.full_name)} üye olarak alındı. ${r.charges} taksit borç olarak eklendi, ${r.attendance} toplantının yoklama kaydı aktarıldı.`);
+      toast(`${esc(g.full_name)} üye olarak alındı. ${TL(r.total)} aidat borcu eklendi, ${r.attendance} toplantının yoklama kaydı aktarıldı.`);
       refresh();
     } catch (er) { fail(er); btn.disabled = false; btn.textContent = "Üye al"; }
   };
@@ -1356,9 +1373,9 @@ async function viewDues(v) {
     ${dues.length ? dues.slice().sort((a, b) => (b.due_date || "").localeCompare(a.due_date || "")).map(d => {
       const cs = charges.filter(c => c.due_id === d.id).sort((a, b) => (mmap[a.member_id]?.full_name || "").localeCompare(mmap[b.member_id]?.full_name || "", "tr"));
       const p = cs.filter(c => c.paid_at).length;
-      return `<details class="due"><summary><b>${esc(d.label)}</b><span class="muted">${TL(d.amount)} · son ödeme ${trDate(d.due_date)}</span><div class="spacer"></div>
+      return `<details class="due"><summary><b>${esc(d.label)}</b><span class="muted">${d.kind === "yeni_toplanti" ? "toplantı başına " : ""}${TL(d.amount)}${d.due_date ? ` · son ödeme ${trDate(d.due_date)}` : ""}</span><div class="spacer"></div>
         ${p < cs.length && !isPayOpen(d) ? notOpenTag(d) : `<span class="tag ${p === cs.length ? "ok" : d.due_date < today() ? "bad" : "warn"}">${p}/${cs.length} ödendi</span>`}</summary>
-        <div class="body">${cs.map(c => `<div class="pay-row">${person(mmap[c.member_id] || { full_name: "Silinmiş üye" })}
+        <div class="body">${cs.map(c => `<div class="pay-row">${person(mmap[c.member_id] || { full_name: "Silinmiş üye" })}${d.kind ? `<span class="muted fee-note">${TL(c.amount)}${c.note ? ` · ${esc(c.note)}` : ""}</span>` : ""}
           ${c.paid_at ? `<span class="tag ok">Ödendi · ${trDate(c.paid_at)}</span>` : !isPayOpen(d) ? notOpenTag(d) : `<span class="tag ${d.due_date < today() ? "bad" : "warn"}">${d.due_date < today() ? "Gecikti" : "Bekliyor"}</span>`}
           ${ro ? "" : c.paid_at ? `<button class="btn ghost sm" data-unpay="${c.id}">Geri al</button>` : `<input type="date" value="${today()}" data-pd="${c.id}" aria-label="Ödeme tarihi" style="width:auto;min-height:32px"><button class="btn sm" data-pay="${c.id}">Ödendi</button>`}
         </div>`).join("")}
@@ -1487,7 +1504,7 @@ async function viewTreasury(v) {
     const manualPeople = [...new Set(manual.map(r => r.person || "Belirtilmedi"))].sort((x, y) => x.localeCompare(y, "tr"));
     const cellOf = (mid, d) => { const c = charges.find(c => c.member_id === mid && c.due_id === d.id); if (!c) return '<span class="muted">–</span>'; if (c.paid_at) return `<span class="tag ok">Ödendi · ${trDate(c.paid_at)}</span>`; if (!isPayOpen(d)) return notOpenTag(d); return d.due_date && d.due_date < today() ? '<span class="tag bad">Gecikti</span>' : '<span class="tag warn">Bekliyor</span>'; };
     const paidOf = mid => sum(charges.filter(c => c.member_id === mid && c.paid_at && tDues.some(d => d.id === c.due_id)));
-    const debtOfM = mid => sum(charges.filter(c => c.member_id === mid && !c.paid_at && tDues.some(d => d.id === c.due_id && d.due_date && d.due_date <= today())));
+    const debtOfM = mid => sum(charges.filter(c => c.member_id === mid && !c.paid_at && tDues.some(d => d.id === c.due_id && (d.kind || (d.due_date && d.due_date <= today())))));
     const totPaid = mids.reduce((s, m) => s + paidOf(m), 0) + sum(manual), totDebt = mids.reduce((s, m) => s + debtOfM(m), 0);
     body = `<div class="card"><h2>Üye aidat tahsilatları</h2>
       <p class="muted" style="margin:-6px 0 12px;font-size:.88rem">Taksitler Aidat sayfasından gelir; ödendi işaretlenen her taksit kasaya "Üye aidat tahsilatı" olarak yazılır. Borç, son ödeme günü geçmiş ve ödenmemiş taksitlerin toplamıdır.</p>
@@ -1997,7 +2014,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611201637");
+  const { mountComposer } = await import("./composer.js?v=202611231406");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -2006,7 +2023,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611201637");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611231406");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });
@@ -2440,11 +2457,12 @@ async function viewWaDues(v) {
   const active = members.filter(m => m.status === "active");
   // Yalnızca vadesi geçmiş ya da 15 gün içinde dolacak aidatlar hatırlatılır (ileriki ayların aidatı borç sayılmaz).
   const soon = (() => { const d = new Date(); d.setDate(d.getDate() + 15); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
-  const dueNow = id => { const d = debtOf(id, charges, dues); const open = d.open.filter(c => c.due.due_date <= soon); return { ...d, open, total: open.reduce((s, c) => s + +c.amount, 0) }; };
+  const dueNow = id => { const d = debtOf(id, charges, dues); const open = d.open.filter(c => !c.due.due_date || c.due.due_date <= soon); return { ...d, open, total: open.reduce((s, c) => s + +c.amount, 0) }; };
   const debtors = active.map(m => ({ m, d: dueNow(m.id) })).filter(x => x.d.total > 0)
     .sort((a, b) => b.d.total - a.d.total || a.m.full_name.localeCompare(b.m.full_name, "tr"));
-  const openDues = dues.filter(d => charges.some(c => c.due_id === d.id && !c.paid_at)).sort((a, b) => a.due_date.localeCompare(b.due_date));
-  const defDue = openDues.find(d => d.due_date >= today()) || openDues.at(-1) || dues.at(-1);
+  const gDues = dues.filter(d => d.due_date); // tarihsiz yeni üye kalemleri grup duyurusuna girmez
+  const openDues = gDues.filter(d => charges.some(c => c.due_id === d.id && !c.paid_at)).sort((a, b) => a.due_date.localeCompare(b.due_date));
+  const defDue = openDues.find(d => d.due_date >= today()) || openDues.at(-1) || gDues.at(-1);
   const DEF_PERSONAL = "{ad} selamlar,\n\n{kalemler} için {borc} tutarındaki ödemen henüz bize ulaşmamış görünüyor. Uygun olduğunda aşağıdaki hesaba aktarmanı rica ederim. 🙏\n\n{odeme}\n\nÖdemeyi yaptıysan bu mesajı dikkate alma, teşekkür ederim. 💗";
   const sent = new Set();
   v.innerHTML = header("Aidat hatırlatma", "Aidat ve ödeme hatırlatmalarını WhatsApp'tan gruba ya da kişiye özel gönder.") + roBanner("wa-aidat") + `
@@ -2456,7 +2474,7 @@ async function viewWaDues(v) {
   <div class="grid g2 wa-grid">
     <div class="card">
       <h2>Gruba genel hatırlatma</h2>
-      ${dues.length ? `<label class="f">Aidat<select id="gdue">${dues.map(d => `<option value="${d.id}" ${d.id === defDue?.id ? "selected" : ""}>${esc(d.label)} · ${TL(d.amount)} · son gün ${trDate(d.due_date)}</option>`).join("")}</select></label>
+      ${gDues.length ? `<label class="f">Aidat<select id="gdue">${gDues.map(d => `<option value="${d.id}" ${d.id === defDue?.id ? "selected" : ""}>${esc(d.label)} · ${TL(d.amount)} · son gün ${trDate(d.due_date)}</option>`).join("")}</select></label>
       <textarea id="gtext" rows="11" class="wa-text" style="margin-top:12px" aria-label="Grup mesajı"></textarea>
       <div class="row" style="margin-top:12px"><button type="button" class="btn wa" id="gsend">WhatsApp grubunda paylaş</button><button type="button" class="btn ghost" id="gcopy">Metni kopyala</button></div>
       <p class="muted" style="font-size:.84rem;margin:10px 0 0">Grup mesajında kimsenin adı ya da borcu yazmaz.</p>` : `<p class="muted" style="margin:0">Henüz aidat oluşturulmadı.</p>`}

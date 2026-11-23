@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611201637";
-import { can, hasRole, hasAnyRole } from "./roles.js?v=202611201637";
+import { CONFIG } from "./config.js?v=202611231406";
+import { can, hasRole, hasAnyRole } from "./roles.js?v=202611231406";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -26,8 +26,15 @@ function genitive(name) {
   return `${name.trim()}’${vowels.includes(w.slice(-1)) ? "n" : ""}${v}n`;
 }
 
+// Yeni üye aidatı: 1000 + 500 + (24 − misafirken katıldığı toplantı) × 350 (sunucudaki karşılığı: convert_guest, v55)
+export function newMemberFee(came) {
+  const left = Math.max(24 - (came || 0), 0);
+  const items = [{ kind: "yeni_bolge", label: "Bölge katkı payı", amount: 1000 }, { kind: "yeni_rotary", label: "Uluslararası Rotary aidatı", amount: 500 },
+    { kind: "yeni_toplanti", label: "Kalan toplantı ücreti", amount: left * 350, note: `24 − ${came || 0} = ${left} toplantı × 350 TL` }];
+  return { items, left, total: items.reduce((s, x) => s + x.amount, 0) };
+}
 // Misafir hesabı: panelde üyelerin gördüğünü görür ama görevi yoktur; her yerde "Misafir" olarak görünür.
-export const guestAsMe = g => ({ id: g.user_id || "guest-" + g.id, guest_id: g.id, user_id: g.user_id || null, is_guest: true, status: "guest", roles: [], past_president: false, hide_roles: false, title: "Misafir",
+export const guestAsMe = g => ({ id: g.user_id || "guest-" + g.id, guest_id: g.id, user_id: g.user_id || null, start_meeting_id: g.start_meeting_id || null, is_guest: true, status: "guest", roles: [], past_president: false, hide_roles: false, title: "Misafir",
   full_name: g.full_name, phone: g.phone || "", email: g.email || "", birth_date: g.birth_date || null, profession: g.profession || "", instagram: g.instagram || "", photo_url: g.photo_url || "" });
 
 export function templateCaption({ type, term_no, club_no, ocakbasi_no, summary, date, hybridhub }) {
@@ -382,10 +389,14 @@ function demoStore() {
       const firstMeet = atts.map(a => S.meetings.find(m => m.id === a.meeting_id)).filter(Boolean).sort((x, y) => String(x.date).localeCompare(String(y.date)))[0]
         || S.meetings.filter(m => m.date >= joined_at).sort((x, y) => String(x.date).localeCompare(String(y.date)))[0];
       const prof = S.profiles.find(x => x.id === p.id); prof.joined_at = joined_at; if (firstMeet) prof.start_meeting_id = firstMeet.id;
-      const dues = S.dues.filter(d => d.due_date && d.due_date >= joined_at && (d.term_id || S.term.id) === S.term.id);
-      dues.forEach(d => { if (!S.charges.some(c => c.due_id === d.id && c.member_id === p.id)) S.charges.push({ id: uid(), due_id: d.id, member_id: p.id, amount: d.amount, paid_at: null }); });
+      const items = newMemberFee(atts.filter(a => a.status === "geldi").length).items.filter(x => x.amount > 0);
+      items.forEach(x => {
+        let d = S.dues.find(y => y.kind === x.kind && (y.term_id || S.term.id) === S.term.id);
+        if (!d) S.dues.push(d = { id: uid(), term_id: S.term.id, label: "Yeni üye: " + x.label, period: null, amount: x.kind === "yeni_toplanti" ? 350 : x.amount, due_date: null, kind: x.kind, created_at: new Date().toISOString() });
+        S.charges.push({ id: uid(), due_id: d.id, member_id: p.id, amount: x.amount, note: x.note || null, paid_at: null });
+      });
       S.guests = S.guests.filter(x => x.id !== guest_id); S.guestAtt = S.guestAtt.filter(a => a.guest_id !== guest_id);
-      save(); return { profile: clone(prof), attendance: atts.length, charges: dues.length };
+      save(); return { profile: clone(prof), attendance: atts.length, charges: items.length, total: items.reduce((s, x) => s + x.amount, 0) };
     },
     async updateGuestInfo(id, patch) {
       need("yoklama");
@@ -790,7 +801,7 @@ async function supabaseStore() {
         profile = ok(await sb.from("profiles").update({ full_name, phone: phone || null }).eq("id", uid).select().single());
       } else profile = (await fn("invite-member", { full_name, email, phone, joined_at, title: "Üye" })).profile;
       const res = ok(await sb.rpc("convert_guest", { p_guest: guest_id, p_member: profile.id, p_joined: joined_at }));
-      return { profile, attendance: res?.attendance ?? 0, charges: res?.charges ?? 0 };
+      return { profile, attendance: res?.attendance ?? 0, charges: res?.charges ?? 0, total: res?.total ?? 0 };
     },
     async getPrivate(id) { const { data } = await sb.from("profile_private").select("*").eq("member_id", id).maybeSingle(); return data || {}; },
     async listClubEvents() { return ok(await sb.from("club_events").select("*").order("date")); },

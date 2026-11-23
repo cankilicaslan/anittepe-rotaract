@@ -1280,7 +1280,7 @@ export function mountComposer(root, { store, me = null, toast = () => {}, readOn
   // Kulüp ve kişi adlarının yanına Instagram hesapları (üye + misafir bilgileri panelden)
   async function withTags(text) {
     if (!text) return text;
-    const { tagCaption } = await import('./ig-tags.js?v=202611231548');
+    const { tagCaption } = await import('./ig-tags.js?v=202611231551');
     const [members, guests] = await Promise.all([store.listMembers().catch(() => []), store.listGuests().catch(() => [])]);
     return tagCaption(text, [...members, ...guests]);
   }

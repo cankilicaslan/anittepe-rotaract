@@ -1,6 +1,6 @@
 // Instagram açıklamalarında geçen kulüp ve kişi adlarının yanına hesabı parantez içinde yazar: "Ecem Gökgöz (@ecmgokgoz)".
 // Kulüp listesi: Rotaract 2430 Instagram hesapları (Kasım 2026). Kişiler panelden (üye + misafir) gelir.
-// Kendi kulübümüz etiketlenmez. "Ankara Rotaract Kulübü" listede bizim hesabımızla yazılı olduğu için bilerek alınmadı.
+// Kendi kulübümüz etiketlenmez. Ankara Rotaract Kulübünün hesabı listede yanlıştı; doğrusu ayrıca bildirildi.
 export const CLUBS = [
   ["Adana 5 Ocak","adana5ocakrotaract"],
   ["Adana Çukurova","adanacukurovarac"],
@@ -11,6 +11,7 @@ export const CLUBS = [
   ["Alanya","alanyarotaract"],
   ["Amasya Yeşilırmak","amasyayesilirmakrotaract_"],
   ["Anadolu Evrensel","evrenselrotaract"],
+  ["Ankara","ankararotaractclub"],
   ["Ankara Bahçelievler","bahcelievler_rotaract"],
   ["Ankara Başkent","baskentrotaract"],
   ["Ankara Beysukent","beysukentrotaract"],

@@ -2055,3 +2055,58 @@ begin
   delete from public.guests where id = p_guest;
   return jsonb_build_object('attendance', v_att, 'charges', v_ch, 'total', 1500 + v_left * 350);
 end $$;
+
+-- =====================================================================
+-- v56: Yeni üye aidatında düşülen sayı, misafirken katıldığı toplantı değil üye alındığı toplantının
+--      numarasıdır: 1000 + 500 + (24 - üye alındığı toplantı no) x 350
+-- =====================================================================
+create or replace function public.convert_guest(p_guest uuid, p_member uuid, p_joined date)
+returns jsonb language plpgsql security definer set search_path = public as $$
+declare v_att int := 0; v_ch int := 0; v_first uuid; g public.guests%rowtype; v_blood text; v_term uuid; v_x int := 0; v_left int := 0;
+begin
+  if not public.is_admin() then raise exception 'Üye almak için Başkan yetkisi gerekiyor'; end if;
+  select * into g from public.guests where id = p_guest;
+  if not found then raise exception 'Misafir bulunamadı'; end if;
+  if not exists (select 1 from public.profiles where id = p_member) then raise exception 'Üye profili bulunamadı'; end if;
+  insert into public.attendance (meeting_id, member_id, status, note)
+    select ga.meeting_id, p_member, ga.status, ga.note from public.guest_attendance ga where ga.guest_id = p_guest
+  on conflict (meeting_id, member_id) do nothing;
+  get diagnostics v_att = row_count;
+  select m.id into v_first from public.guest_attendance ga join public.meetings m on m.id = ga.meeting_id
+   where ga.guest_id = p_guest order by m.date nulls last, m.term_no limit 1;
+  if v_first is null then
+    select m.id into v_first from public.meetings m where m.date >= p_joined order by m.date, m.term_no limit 1;
+  end if;
+  update public.profiles set joined_at = p_joined, start_meeting_id = coalesce(v_first, start_meeting_id),
+    photo_url  = coalesce(nullif(photo_url, ''), g.photo_url),
+    birth_date = coalesce(birth_date, g.birth_date),
+    profession = coalesce(nullif(profession, ''), g.profession),
+    instagram  = coalesce(nullif(instagram, ''), g.instagram)
+  where id = p_member;
+  select blood_type into v_blood from public.guest_private where guest_id = p_guest;
+  if coalesce(v_blood, '') <> '' then
+    insert into public.profile_private (member_id, blood_type) values (p_member, v_blood)
+    on conflict (member_id) do update set blood_type = coalesce(nullif(profile_private.blood_type, ''), excluded.blood_type);
+  end if;
+  -- Yeni üye aidatı: 1000 bölge katkı payı + 500 Uluslararası Rotary + (24 - üye alındığı toplantının numarası) x 350
+  select t.id into v_term from public.terms t where t.is_current limit 1;
+  if v_term is null then raise exception 'Güncel dönem bulunamadı'; end if;
+  -- Üye alındığı toplantının numarası: üyelik tarihine kadarki (o gün dahil) son toplantı
+  select coalesce(max(m.term_no), 0) into v_x from public.meetings m where m.term_id = v_term and m.date <= p_joined;
+  v_left := greatest(24 - v_x, 0);
+  insert into public.dues (term_id, label, amount, kind) values
+    (v_term, 'Yeni üye: Bölge katkı payı', 1000, 'yeni_bolge'),
+    (v_term, 'Yeni üye: Uluslararası Rotary aidatı', 500, 'yeni_rotary'),
+    (v_term, 'Yeni üye: Kalan toplantı ücreti', 350, 'yeni_toplanti')
+  on conflict (term_id, kind) where kind is not null do nothing;
+  insert into public.charges (due_id, member_id, amount, note)
+    select d.id, p_member,
+      case d.kind when 'yeni_toplanti' then v_left * 350 else d.amount end,
+      case d.kind when 'yeni_toplanti' then format('24 − %s = %s toplantı × 350 TL (%s. toplantıda üye)', v_x, v_left, v_x) end
+    from public.dues d where d.term_id = v_term and d.kind in ('yeni_bolge','yeni_rotary','yeni_toplanti')
+      and not (d.kind = 'yeni_toplanti' and v_left = 0)
+  on conflict (due_id, member_id) do nothing;
+  get diagnostics v_ch = row_count;
+  delete from public.guests where id = p_guest;
+  return jsonb_build_object('attendance', v_att, 'charges', v_ch, 'total', 1500 + v_left * 350);
+end $$;

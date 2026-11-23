@@ -1,6 +1,6 @@
-import * as BP from "./board-plan.js?v=202611231406";
-import { createStore, trDate, guestAsMe, newMemberFee } from "./store.js?v=202611231406";
-import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611231406";
+import * as BP from "./board-plan.js?v=202611231411";
+import { createStore, trDate, guestAsMe, newMemberFee } from "./store.js?v=202611231411";
+import { can, hasRole, ROLE_LABELS, ROLE_GROUPS, panelOwners, hasAnyRole } from "./roles.js?v=202611231411";
 
 const app = document.getElementById("app");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -1126,8 +1126,8 @@ async function editGuest(g) {
 async function convertGuestDialog(g, cameCount) {
   if (!g) return;
   const dlg = document.getElementById("dlg");
-  const fee = newMemberFee(cameCount);
-  const feeHtml = `<ul class="fee-list">${fee.items.map(x => `<li><span>${esc(x.label)}${x.note ? `<small class="muted">${esc(x.note)}</small>` : ""}</span><b>${TL(x.amount)}</b></li>`).join("")}<li class="sum"><span>Toplam</span><b>${TL(fee.total)}</b></li></ul>`;
+  const meetings = await store.listMeetings().catch(() => []);
+  const feeHtml = d => { const fee = newMemberFee(meetings, d); return `<ul class="fee-list">${fee.items.map(x => `<li><span>${esc(x.label)}${x.note ? `<small class="muted">${esc(x.note)}</small>` : ""}</span><b>${TL(x.amount)}</b></li>`).join("")}<li class="sum"><span>Toplam</span><b>${TL(fee.total)}</b></li></ul>`; };
   dlg.innerHTML = `<form method="dialog" class="conv-form"><h2>${esc(g.full_name)} üye olarak alınsın</h2>
     <p class="muted" style="margin:0 0 12px">Misafir listesinden çıkar ve üye listesine eklenir. Panel hesabı için e-posta adresine davet gider.</p>
     <div class="grid g2">
@@ -1137,13 +1137,14 @@ async function convertGuestDialog(g, cameCount) {
       <label class="f">Telefon<input type="tel" name="phone" value="${esc(g.phone || "")}"></label>
     </div>
     <div class="conv-sum">
-      <p><b>Yeni üye aidatı</b></p>${feeHtml}
+      <p><b>Yeni üye aidatı</b></p><div id="conv-fee">${feeHtml(today())}</div>
       <p><b>Devam:</b> ${cameCount ? `Misafir olarak geldiği ${cameCount} toplantı devamına aktarılacak.` : "Misafir olarak kayıtlı devamı yok; devam oranı üyelik tarihinden sonraki ilk toplantıdan başlar."}</p>
     </div>
     <div class="row"><button class="btn" value="ok">Üye al</button><button class="btn ghost" value="cancel" formnovalidate>Vazgeç</button></div>
   </form>`;
   if (!dlg.open) dlg.showModal();
   const form = dlg.querySelector("form");
+  form.joined_at.oninput = () => { if (form.joined_at.value) dlg.querySelector("#conv-fee").innerHTML = feeHtml(form.joined_at.value); };
   form.onsubmit = async e => {
     if (e.submitter?.value !== "ok") return;
     e.preventDefault();
@@ -2014,7 +2015,7 @@ async function viewSite(v) {
 async function viewInstagram(v) {
   v.innerHTML = header("Instagram paylaşımı", "Fotoğrafı sürükle, türü seç, bilgileri gir; görsel ve açıklama hazırlansın.") + roBanner("instagram") +
     (store.mode === "demo" ? `<div class="banner info">Demo modunda Instagram'a doğrudan paylaşım ve yapay zekâ kapalı. Görseli indirip açıklamayı kopyalayabilirsin. Gerçek paylaşım için kurulum rehberine bak.</div>` : "") + `<div id="composer"></div>`;
-  const { mountComposer } = await import("./composer.js?v=202611231406");
+  const { mountComposer } = await import("./composer.js?v=202611231411");
   composerInst = mountComposer(document.getElementById("composer"), { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "instagram", "edit") });
 }
 
@@ -2023,7 +2024,7 @@ async function viewInstagram(v) {
 async function viewLetter(v) {
   const id = route[0] || null;
   v.innerHTML = (id ? "" : header("Başkan Mektubu", "İki ayda bir yayımlanan mektubu hazırla, PDF olarak indir ve sitede yayımla.")) + roBanner("mektup") + `<div id="letter"></div>`;
-  const { mountLetterEditor } = await import("./letter-editor.js?v=202611231406");
+  const { mountLetterEditor } = await import("./letter-editor.js?v=202611231411");
   const host = document.getElementById("letter");
   if (!host || !v.isConnected) return;
   letterInst = mountLetterEditor(host, { store, me, toast: (m, k) => toast(esc(m), k === "error" ? "bad" : ""), readOnly: !can(me, "mektup", "edit"), letterId: id });

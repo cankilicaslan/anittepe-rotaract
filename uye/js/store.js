@@ -1,8 +1,8 @@
 // Veri katmanı. Aynı arayüzün iki uygulaması var:
 //  - demo: localStorage (yalnızca bu tarayıcı, güvenlik yok, denemek için)
 //  - supabase: gerçek kimlik doğrulama + Postgres RLS (asıl yetki sınırı orada)
-import { CONFIG } from "./config.js?v=202611231406";
-import { can, hasRole, hasAnyRole } from "./roles.js?v=202611231406";
+import { CONFIG } from "./config.js?v=202611231411";
+import { can, hasRole, hasAnyRole } from "./roles.js?v=202611231411";
 
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : "id-" + Math.random().toString(36).slice(2) + Date.now().toString(36));
 // Yerel tarih (toISOString UTC verir; Türkiye UTC+3 olduğu için gece 03.00'ten önce bir önceki günü döndürürdü).
@@ -26,11 +26,13 @@ function genitive(name) {
   return `${name.trim()}’${vowels.includes(w.slice(-1)) ? "n" : ""}${v}n`;
 }
 
-// Yeni üye aidatı: 1000 + 500 + (24 − misafirken katıldığı toplantı) × 350 (sunucudaki karşılığı: convert_guest, v55)
-export function newMemberFee(came) {
-  const left = Math.max(24 - (came || 0), 0);
+// Yeni üye aidatı: 1000 + 500 + (24 − üye alındığı toplantının numarası) × 350 (sunucudaki karşılığı: convert_guest, v56)
+// Üye alındığı toplantı: üyelik tarihine kadarki (o gün dahil) son toplantı.
+export function newMemberFee(meetings, joined) {
+  const no = Math.max(0, ...(meetings || []).filter(m => m.date <= joined).map(m => m.term_no));
+  const left = Math.max(24 - no, 0);
   const items = [{ kind: "yeni_bolge", label: "Bölge katkı payı", amount: 1000 }, { kind: "yeni_rotary", label: "Uluslararası Rotary aidatı", amount: 500 },
-    { kind: "yeni_toplanti", label: "Kalan toplantı ücreti", amount: left * 350, note: `24 − ${came || 0} = ${left} toplantı × 350 TL` }];
+    { kind: "yeni_toplanti", label: "Kalan toplantı ücreti", amount: left * 350, note: `24 − ${no} = ${left} toplantı × 350 TL (${no}. toplantıda üye)` }];
   return { items, left, total: items.reduce((s, x) => s + x.amount, 0) };
 }
 // Misafir hesabı: panelde üyelerin gördüğünü görür ama görevi yoktur; her yerde "Misafir" olarak görünür.
@@ -389,7 +391,7 @@ function demoStore() {
       const firstMeet = atts.map(a => S.meetings.find(m => m.id === a.meeting_id)).filter(Boolean).sort((x, y) => String(x.date).localeCompare(String(y.date)))[0]
         || S.meetings.filter(m => m.date >= joined_at).sort((x, y) => String(x.date).localeCompare(String(y.date)))[0];
       const prof = S.profiles.find(x => x.id === p.id); prof.joined_at = joined_at; if (firstMeet) prof.start_meeting_id = firstMeet.id;
-      const items = newMemberFee(atts.filter(a => a.status === "geldi").length).items.filter(x => x.amount > 0);
+      const items = newMemberFee(S.meetings.filter(m => (m.term_id || S.term.id) === S.term.id), joined_at).items.filter(x => x.amount > 0);
       items.forEach(x => {
         let d = S.dues.find(y => y.kind === x.kind && (y.term_id || S.term.id) === S.term.id);
         if (!d) S.dues.push(d = { id: uid(), term_id: S.term.id, label: "Yeni üye: " + x.label, period: null, amount: x.kind === "yeni_toplanti" ? 350 : x.amount, due_date: null, kind: x.kind, created_at: new Date().toISOString() });
